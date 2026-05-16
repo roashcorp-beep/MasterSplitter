@@ -3,40 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MasterSplitter 🐢 - התחברות</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800;900&display=swap" rel="stylesheet">
+    <title>MasterSplitter - התחברות</title>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
-<body>
-    <div class="app-container">
-        <!-- Graphic Header Area matching Mockup -->
-        <div class="login-header-area">
+<body class="login-body">
+    <div class="login-page-wrapper">
+
+        <!-- Floating brand area -->
+        <div class="login-brand">
             <h1 class="brand-title">
-                <span class="purple-text">MASTER</span><br>
+                <span class="purple-text">MASTER</span>
                 <span class="dark-text">SPLITTER</span>
             </h1>
-            <div class="tagline-highlight">SPLIT. TRACK. CONQUER.</div>
         </div>
 
+        <!-- White floating card -->
         <div class="login-card">
-            <h2 class="welcome-text" id="welcome-title">ברוך הבא!</h2>
-            <p class="welcome-sub" id="welcome-sub">התחבר כדי להמשיך ולנהל את ההוצאות שלך</p>
+            <h2 class="welcome-text" id="welcome-title">ברוך הבא! 👋</h2>
+            <p class="welcome-sub" id="welcome-sub">התחבר כדי לנהל את ההוצאות שלך</p>
 
             <div id="auth-form">
-                <div class="form-group" id="group-username">
-                    <label for="username">שם משתמש</label>
-                    <div class="input-wrapper">
+                <div class="form-group">
+                    <div class="floating-input-wrapper">
                         <span class="input-icon">👤</span>
-                        <input type="text" id="username" placeholder="הכנס שם משתמש">
+                        <input type="text" id="username" placeholder=" " required autocomplete="username">
+                        <label for="username">שם משתמש</label>
                     </div>
                 </div>
-                
+
                 <div class="form-group">
-                    <label for="password">סיסמה</label>
-                    <div class="input-wrapper">
+                    <div class="floating-input-wrapper">
                         <span class="input-icon">🔒</span>
-                        <input type="password" id="password" placeholder="הכנס סיסמה">
-                        <span class="input-icon-right">👁️‍🗨️</span>
+                        <input type="password" id="password" placeholder=" " required autocomplete="current-password">
+                        <label for="password">סיסמה</label>
                     </div>
                 </div>
 
@@ -47,23 +47,23 @@
                     </label>
                     <a href="#" class="forgot-pwd">שכחת סיסמה?</a>
                 </div>
-                
+
                 <button class="primary-btn full-width" id="submit-btn" onclick="submitAuth()">התחבר</button>
-                
+
                 <div class="divider">או</div>
 
                 <button class="secondary-btn full-width" id="toggle-auth-btn" onclick="toggleAuthMode()">צור חשבון חדש</button>
 
                 <button class="google-btn full-width" onclick="alert('התחברות עם Google תתווסף בקרוב!')">
                     <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google Logo" width="20" height="20">
-                    התחבר עם Google
+                    כניסה עם Google
                 </button>
             </div>
-            
+
             <div class="error-message" id="error-msg"></div>
         </div>
-    </div>
 
+    </div>
     <script src="/static/js/main.js"></script>
 </body>
 </html>

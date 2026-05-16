@@ -3,42 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MasterSplitter 🐢</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800;900&display=swap" rel="stylesheet">
+    <title>MasterSplitter</title>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
+<div class="app-container">
 
-    <div class="app-container">
-        
-        <div class="app-header">
-            <button class="icon-btn">☰</button>
+    <!-- ================ LOBBY VIEW ================ -->
+    <div id="lobby-view">
+        <div class="lobby-header">
             <h1 class="header-brand"><span class="purple-text">MASTER</span><span class="dark-text">SPLITTER</span></h1>
-            <div style="display: flex; align-items: center; position: relative;">
-                <button class="icon-btn notification-btn">🔔<span class="badge">3</span></button>
-                <button class="logout-btn icon-btn" onclick="logout()" title="התנתק" style="margin-right: 10px;">⎋</button>
+            <button class="icon-btn logout-btn" onclick="logout()" title="התנתק">⎋</button>
+        </div>
+
+        <div class="lobby-content">
+            <div class="lobby-greeting">
+                <p class="lobby-sub">שלום, <strong id="lobby-username">...</strong> 👋</p>
+                <h2>הטיולים שלי</h2>
+            </div>
+
+            <div id="trips-list" class="trips-list">
+                <!-- Trip cards injected by JS -->
+                <div class="empty-state">
+                    <span style="font-size:3rem">🌍</span>
+                    <p>אין טיולים עדיין. צור טיול חדש!</p>
+                </div>
+            </div>
+
+            <!-- Create Trip Card -->
+            <div class="card create-trip-card">
+                <h3 class="screen-title">+ צור טיול חדש</h3>
+
+                <div class="form-group">
+                    <label>שם הטיול / יעד</label>
+                    <input type="text" id="new-trip-name" placeholder="למשל: תאילנד, פריז...">
+                </div>
+
+                <div class="form-group">
+                    <label>תקציב (₪)</label>
+                    <input type="number" id="new-trip-budget" placeholder="0" min="0">
+                </div>
+
+                <div class="form-group">
+                    <label>הוסף חברים לטיול</label>
+                    <div class="friend-add-row">
+                        <input type="text" id="friend-name-input" placeholder="שם החבר/ה">
+                        <button class="add-friend-btn" onclick="addFriendToList()">+</button>
+                    </div>
+                    <div id="friends-chips" class="friends-chips"></div>
+                </div>
+
+                <button class="primary-btn full-width" onclick="createTrip()">צור טיול</button>
             </div>
         </div>
-        
+    </div>
+
+    <!-- ================ DASHBOARD VIEW ================ -->
+    <div id="dashboard-view" style="display:none; flex-direction:column; height:100%;">
+
+        <!-- Slide-out hamburger menu overlay -->
+        <div id="menu-overlay" class="menu-overlay" onclick="closeHamburgerMenu()"></div>
+        <div id="hamburger-menu" class="hamburger-menu">
+            <div class="hamburger-menu-header">
+                <h3 class="header-brand"><span class="purple-text">MASTER</span><span class="dark-text">SPLITTER</span></h3>
+            </div>
+            <div class="hamburger-menu-body">
+                <button class="menu-item" onclick="goToLobby()">🌍 הטיולים שלי</button>
+                <button class="menu-item" onclick="switchTab('home'); closeHamburgerMenu()">🏠 דשבורד</button>
+                <button class="menu-item" onclick="switchTab('balances'); closeHamburgerMenu()">📊 יתרות</button>
+                <div class="menu-divider"></div>
+                <button class="menu-item danger" onclick="logout()">⎋ התנתק</button>
+            </div>
+        </div>
+
+        <div class="app-header">
+            <button class="icon-btn" onclick="openHamburgerMenu()">☰</button>
+            <h1 class="header-brand" id="dashboard-trip-title"><span class="purple-text">MASTER</span><span class="dark-text">SPLITTER</span></h1>
+            <div style="display: flex; align-items: center; gap: 4px;">
+                <button class="icon-btn notification-btn">🔔<span class="badge">!</span></button>
+            </div>
+        </div>
+
         <div id="toast" class="toast-msg">הפעולה בוצעה בהצלחה!</div>
 
         <div class="app-content">
-            
+
             <div id="screen-home" class="screen active">
                 <div class="trip-banner card">
                     <div class="trip-banner-content">
                         <div class="trip-info">
                             <span class="trip-icon">✈️</span>
                             <div class="trip-details">
-                                <select id="trip-selector" class="trip-select" onchange="loadTripData()"></select>
-                                <span class="trip-dates">2024 במאי 26 - במאי 1</span>
+                                <span class="trip-select-label" id="trip-name-label">טיול</span>
+                                <span class="trip-dates" id="trip-participants-label">טוען...</span>
                             </div>
                         </div>
-                        <div class="trip-participants">
-                            <div class="avatar bg-yellow">א</div>
-                            <div class="avatar bg-purple">ב</div>
-                            <div class="avatar bg-light">+2</div>
-                        </div>
+                        <div class="trip-participants" id="trip-avatars"></div>
                     </div>
                 </div>
 
@@ -46,65 +107,31 @@
                     <div class="budget-main">
                         <div class="stat-col text-right">
                             <span class="budget-label">סה"כ תקציב</span>
-                            <strong class="budget-value dark-text" id="total-budget">$2,500</strong>
+                            <strong class="budget-value dark-text" id="total-budget">₪0</strong>
                         </div>
-                        
                         <div class="budget-circle-wrapper">
                             <div class="budget-circle-new">
-                                <span class="circle-percent">63%</span>
+                                <span class="circle-percent" id="circle-percent">0%</span>
                                 <span class="circle-label">הוצא</span>
                             </div>
                         </div>
-                        
                         <div class="stat-col text-left">
                             <span class="budget-label">הוצא</span>
-                            <strong class="budget-value dark-text" id="total-spent">$1,575</strong>
+                            <strong class="budget-value dark-text" id="total-spent">₪0</strong>
                             <div style="margin-top: 10px;"></div>
                             <span class="budget-label">נותר</span>
-                            <strong class="budget-value purple-text" id="budget-left">$925</strong>
-                        </div>
-                    </div>
-
-                    <div class="budget-bars">
-                        <div class="bar-group">
-                            <div class="bar-header">
-                                <span class="budget-label">תקציב יומי</span>
-                            </div>
-                            <div class="bar-value-row">
-                                <strong class="bar-value">$125</strong>
-                                <span class="bar-suffix">/ יום</span>
-                            </div>
-                            <div class="progress-bar-container">
-                                <div class="progress-bar bg-purple" style="width: 55%;"></div>
-                            </div>
-                            <span class="bar-footer">היום: $68</span>
-                        </div>
-                        
-                        <div class="bar-group">
-                            <div class="bar-header">
-                                <span class="budget-label">תקציב שבועי</span>
-                            </div>
-                            <div class="bar-value-row">
-                                <strong class="bar-value">$875</strong>
-                                <span class="bar-suffix">/ שבוע</span>
-                            </div>
-                            <div class="progress-bar-container">
-                                <div class="progress-bar bg-yellow" style="width: 48%;"></div>
-                            </div>
-                            <span class="bar-footer">השבוע: $420</span>
+                            <strong class="budget-value purple-text" id="budget-left">₪0</strong>
                         </div>
                     </div>
                 </div>
 
                 <div class="recent-expenses-header">
                     <h3>הוצאות אחרונות</h3>
-                    <a href="#" class="view-all-link" onclick="switchTab('expenses')">הצג הכל</a>
+                    <a href="#" class="view-all-link" onclick="switchTab('expenses'); return false;">הצג הכל</a>
                 </div>
-                
                 <div class="card expenses-list-card">
                     <div id="home-expenses-list">
-                        <!-- Populated by JS -->
-                        <div style="text-align: center; padding: 20px; color: var(--text-sec); font-weight: bold;">טוען הוצאות...</div>
+                        <div class="loading-state">טוען...</div>
                     </div>
                 </div>
             </div>
@@ -112,23 +139,18 @@
             <div id="screen-expenses" class="screen">
                 <div class="card">
                     <h3 class="screen-title">כל ההוצאות</h3>
-                    <div id="expenses-list">
-                        <div style="text-align: center; padding: 20px; color: var(--text-sec); font-weight: bold;">טוען הוצאות...</div>
-                    </div>
+                    <div id="expenses-list"><div class="loading-state">טוען...</div></div>
                 </div>
             </div>
 
             <div id="screen-add" class="screen">
                 <div class="card">
                     <h3 class="screen-title">הוספת הוצאה</h3>
-
                     <label>על מה היה?</label>
                     <input type="text" id="desc" placeholder="למשל: ארוחת ערב, מונית...">
-
-                    <label>סכום</label>
+                    <label style="margin-top:16px;">סכום (₪)</label>
                     <input type="number" id="amount" placeholder="0" min="0" step="0.01">
-
-                    <label>קטגוריה</label>
+                    <label style="margin-top:16px;">קטגוריה</label>
                     <select id="category">
                         <option value="אוכל">🍕 אוכל</option>
                         <option value="לינה">🛏️ לינה</option>
@@ -136,12 +158,8 @@
                         <option value="אטרקציות">🎟️ אטרקציות</option>
                         <option value="כללי" selected>💡 כללי</option>
                     </select>
-
-                    <label>עבור מי?</label>
-                    <div class="checkbox-grid" id="participants-container">
-                        <!-- Populated by JS from trip members -->
-                    </div>
-
+                    <label style="margin-top:16px;">עבור מי?</label>
+                    <div class="checkbox-grid" id="participants-container"></div>
                     <button class="primary-btn full-width" style="margin-top:20px;" onclick="addExpense()">שמור הוצאה</button>
                 </div>
             </div>
@@ -149,17 +167,14 @@
             <div id="screen-balances" class="screen">
                 <div class="card">
                     <h3 class="screen-title">סיכומים ויתרות</h3>
-                    <div id="balances-list">
-                    </div>
+                    <div id="balances-list"></div>
                 </div>
             </div>
-            
+
             <div id="screen-more" class="screen">
                 <div class="card">
-                    <h3 class="screen-title">פרופיל הגדרות</h3>
-                    <p style="text-align: center; color: var(--text-sec); font-weight: bold; margin-top: 20px;">
-                        מסך הגדרות ופרופיל יתווסף בהמשך.
-                    </p>
+                    <h3 class="screen-title">פרופיל</h3>
+                    <p style="text-align:center; color:var(--text-sec); margin-top:20px;">מסך פרופיל יתווסף בקרוב.</p>
                 </div>
             </div>
 
@@ -167,31 +182,25 @@
 
         <div class="bottom-nav">
             <button class="nav-item active" onclick="switchTab('home')" id="tab-home">
-                <span class="nav-icon">🏠</span>
-                <span>בית</span>
+                <span class="nav-icon">🏠</span><span>בית</span>
             </button>
             <button class="nav-item" onclick="switchTab('expenses')" id="tab-expenses">
-                <span class="nav-icon">🧾</span>
-                <span>הוצאות</span>
+                <span class="nav-icon">🧾</span><span>הוצאות</span>
             </button>
             <div class="nav-add-btn-wrapper">
-                <button class="nav-add-btn" onclick="switchTab('add')" id="tab-add">
-                    +
-                </button>
-                <span class="nav-add-label">הוסף הוצאה</span>
+                <button class="nav-add-btn" onclick="switchTab('add')" id="tab-add">+</button>
+                <span class="nav-add-label">הוסף</span>
             </div>
             <button class="nav-item" onclick="switchTab('balances')" id="tab-balances">
-                <span class="nav-icon">📊</span>
-                <span>סיכומים</span>
+                <span class="nav-icon">📊</span><span>סיכומים</span>
             </button>
             <button class="nav-item" onclick="switchTab('more')" id="tab-more">
-                <span class="nav-icon">👤</span>
-                <span>פרופיל</span>
+                <span class="nav-icon">👤</span><span>פרופיל</span>
             </button>
         </div>
-
     </div>
 
-    <script src="/static/js/main.js"></script>
+</div>
+<script src="/static/js/main.js"></script>
 </body>
 </html>

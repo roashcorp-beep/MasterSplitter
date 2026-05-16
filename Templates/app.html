@@ -12,10 +12,11 @@
     <div class="app-container">
         
         <div class="app-header">
-            <h1>MasterSplitter 🐢</h1>
-            <div style="display: flex; align-items: center;">
-                <select id="trip-selector" class="trip-select" onchange="loadTripData()"></select>
-                <button class="logout-btn" onclick="logout()" title="התנתק">⎋</button>
+            <button class="icon-btn">☰</button>
+            <h1 class="header-brand"><span class="purple-text">MASTER</span><span class="dark-text">SPLITTER</span></h1>
+            <div style="display: flex; align-items: center; position: relative;">
+                <button class="icon-btn notification-btn">🔔<span class="badge">3</span></button>
+                <button class="logout-btn icon-btn" onclick="logout()" title="התנתק" style="margin-right: 10px;">⎋</button>
             </div>
         </div>
         
@@ -24,28 +25,93 @@
         <div class="app-content">
             
             <div id="screen-home" class="screen active">
-                <div class="card">
-                    <h3>תקציב הטיול</h3>
-                    <div class="budget-circle">
-                        <span class="budget-label">הוצאנו</span>
-                        <span class="budget-amount" id="total-spent">₪0</span>
+                <div class="trip-banner card">
+                    <div class="trip-banner-content">
+                        <div class="trip-info">
+                            <span class="trip-icon">✈️</span>
+                            <div class="trip-details">
+                                <select id="trip-selector" class="trip-select" onchange="loadTripData()"></select>
+                                <span class="trip-dates">2024 במאי 26 - במאי 1</span>
+                            </div>
+                        </div>
+                        <div class="trip-participants">
+                            <div class="avatar bg-yellow">א</div>
+                            <div class="avatar bg-purple">ב</div>
+                            <div class="avatar bg-light">+2</div>
+                        </div>
                     </div>
-                    <div class="budget-stats">
-                        <div class="stat-box">
-                            <span class="budget-label">תקציב</span><br>
-                            <strong style="color: var(--text-main);" id="total-budget">₪0</strong>
+                </div>
+
+                <div class="card budget-card">
+                    <div class="budget-main">
+                        <div class="stat-col text-right">
+                            <span class="budget-label">סה"כ תקציב</span>
+                            <strong class="budget-value dark-text" id="total-budget">$2,500</strong>
                         </div>
-                        <div class="stat-box">
-                            <span class="budget-label">נותר</span><br>
-                            <strong style="color: var(--primary);" id="budget-left">₪0</strong>
+                        
+                        <div class="budget-circle-wrapper">
+                            <div class="budget-circle-new">
+                                <span class="circle-percent">63%</span>
+                                <span class="circle-label">הוצא</span>
+                            </div>
                         </div>
+                        
+                        <div class="stat-col text-left">
+                            <span class="budget-label">הוצא</span>
+                            <strong class="budget-value dark-text" id="total-spent">$1,575</strong>
+                            <div style="margin-top: 10px;"></div>
+                            <span class="budget-label">נותר</span>
+                            <strong class="budget-value purple-text" id="budget-left">$925</strong>
+                        </div>
+                    </div>
+
+                    <div class="budget-bars">
+                        <div class="bar-group">
+                            <div class="bar-header">
+                                <span class="budget-label">תקציב יומי</span>
+                            </div>
+                            <div class="bar-value-row">
+                                <strong class="bar-value">$125</strong>
+                                <span class="bar-suffix">/ יום</span>
+                            </div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar bg-purple" style="width: 55%;"></div>
+                            </div>
+                            <span class="bar-footer">היום: $68</span>
+                        </div>
+                        
+                        <div class="bar-group">
+                            <div class="bar-header">
+                                <span class="budget-label">תקציב שבועי</span>
+                            </div>
+                            <div class="bar-value-row">
+                                <strong class="bar-value">$875</strong>
+                                <span class="bar-suffix">/ שבוע</span>
+                            </div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar bg-yellow" style="width: 48%;"></div>
+                            </div>
+                            <span class="bar-footer">השבוע: $420</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="recent-expenses-header">
+                    <h3>הוצאות אחרונות</h3>
+                    <a href="#" class="view-all-link" onclick="switchTab('expenses')">הצג הכל</a>
+                </div>
+                
+                <div class="card expenses-list-card">
+                    <div id="home-expenses-list">
+                        <!-- Populated by JS -->
+                        <div style="text-align: center; padding: 20px; color: var(--text-sec); font-weight: bold;">טוען הוצאות...</div>
                     </div>
                 </div>
             </div>
 
             <div id="screen-expenses" class="screen">
                 <div class="card">
-                    <h3>רשימת הוצאות</h3>
+                    <h3 class="screen-title">כל ההוצאות</h3>
                     <div id="expenses-list">
                         <div style="text-align: center; padding: 20px; color: var(--text-sec); font-weight: bold;">טוען הוצאות...</div>
                     </div>
@@ -54,20 +120,12 @@
 
             <div id="screen-add" class="screen">
                 <div class="card">
-                    <h3>הוספת הוצאה</h3>
-                    
-                    <label>מי שילם?</label>
-                    <select id="payer">
-                        <option value="Avi">אבי</option>
-                        <option value="Alon">אלון</option>
-                        <option value="Shlomi">שלומי</option>
-                        <option value="Yonatan">יונתן</option>
-                    </select>
+                    <h3 class="screen-title">הוספת הוצאה</h3>
 
                     <label>על מה היה?</label>
-                    <input type="text" id="desc" placeholder="למשל: פיצה, מונית...">
+                    <input type="text" id="desc" placeholder="למשל: ארוחת ערב, מונית...">
 
-                    <label>סכום (₪)</label>
+                    <label>סכום</label>
                     <input type="number" id="amount" placeholder="0" min="0" step="0.01">
 
                     <label>קטגוריה</label>
@@ -81,19 +139,16 @@
 
                     <label>עבור מי?</label>
                     <div class="checkbox-grid" id="participants-container">
-                        <label class="checkbox-label"><input type="checkbox" value="Avi" checked> אבי</label>
-                        <label class="checkbox-label"><input type="checkbox" value="Alon" checked> אלון</label>
-                        <label class="checkbox-label"><input type="checkbox" value="Shlomi" checked> שלומי</label>
-                        <label class="checkbox-label"><input type="checkbox" value="Yonatan" checked> יונתן</label>
+                        <!-- Populated by JS from trip members -->
                     </div>
 
-                    <button class="primary-btn" onclick="addExpense()">שמור הוצאה</button>
+                    <button class="primary-btn full-width" style="margin-top:20px;" onclick="addExpense()">שמור הוצאה</button>
                 </div>
             </div>
 
             <div id="screen-balances" class="screen">
                 <div class="card">
-                    <h3>מי חייב למי?</h3>
+                    <h3 class="screen-title">סיכומים ויתרות</h3>
                     <div id="balances-list">
                     </div>
                 </div>
@@ -101,7 +156,7 @@
             
             <div id="screen-more" class="screen">
                 <div class="card">
-                    <h3>עוד אפשרויות</h3>
+                    <h3 class="screen-title">פרופיל הגדרות</h3>
                     <p style="text-align: center; color: var(--text-sec); font-weight: bold; margin-top: 20px;">
                         מסך הגדרות ופרופיל יתווסף בהמשך.
                     </p>
@@ -123,14 +178,15 @@
                 <button class="nav-add-btn" onclick="switchTab('add')" id="tab-add">
                     +
                 </button>
+                <span class="nav-add-label">הוסף הוצאה</span>
             </div>
             <button class="nav-item" onclick="switchTab('balances')" id="tab-balances">
                 <span class="nav-icon">📊</span>
-                <span>דוחות</span>
+                <span>סיכומים</span>
             </button>
             <button class="nav-item" onclick="switchTab('more')" id="tab-more">
-                <span class="nav-icon">⚙️</span>
-                <span>עוד</span>
+                <span class="nav-icon">👤</span>
+                <span>פרופיל</span>
             </button>
         </div>
 

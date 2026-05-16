@@ -4,44 +4,64 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>MasterSplitter 🐢 - התחברות</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-
     <div class="app-container">
-        <div class="logo-area">
-            <h1>MasterSplitter 🐢</h1>
-            <p>פשוט לטייל. קל לחלק.</p>
+        <!-- Graphic Header Area matching Mockup -->
+        <div class="login-header-area">
+            <h1 class="brand-title">
+                <span class="purple-text">MASTER</span><br>
+                <span class="dark-text">SPLITTER</span>
+            </h1>
+            <div class="tagline-highlight">SPLIT. TRACK. CONQUER.</div>
         </div>
 
-        <!-- Toggle for Login / Signup -->
-        <div class="auth-toggle">
-            <button id="toggle-login" class="active" onclick="setAuthMode('login')">התחברות</button>
-            <button id="toggle-signup" onclick="setAuthMode('signup')">הרשמה</button>
-        </div>
+        <div class="login-card">
+            <h2 class="welcome-text" id="welcome-title">ברוך הבא!</h2>
+            <p class="welcome-sub" id="welcome-sub">התחבר כדי להמשיך ולנהל את ההוצאות שלך</p>
 
-        <div id="auth-form">
-            <div class="form-group" id="group-username">
-                <label for="username">שם משתמש</label>
-                <input type="text" id="username" placeholder="למשל: אבי, אלון...">
+            <div id="auth-form">
+                <div class="form-group" id="group-username">
+                    <label for="username">שם משתמש</label>
+                    <div class="input-wrapper">
+                        <span class="input-icon">👤</span>
+                        <input type="text" id="username" placeholder="הכנס שם משתמש">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">סיסמה</label>
+                    <div class="input-wrapper">
+                        <span class="input-icon">🔒</span>
+                        <input type="password" id="password" placeholder="הכנס סיסמה">
+                        <span class="input-icon-right">👁️‍🗨️</span>
+                    </div>
+                </div>
+
+                <div class="form-options">
+                    <label class="remember-me">
+                        <input type="checkbox" checked>
+                        <span>זכור אותי</span>
+                    </label>
+                    <a href="#" class="forgot-pwd">שכחת סיסמה?</a>
+                </div>
+                
+                <button class="primary-btn full-width" id="submit-btn" onclick="submitAuth()">התחבר</button>
+                
+                <div class="divider">או</div>
+
+                <button class="secondary-btn full-width" id="toggle-auth-btn" onclick="toggleAuthMode()">צור חשבון חדש</button>
+
+                <button class="google-btn full-width" onclick="alert('התחברות עם Google תתווסף בקרוב!')">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google Logo" width="20" height="20">
+                    התחבר עם Google
+                </button>
             </div>
             
-            <div class="form-group">
-                <label for="password">סיסמה</label>
-                <input type="password" id="password" placeholder="הכנס סיסמה">
-            </div>
-            
-            <button class="login-btn" id="submit-btn" onclick="submitAuth()">היכנס</button>
-            
-            <div class="divider">או</div>
-
-            <button class="google-btn" onclick="alert('התחברות עם Google תתווסף בקרוב!')">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google Logo" width="20" height="20">
-                התחבר עם Google
-            </button>
+            <div class="error-message" id="error-msg"></div>
         </div>
-        
-        <div class="error-message" id="error-msg"></div>
     </div>
 
     <script src="/static/js/main.js"></script>

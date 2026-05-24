@@ -136,8 +136,31 @@ def init_db_updates():
         if 'email' not in cols:
             cursor.execute("ALTER TABLE Users ADD COLUMN email TEXT")
             logger.info("Migration: added 'email' column to Users")
+        if 'phone' not in cols:
+            cursor.execute("ALTER TABLE Users ADD COLUMN phone TEXT UNIQUE")
+            logger.info("Migration: added 'phone' column to Users")
+        if 'is_verified' not in cols:
+            cursor.execute("ALTER TABLE Users ADD COLUMN is_verified INTEGER DEFAULT 0")
+            logger.info("Migration: added 'is_verified' column to Users")
+        if 'verification_token' not in cols:
+            cursor.execute("ALTER TABLE Users ADD COLUMN verification_token TEXT")
+            logger.info("Migration: added 'verification_token' column to Users")
     except sqlite3.Error as e:
         logger.error(f"Users migration error: {e}")
+
+    # --- Create trip_invitations table ---
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS trip_invitations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            trip_id INTEGER NOT NULL,
+            inviter_id INTEGER NOT NULL,
+            invitee_phone_or_email TEXT NOT NULL,
+            status TEXT DEFAULT 'PENDING',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(trip_id) REFERENCES Trips(id),
+            FOREIGN KEY(inviter_id) REFERENCES Users(id)
+        )
+    """)
 
     conn.commit()
     conn.close()
@@ -218,6 +241,64 @@ def validate_amount(value):
     return amount, None
 
 
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import threading
+
+def send_verification_email_async(email_addr, token):
+    smtp_server = os.environ.get('SMTP_SERVER')
+    smtp_port = os.environ.get('SMTP_PORT', 587)
+    smtp_username = os.environ.get('SMTP_USERNAME')
+    smtp_password = os.environ.get('SMTP_PASSWORD')
+    domain = os.environ.get('PA_DOMAIN', 'localhost:5000')
+    protocol = "https" if domain != "localhost:5000" else "http"
+    
+    verify_link = f"{protocol}://{domain}/api/verify/{token}"
+    
+    if not smtp_server or not smtp_username or not smtp_password:
+        logger.warning(f"SMTP not configured. Verification link for {email_addr}: {verify_link}")
+        return
+
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = f"MasterSplitter <{smtp_username}>"
+        msg['To'] = email_addr
+        msg['Subject'] = "MasterSplitter - Please verify your email"
+
+        body = f"""
+        <html>
+          <body>
+            <h2>Welcome to MasterSplitter!</h2>
+            <p>Please click the link below to verify your email address:</p>
+            <p><a href="{verify_link}">{verify_link}</a></p>
+          </body>
+        </html>
+        """
+        msg.attach(MIMEText(body, 'html'))
+
+        server = smtplib.SMTP(smtp_server, int(smtp_port))
+        server.starttls()
+        server.login(smtp_username, smtp_password)
+        server.send_message(msg)
+        server.quit()
+        logger.info(f"Verification email sent to {email_addr}")
+    except Exception as e:
+        logger.error(f"Failed to send verification email to {email_addr}: {e}")
+
+def send_verification_email(email_addr, token):
+    if app.config.get('TESTING'):
+        # Do not send actual emails during testing
+        domain = os.environ.get('PA_DOMAIN', 'localhost:5000')
+        protocol = "https" if domain != "localhost:5000" else "http"
+        verify_link = f"{protocol}://{domain}/api/verify/{token}"
+        logger.info(f"[TESTING] Verification link for {email_addr}: {verify_link}")
+        return
+        
+    thread = threading.Thread(target=send_verification_email_async, args=(email_addr, token))
+    thread.daemon = True
+    thread.start()
+
 # =====================
 #   PAGE ROUTES
 # =====================
@@ -237,6 +318,26 @@ def serve_app():
 #   AUTH APIS
 # =====================
 
+@app.route('/api/verify/<token>', methods=['GET'])
+def verify_email(token):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id FROM Users WHERE verification_token = ?", (token,))
+        user = cursor.fetchone()
+        if user:
+            cursor.execute("UPDATE Users SET is_verified = 1, verification_token = NULL WHERE id = ?", (user['id'],))
+            conn.commit()
+            logger.info(f"User {user['id']} verified their email.")
+            return redirect('/?verified=true')
+        else:
+            return "Invalid or expired verification token.", 400
+    except sqlite3.Error as e:
+        logger.error(f"Verification DB error: {e}")
+        return "Internal server error.", 500
+    finally:
+        conn.close()
+
 @app.route('/api/me', methods=['GET'])
 @login_required
 def get_me():
@@ -254,11 +355,19 @@ def signup():
     if len(password) < MIN_PASSWORD_LENGTH:
         return jsonify({"error": f"סיסמה חייבת להיות לפחות {MIN_PASSWORD_LENGTH} תווים."}), 400
 
-    email_raw = data.get('email', '').strip() or None
-    if email_raw:
-        email_raw, err = validate_string(email_raw, 'אימייל', MAX_EMAIL_LENGTH, required=False)
-        if err:
-            return jsonify({"error": err}), 400
+    email_raw = data.get('email', '').strip()
+    if not email_raw:
+        return jsonify({"error": "יש לספק כתובת אימייל."}), 400
+    email_raw, err = validate_string(email_raw, 'אימייל', MAX_EMAIL_LENGTH, required=True)
+    if err:
+        return jsonify({"error": err}), 400
+
+    phone_raw = data.get('phone', '').strip()
+    if not phone_raw:
+        return jsonify({"error": "יש לספק מספר טלפון."}), 400
+    phone_raw, err = validate_string(phone_raw, 'טלפון', 20, required=True)
+    if err:
+        return jsonify({"error": err}), 400
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -266,20 +375,32 @@ def signup():
         cursor.execute("SELECT id FROM Users WHERE name = ?", (username,))
         if cursor.fetchone():
             return jsonify({"error": "שם המשתמש כבר קיים במערכת."}), 400
+            
+        cursor.execute("SELECT id FROM Users WHERE phone = ?", (phone_raw,))
+        if cursor.fetchone():
+            return jsonify({"error": "מספר הטלפון כבר קיים במערכת."}), 400
+            
+        cursor.execute("SELECT id FROM Users WHERE email = ?", (email_raw,))
+        if cursor.fetchone():
+            return jsonify({"error": "כתובת האימייל כבר קיימת במערכת."}), 400
 
         pwd_hash = generate_password_hash(password)
+        token = os.urandom(16).hex()
+        
         cursor.execute(
-            "INSERT INTO Users (name, password_hash, email) VALUES (?, ?, ?)",
-            (username, pwd_hash, email_raw)
+            "INSERT INTO Users (name, password_hash, email, phone, is_verified, verification_token) VALUES (?, ?, ?, ?, 0, ?)",
+            (username, pwd_hash, email_raw, phone_raw, token)
         )
         user_id = cursor.lastrowid
         conn.commit()
-        session['user_id'] = user_id
-        session['username'] = username
-        logger.info(f"New user registered: {username} (id={user_id})")
-        return jsonify({"success": True})
+        
+        # Send Verification Email
+        send_verification_email(email_raw, token)
+        
+        logger.info(f"New user registered (pending verification): {username} (id={user_id})")
+        return jsonify({"success": True, "message": "Registration successful! Please check your email to verify your account before logging in."})
     except sqlite3.IntegrityError:
-        return jsonify({"error": "שם המשתמש או האימייל כבר קיימים."}), 400
+        return jsonify({"error": "שם המשתמש, האימייל או הטלפון כבר קיימים."}), 400
     except sqlite3.Error as e:
         logger.error(f"Signup DB error: {e}")
         return jsonify({"error": "שגיאת שרת. נסה שוב."}), 500
@@ -299,9 +420,12 @@ def login():
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute("SELECT id, name, password_hash FROM Users WHERE name = ?", (username,))
+        cursor.execute("SELECT id, name, password_hash, is_verified FROM Users WHERE name = ?", (username,))
         user = cursor.fetchone()
         if user and user['password_hash'] and check_password_hash(user['password_hash'], password):
+            if user['is_verified'] == 0:
+                return jsonify({"error": "Please verify your email address first."}), 403
+                
             session['user_id'] = user['id']
             session['username'] = user['name']
             logger.info(f"User logged in: {user['name']} (id={user['id']})")
@@ -373,18 +497,27 @@ def create_trip():
     except (TypeError, ValueError):
         budget = 0
 
-    participants = data.get('participants', [])  # list of local name strings
-    if not isinstance(participants, list):
-        participants = []
-    # Validate each participant name
-    participants = [str(p).strip() for p in participants if str(p).strip()]
-    if len(participants) > 50:
+    invitees = data.get('participants', [])  # list of phones/emails
+    if not isinstance(invitees, list):
+        invitees = []
+    invitees = [str(p).strip() for p in invitees if str(p).strip()]
+    if len(invitees) > 50:
         return jsonify({"error": "Too many participants."}), 400
 
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        participants_json = json.dumps(participants, ensure_ascii=False)
+        # Check if all invited users exist
+        valid_users = []
+        for contact in invitees:
+            cursor.execute("SELECT id FROM Users WHERE email = ? OR phone = ?", (contact, contact))
+            user = cursor.fetchone()
+            if not user:
+                return jsonify({"error": f"User not found: {contact}. Invite them to register first."}), 400
+            valid_users.append(contact)
+
+        # Empty local_participants since we use real accounts now
+        participants_json = json.dumps([], ensure_ascii=False)
         cursor.execute(
             "INSERT INTO Trips (destination, budget, owner_id, local_participants) VALUES (?, ?, ?, ?)",
             (name, budget, session['user_id'], participants_json)
@@ -395,6 +528,14 @@ def create_trip():
             "INSERT OR IGNORE INTO TripMembers (trip_id, user_id) VALUES (?, ?)",
             (trip_id, session['user_id'])
         )
+        
+        # Create invitations
+        for contact in valid_users:
+            cursor.execute(
+                "INSERT INTO trip_invitations (trip_id, inviter_id, invitee_phone_or_email) VALUES (?, ?, ?)",
+                (trip_id, session['user_id'], contact)
+            )
+
         conn.commit()
         logger.info(f"Trip created: '{name}' (id={trip_id}) by user {session['user_id']}")
         return jsonify({"success": True, "trip_id": trip_id})
@@ -442,23 +583,36 @@ def update_trip(trip_id):
             params.append(budget)
 
         if 'participants' in data:
-            participants = data['participants']
-            if not isinstance(participants, list):
-                participants = []
-            participants = [str(p).strip() for p in participants if str(p).strip()]
-            if len(participants) > 50:
+            invitees = data['participants']
+            if not isinstance(invitees, list):
+                invitees = []
+            invitees = [str(p).strip() for p in invitees if str(p).strip()]
+            if len(invitees) > 50:
                 conn.close()
                 return jsonify({"error": "Too many participants."}), 400
-            updates.append("local_participants = ?")
-            params.append(json.dumps(participants, ensure_ascii=False))
+                
+            # Verify and invite users instead of updating local_participants
+            for contact in invitees:
+                cursor.execute("SELECT id FROM Users WHERE email = ? OR phone = ?", (contact, contact))
+                user = cursor.fetchone()
+                if not user:
+                    conn.close()
+                    return jsonify({"error": f"User not found: {contact}. Invite them to register first."}), 400
+                
+                # Check if already invited or member
+                cursor.execute("SELECT 1 FROM trip_invitations WHERE trip_id = ? AND invitee_phone_or_email = ?", (trip_id, contact))
+                if not cursor.fetchone():
+                    cursor.execute(
+                        "INSERT INTO trip_invitations (trip_id, inviter_id, invitee_phone_or_email) VALUES (?, ?, ?)",
+                        (trip_id, session['user_id'], contact)
+                    )
 
-        if not updates:
-            return jsonify({"error": "אין שינויים."}), 400
-
-        params.append(trip_id)
-        cursor.execute(f"UPDATE Trips SET {', '.join(updates)} WHERE id = ?", params)
+        if updates:
+            params.append(trip_id)
+            cursor.execute(f"UPDATE Trips SET {', '.join(updates)} WHERE id = ?", params)
+            
         conn.commit()
-        logger.info(f"Trip updated: id={trip_id} by user {session['user_id']}")
+        logger.info(f"Trip updated/invites sent: id={trip_id} by user {session['user_id']}")
         return jsonify({"success": True})
     except sqlite3.Error as e:
         logger.error(f"Update trip error: {e}")
@@ -481,7 +635,7 @@ def get_trip_members(trip_id):
         WHERE tm.trip_id = ?
     """, (trip_id,))
     registered = [{'id': m['id'], 'name': m['name'], 'type': 'user'} for m in cursor.fetchall()]
-    # Local participants
+    # Local participants (Legacy support)
     cursor.execute("SELECT local_participants FROM Trips WHERE id = ?", (trip_id,))
     row = cursor.fetchone()
     conn.close()
@@ -493,6 +647,84 @@ def get_trip_members(trip_id):
         except (json.JSONDecodeError, TypeError):
             logger.warning(f"Invalid local_participants JSON for trip {trip_id}")
     return jsonify(registered + local)
+
+
+# =====================
+#   INVITATION APIS
+# =====================
+
+@app.route('/api/invitations', methods=['GET'])
+@login_required
+def get_invitations():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT email, phone FROM Users WHERE id = ?", (session['user_id'],))
+    user = cursor.fetchone()
+    if not user:
+        conn.close()
+        return jsonify({"error": "User not found"}), 404
+
+    # Fetch pending invitations matching email or phone
+    cursor.execute("""
+        SELECT i.id, i.trip_id, t.destination as trip_name, u.name as inviter_name
+        FROM trip_invitations i
+        JOIN Trips t ON i.trip_id = t.id
+        JOIN Users u ON i.inviter_id = u.id
+        WHERE i.status = 'PENDING' AND (i.invitee_phone_or_email = ? OR i.invitee_phone_or_email = ?)
+    """, (user['email'], user['phone']))
+    invitations = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return jsonify(invitations)
+
+
+@app.route('/api/invitations/<int:invitation_id>/respond', methods=['POST'])
+@login_required
+def respond_invitation(invitation_id):
+    data = request.json or {}
+    action = data.get('action')
+    if action not in ('approve', 'reject'):
+        return jsonify({"error": "Invalid action. Use 'approve' or 'reject'."}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT email, phone FROM Users WHERE id = ?", (session['user_id'],))
+        user = cursor.fetchone()
+
+        cursor.execute("""
+            SELECT id, trip_id, invitee_phone_or_email, status
+            FROM trip_invitations
+            WHERE id = ?
+        """, (invitation_id,))
+        invitation = cursor.fetchone()
+
+        if not invitation:
+            return jsonify({"error": "Invitation not found."}), 404
+
+        # Validate ownership of invitation
+        if invitation['invitee_phone_or_email'] not in (user['email'], user['phone']):
+            return jsonify({"error": "Forbidden"}), 403
+
+        if invitation['status'] != 'PENDING':
+            return jsonify({"error": "Invitation already processed."}), 400
+
+        new_status = 'APPROVED' if action == 'approve' else 'REJECTED'
+        cursor.execute("UPDATE trip_invitations SET status = ? WHERE id = ?", (new_status, invitation_id))
+
+        if action == 'approve':
+            cursor.execute(
+                "INSERT OR IGNORE INTO TripMembers (trip_id, user_id) VALUES (?, ?)",
+                (invitation['trip_id'], session['user_id'])
+            )
+            
+        conn.commit()
+        logger.info(f"User {session['user_id']} responded to invitation {invitation_id} with {new_status}")
+        return jsonify({"success": True})
+    except sqlite3.Error as e:
+        logger.error(f"Respond invitation error: {e}")
+        return jsonify({"error": "שגיאה בתגובה להזמנה."}), 500
+    finally:
+        conn.close()
 
 
 # =====================

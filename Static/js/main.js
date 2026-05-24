@@ -27,16 +27,22 @@ function toggleAuthMode() {
     const submit = document.getElementById('submit-btn');
     const toggle = document.getElementById('toggle-auth-btn');
     const err   = document.getElementById('error-msg');
+    const phoneGrp = document.getElementById('phone-group');
+    const emailGrp = document.getElementById('email-group');
     if (authMode === 'signup') {
         if (title)  title.textContent  = 'צור חשבון 🚀';
         if (sub)    sub.textContent    = 'הצטרף ותתחיל לחלק הוצאות';
         if (submit) submit.textContent = 'הרשם';
         if (toggle) toggle.textContent = 'יש לך כבר חשבון? התחבר';
+        if (phoneGrp) phoneGrp.style.display = 'block';
+        if (emailGrp) emailGrp.style.display = 'block';
     } else {
         if (title)  title.textContent  = 'ברוך הבא! 👋';
         if (sub)    sub.textContent    = 'התחבר כדי לנהל את ההוצאות שלך';
         if (submit) submit.textContent = 'התחבר';
         if (toggle) toggle.textContent = 'צור חשבון חדש';
+        if (phoneGrp) phoneGrp.style.display = 'none';
+        if (emailGrp) emailGrp.style.display = 'none';
     }
     if (err) err.classList.remove('visible');
 }
@@ -44,22 +50,47 @@ function toggleAuthMode() {
 async function submitAuth() {
     const username = (document.getElementById('username')?.value || '').trim();
     const password = document.getElementById('password')?.value || '';
+    const phone = document.getElementById('phone')?.value || '';
+    const email = document.getElementById('email')?.value || '';
     const err = document.getElementById('error-msg');
     if (err) err.classList.remove('visible');
     if (!username || !password) {
         if (err) { err.textContent = 'יש למלא שם משתמש וסיסמה.'; err.classList.add('visible'); }
         return;
     }
+    if (authMode === 'signup') {
+        if (!phone) {
+            if (err) { err.textContent = 'יש למלא מספר טלפון.'; err.classList.add('visible'); }
+            return;
+        }
+        if (!email) {
+            if (err) { err.textContent = 'יש למלא כתובת אימייל.'; err.classList.add('visible'); }
+            return;
+        }
+    }
+    
     const endpoint = authMode === 'login' ? '/api/login' : '/api/signup';
+    const payload = { username, password };
+    if (authMode === 'signup') {
+        payload.phone = phone;
+        payload.email = email;
+    }
+    
     try {
         const res = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
+            body: JSON.stringify(payload)
         });
         const data = await res.json();
         if (res.ok && data.success) {
-            window.location.href = '/app';
+            if (authMode === 'signup') {
+                alert(data.message || 'Registration successful! Please check your email to verify.');
+                authMode = 'login';
+                toggleAuthMode();
+            } else {
+                window.location.href = '/app';
+            }
         } else {
             if (err) { err.textContent = data.error || 'שגיאה בחיבור.'; err.classList.add('visible'); }
         }
@@ -80,6 +111,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Login page: Enter key
     const pwd = document.getElementById('password');
     if (pwd) pwd.addEventListener('keypress', e => { if (e.key === 'Enter') submitAuth(); });
+    
+    // Check for verification success
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('verified') === 'true') {
+        setTimeout(() => alert('החשבון אומת בהצלחה! התחבר כדי להמשיך.'), 500);
+        window.history.replaceState({}, document.title, "/");
+    }
 
     // App page: init
     if (document.getElementById('lobby-view')) {
@@ -99,9 +137,59 @@ async function initApp() {
         const el = document.getElementById('lobby-username');
         if (el) el.textContent = currentUser.name;
         await loadLobby();
+        fetchInvitations();
     } catch (e) {
         console.error('Init error:', e);
         window.location.href = '/';
+    }
+}
+
+// =====================
+//  INVITATIONS
+// =====================
+async function fetchInvitations() {
+    const banner = document.getElementById('invitations-banner');
+    if (!banner) return;
+    try {
+        const res = await fetch('/api/invitations');
+        if (!res.ok) return;
+        const invs = await res.json();
+        if (invs.length === 0) {
+            banner.innerHTML = '';
+            return;
+        }
+        
+        banner.innerHTML = invs.map(inv => `
+            <div class="invitation-card" id="invitation-${inv.id}">
+                <div class="invitation-text">
+                    <strong>${escapeHTML(inv.inviter_name)}</strong> הזמין אותך להצטרף לטיול <strong>${escapeHTML(inv.trip_name)}</strong>
+                </div>
+                <div class="invitation-actions">
+                    <button class="btn-accept" onclick="respondInvitation(${inv.id}, 'approve')">אישור</button>
+                    <button class="btn-decline" onclick="respondInvitation(${inv.id}, 'reject')">דחייה</button>
+                </div>
+            </div>
+        `).join('');
+    } catch (e) { console.error('Fetch invitations error:', e); }
+}
+
+async function respondInvitation(id, action) {
+    try {
+        const res = await fetch(`/api/invitations/${id}/respond`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            showToast(action === 'approve' ? 'הצטרפת לטיול בהצלחה!' : 'ההזמנה נדחתה.');
+            fetchInvitations();
+            loadLobby();
+        } else {
+            alert(data.error || 'שגיאה בתגובה להזמנה.');
+        }
+    } catch (e) {
+        console.error('Respond invitation error:', e);
     }
 }
 

@@ -3,67 +3,146 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MasterSplitter Admin Command Center</title>
+    <title>MasterSplitter // Cloud Admin</title>
+    <!-- Premium sans-serif font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- JetBrains Mono for logs -->
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/admin.css">
 </head>
 <body>
-    <div class="matrix-bg"></div>
+    <div class="app-background"></div>
     <div class="container">
-        <header>
-            <h1><span class="glitch" data-text="MASTERSPLITTER">MASTERSPLITTER</span> // COMMAND CENTER</h1>
+        <header class="glass-panel">
+            <div class="logo-section">
+                <h1>MASTERSPLITTER <span class="badge">SaaS CLOUD</span></h1>
+            </div>
             <div class="status-indicator">
-                <span class="dot blinking"></span> SYSTEM ONLINE
+                <span class="dot blinking"></span> <span class="status-text">SYSTEM ONLINE</span>
             </div>
         </header>
 
         <main>
+            <!-- Telemetry Grid -->
             <section class="telemetry-grid">
-                <div class="card">
-                    <h3>ARCHITECT</h3>
-                    <div class="metrics">
-                        <div class="metric"><span class="label">Architecture:</span> <span class="value success">Decoupled</span></div>
-                        <div class="metric"><span class="label">Dependencies:</span> <span class="value success">Stable</span></div>
+                <!-- Architect -->
+                <div class="card glass-panel" data-role="architect">
+                    <div class="card-header">
+                        <h3>ARCHITECT</h3>
+                        <div class="score-ring">
+                            <svg viewBox="0 0 36 36" class="circular-chart cyber-cyan">
+                                <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                <path class="circle" stroke-dasharray="98, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                <text x="18" y="20.35" class="percentage">98</text>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="productivity-section">
+                        <span class="label">Live Productivity</span>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar cyber-cyan-bg" style="width: 85%;"></div>
+                        </div>
+                        <span class="prod-value">85%</span>
                     </div>
                 </div>
-                <div class="card">
-                    <h3>DEVELOPER</h3>
-                    <div class="metrics">
-                        <div class="metric"><span class="label">Codebase:</span> <span class="value success">Nominal</span></div>
-                        <div class="metric"><span class="label">API Health:</span> <span class="value success">100%</span></div>
+
+                <!-- Developer -->
+                <div class="card glass-panel" data-role="developer">
+                    <div class="card-header">
+                        <h3>DEVELOPER</h3>
+                        <div class="score-ring">
+                            <svg viewBox="0 0 36 36" class="circular-chart emerald-green">
+                                <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                <path class="circle" stroke-dasharray="95, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                <text x="18" y="20.35" class="percentage">95</text>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="productivity-section">
+                        <span class="label">Live Productivity</span>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar emerald-green-bg" style="width: 90%;"></div>
+                        </div>
+                        <span class="prod-value">90%</span>
                     </div>
                 </div>
-                <div class="card">
-                    <h3>QA ENGINEER</h3>
-                    <div class="metrics">
-                        <div class="metric"><span class="label">Test Coverage:</span> <span class="value success">35/35 Passing</span></div>
-                        <div class="metric"><span class="label">Security Scan:</span> <span class="value success">Encrypted</span></div>
+
+                <!-- QA Engineer -->
+                <div class="card glass-panel" data-role="qa">
+                    <div class="card-header">
+                        <h3>QA ENGINEER</h3>
+                        <div class="score-ring">
+                            <svg viewBox="0 0 36 36" class="circular-chart electric-purple">
+                                <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                <path class="circle" stroke-dasharray="99, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                <text x="18" y="20.35" class="percentage">99</text>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="productivity-section">
+                        <span class="label">Live Productivity</span>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar electric-purple-bg" style="width: 92%;"></div>
+                        </div>
+                        <span class="prod-value">92%</span>
                     </div>
                 </div>
-                <div class="card">
-                    <h3>DEVOPS</h3>
-                    <div class="metrics">
-                        <div class="metric"><span class="label">CI/CD Pipeline:</span> <span class="value success">Armed</span></div>
-                        <div class="metric"><span class="label">Remote Sync:</span> <span class="value">Awaiting Push</span></div>
+
+                <!-- DevOps -->
+                <div class="card glass-panel" data-role="devops">
+                    <div class="card-header">
+                        <h3>DEVOPS</h3>
+                        <div class="score-ring">
+                            <svg viewBox="0 0 36 36" class="circular-chart cyber-cyan">
+                                <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                <path class="circle" stroke-dasharray="96, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                <text x="18" y="20.35" class="percentage">96</text>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="productivity-section">
+                        <span class="label">Live Productivity</span>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar cyber-cyan-bg" style="width: 88%;"></div>
+                        </div>
+                        <span class="prod-value">88%</span>
                     </div>
                 </div>
-                <div class="card">
-                    <h3>PRODUCT MGR</h3>
-                    <div class="metrics">
-                        <div class="metric"><span class="label">Roadmap:</span> <span class="value success">On Track</span></div>
-                        <div class="metric"><span class="label">UX/UI:</span> <span class="value success">Modernized</span></div>
+
+                <!-- Product Mgr -->
+                <div class="card glass-panel" data-role="product">
+                    <div class="card-header">
+                        <h3>PRODUCT MGR</h3>
+                        <div class="score-ring">
+                            <svg viewBox="0 0 36 36" class="circular-chart emerald-green">
+                                <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                <path class="circle" stroke-dasharray="94, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                <text x="18" y="20.35" class="percentage">94</text>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="productivity-section">
+                        <span class="label">Live Productivity</span>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar emerald-green-bg" style="width: 89%;"></div>
+                        </div>
+                        <span class="prod-value">89%</span>
                     </div>
                 </div>
             </section>
 
-            <section class="terminal-section">
-                <div class="terminal-header">
-                    <span>root@mastersplitter:~/logs</span>
-                    <span id="poll-status">Polling: 3s</span>
+            <!-- Logs Section -->
+            <section class="logs-section glass-panel">
+                <div class="logs-header">
+                    <h2><span class="icon"></span> System Logs</h2>
+                    <div class="poll-status" id="poll-status">Polling: 3s</div>
                 </div>
-                <div class="terminal-window" id="log-container">
-                    <!-- Logs will be injected here -->
-                    <div class="log-line">> Initializing secure connection...</div>
-                    <div class="log-line">> Awaiting telemetry stream...</div>
+                <div class="log-container-wrapper">
+                    <div class="log-window" id="log-container">
+                        <!-- Logs will be injected here -->
+                    </div>
+                    <!-- Faded gradient for scroll effect -->
+                    <div class="log-fade-bottom"></div>
                 </div>
             </section>
         </main>

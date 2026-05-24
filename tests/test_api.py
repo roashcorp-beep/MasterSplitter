@@ -39,7 +39,8 @@ def app():
     cursor = conn.cursor()
     cursor.execute("""CREATE TABLE IF NOT EXISTS Users (
         id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE NOT NULL,
-        password_hash TEXT, email TEXT UNIQUE)""")
+        password_hash TEXT, email TEXT UNIQUE, phone TEXT UNIQUE,
+        is_verified INTEGER DEFAULT 0, verification_token TEXT)""")
     cursor.execute("""CREATE TABLE IF NOT EXISTS Trips (
         id INTEGER PRIMARY KEY AUTOINCREMENT, destination TEXT NOT NULL,
         budget REAL DEFAULT 0, owner_id INTEGER, local_participants TEXT DEFAULT '[]')""")
@@ -55,6 +56,11 @@ def app():
         PRIMARY KEY (trip_id, user_id),
         FOREIGN KEY(trip_id) REFERENCES Trips(id),
         FOREIGN KEY(user_id) REFERENCES Users(id))""")
+    cursor.execute("""CREATE TABLE IF NOT EXISTS trip_invitations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, trip_id INTEGER NOT NULL,
+        inviter_id INTEGER NOT NULL, invitee_phone_or_email TEXT NOT NULL,
+        status TEXT DEFAULT 'PENDING', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(trip_id) REFERENCES Trips(id), FOREIGN KEY(inviter_id) REFERENCES Users(id))""")
     conn.commit()
     conn.close()
 
@@ -76,10 +82,27 @@ def client(app):
 #  Helper functions
 # ---------------------
 
-def signup(client, username='testuser', password='test1234'):
-    return client.post('/api/signup',
-                       json={'username': username, 'password': password},
+def signup(client, username='testuser', password='test1234', phone=None, email=None):
+    res = client.post('/api/signup',
+                       json={'username': username, 'password': password, 'phone': phone or f'050-{username}', 'email': email or f'{username}@test.com'},
                        content_type='application/json')
+                       
+    if res.status_code == 200:
+        # Auto-verify the user in testing to keep other tests working
+        import Server
+        conn = Server.get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT verification_token FROM Users WHERE name = ?", (username,))
+        row = cursor.fetchone()
+        conn.close()
+        
+        if row and row['verification_token']:
+            client.get(f"/api/verify/{row['verification_token']}")
+            
+        # Log the user in since /api/signup no longer does it automatically
+        login(client, username, password)
+        
+    return res
 
 
 def login(client, username='testuser', password='test1234'):
@@ -135,7 +158,7 @@ class TestAuth:
         assert res.status_code == 400
 
     def test_signup_short_password(self, client):
-        res = signup(client, 'newuser', 'ab')
+        res = signup(client, 'newuser', 'ab', '050-new')
         assert res.status_code == 400
 
     def test_login_success(self, client):
@@ -150,6 +173,14 @@ class TestAuth:
         client.post('/api/logout', content_type='application/json')
         res = login(client, password='wrongpass')
         assert res.status_code == 401
+
+    def test_login_unverified(self, client):
+        # Directly signup without using helper which auto-verifies
+        client.post('/api/signup',
+                   json={'username': 'unv', 'password': 'test1234', 'phone': '050-unv', 'email': 'unv@test.com'},
+                   content_type='application/json')
+        res = login(client, 'unv', 'test1234')
+        assert res.status_code == 403
 
     def test_login_missing_fields(self, client):
         res = client.post('/api/login', json={}, content_type='application/json')
@@ -181,7 +212,11 @@ class TestAuth:
 class TestTrips:
     def test_create_trip(self, client):
         signup(client)
-        res = create_trip(client, 'Budapest', 5000, ['Alice', 'Bob'])
+        signup(client, 'alice', phone='050-alice')
+        client.post('/api/logout', content_type='application/json')
+        login(client)
+        
+        res = create_trip(client, 'Budapest', 5000, ['050-alice'])
         assert res.status_code == 200
         data = res.get_json()
         assert data['success'] is True
@@ -231,14 +266,18 @@ class TestTrips:
 
     def test_trip_members(self, client):
         signup(client)
-        trip_res = create_trip(client, 'Group Trip', 0, ['LocalFriend'])
+        signup(client, 'localfriend', phone='050-local')
+        client.post('/api/logout', content_type='application/json')
+        login(client)
+        
+        trip_res = create_trip(client, 'Group Trip', 0, ['050-local'])
         trip_id = trip_res.get_json()['trip_id']
         res = client.get(f'/api/trip_members/{trip_id}')
         assert res.status_code == 200
         members = res.get_json()
         names = [m['name'] for m in members]
         assert 'testuser' in names
-        assert 'LocalFriend' in names
+        assert 'localfriend' not in names  # Because invitation is not approved yet
 
 
 # =====================

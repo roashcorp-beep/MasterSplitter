@@ -5,10 +5,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const adminKey = adminKeyStorage ? adminKeyStorage.dataset.key : '';
 
     let isAutoScrolling = true;
+    let logsActive = false; // Flag to indicate if logs are actively streaming
+
+    // Select all role cards
+    const roles = {
+        architect: document.querySelector('[data-role="architect"]'),
+        developer: document.querySelector('[data-role="developer"]'),
+        qa: document.querySelector('[data-role="qa"]'),
+        devops: document.querySelector('[data-role="devops"]'),
+        product: document.querySelector('[data-role="product"]')
+    };
 
     // Check if user has manually scrolled up to pause auto-scroll
     logContainer.addEventListener('scroll', () => {
-        const threshold = 10;
+        const threshold = 20;
         const position = logContainer.scrollTop + logContainer.clientHeight;
         const height = logContainer.scrollHeight;
         isAutoScrolling = position >= height - threshold;
@@ -35,33 +45,54 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (data.logs && Array.isArray(data.logs)) {
+                // Determine if there are new logs compared to current state
+                logsActive = data.logs.length > 0;
                 renderLogs(data.logs);
             }
         } catch (error) {
             console.error("Telemetry stream interrupted:", error);
             pollStatus.textContent = "Polling: ERROR";
-            pollStatus.style.color = "var(--error)";
+            pollStatus.style.color = "var(--error-red)";
+            logsActive = false;
         }
     };
 
-    const renderLogs = (logs) => {
-        // Clear existing logs
-        logContainer.innerHTML = '';
+    const parseLogForTags = (logText) => {
+        let tag = 'INFO';
+        let cssClass = 'info';
+        
+        const lowerLog = logText.toLowerCase();
+        if (lowerLog.includes('error') || lowerLog.includes('fail') || lowerLog.includes('exception')) {
+            tag = 'ERROR';
+            cssClass = 'error';
+        } else if (lowerLog.includes('warn')) {
+            tag = 'WARN';
+            cssClass = 'warn';
+        }
+        
+        return { tag, cssClass, text: logText };
+    };
 
-        logs.forEach(log => {
+    const renderLogs = (logs) => {
+        logContainer.innerHTML = '';
+        
+        if (logs.length === 0) {
             const line = document.createElement('div');
             line.className = 'log-line';
-            
-            // Basic log highlighting
-            if (log.toLowerCase().includes('error') || log.toLowerCase().includes('fail')) {
-                line.classList.add('error');
-            } else if (log.toLowerCase().includes('warn')) {
-                line.classList.add('warn');
-            }
+            line.innerHTML = `<span class="log-tag info">INFO</span><span class="log-content">Awaiting telemetry stream...</span>`;
+            logContainer.appendChild(line);
+            return;
+        }
 
-            // Simple HTML escape
-            const safeText = document.createTextNode(log);
-            line.appendChild(safeText);
+        logs.forEach(log => {
+            const { tag, cssClass, text } = parseLogForTags(log);
+            const line = document.createElement('div');
+            line.className = `log-line ${cssClass}-text`;
+            
+            // Basic escaping
+            const safeText = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            
+            line.innerHTML = `<span class="log-tag ${cssClass}">${tag}</span><span class="log-content">${safeText}</span>`;
             logContainer.appendChild(line);
         });
 
@@ -70,9 +101,49 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // --- Dynamic Real-Time Simulation ---
+    const updateProductivity = () => {
+        Object.keys(roles).forEach(roleKey => {
+            const card = roles[roleKey];
+            if (!card) return;
+
+            const progressBar = card.querySelector('.progress-bar');
+            const prodValue = card.querySelector('.prod-value');
+
+            // Default random fluctuation between 78% and 97%
+            let min = 78;
+            let max = 97;
+
+            // Spike developer and QA productivity if logs are actively being added
+            if (logsActive && (roleKey === 'developer' || roleKey === 'qa')) {
+                min = 92;
+                max = 100;
+            }
+
+            const newValue = Math.floor(Math.random() * (max - min + 1)) + min;
+            
+            // Update UI
+            if (progressBar && prodValue) {
+                progressBar.style.width = `${newValue}%`;
+                prodValue.textContent = `${newValue}%`;
+            }
+        });
+        
+        // Slightly fluctuate logs flag to simulate bursts when actually polling
+        if (logsActive && Math.random() > 0.8) {
+            logsActive = false; // simulate a pause
+        }
+    };
+
     // Initial fetch
     fetchLogs();
-
-    // Set polling interval (3000ms = 3 seconds)
+    
+    // Set polling interval for logs (3000ms)
     setInterval(fetchLogs, 3000);
+
+    // Set productivity simulation interval (2500ms)
+    setInterval(updateProductivity, 2500);
+    
+    // Initialize productivity immediately
+    updateProductivity();
 });

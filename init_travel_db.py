@@ -17,7 +17,11 @@ def init_db():
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS Users (
             id INTEGER PRIMARY KEY,
-            name TEXT
+            name TEXT,
+            phone TEXT UNIQUE,
+            email TEXT UNIQUE,
+            is_verified INTEGER DEFAULT 0,
+            verification_token TEXT
         )
     """)
 
@@ -40,8 +44,13 @@ def init_db():
     trip_id = cursor.lastrowid
 
     # Insert sample users
-    users = [("Avi",), ("Alon",), ("Shlomi",), ("Yonatan",)]
-    cursor.executemany("INSERT INTO Users (name) VALUES (?)", users)
+    users = [
+        ("Avi", "0501111111", "avi@example.com"), 
+        ("Alon", "0502222222", "alon@example.com"), 
+        ("Shlomi", "0503333333", "shlomi@example.com"), 
+        ("Yonatan", "0504444444", "yonatan@example.com")
+    ]
+    cursor.executemany("INSERT INTO Users (name, phone, email, is_verified) VALUES (?, ?, ?, 1)", users)
 
     # Get user IDs for sample expenses (assuming IDs are 1, 2, 3, 4 for Avi, Alon, Shlomi, Yonatan respectively)
     # In a real application, you'd fetch these IDs dynamically.

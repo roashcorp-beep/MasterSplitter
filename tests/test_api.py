@@ -1,0 +1,400 @@
+"""
+MasterSplitter — API Test Suite
+Tests all endpoints: auth, trips, expenses, balances, health, authorization.
+Run with: python -m pytest tests/test_api.py -v
+"""
+import json
+import os
+import sys
+import tempfile
+import pytest
+
+# Ensure the project root is importable
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+@pytest.fixture
+def app():
+    """Create a fresh app with a temporary database for each test."""
+    # Use a temp file for the test database
+    db_fd, db_path = tempfile.mkstemp(suffix='.db')
+
+    # Patch the DB path before importing the app
+    import Server
+    original_get_db = Server.get_db_connection
+
+    def test_get_db():
+        import sqlite3
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON")
+        return conn
+
+    Server.get_db_connection = test_get_db
+    Server.app.config['TESTING'] = True
+    Server.app.config['SECRET_KEY'] = 'test-secret'
+
+    # Initialize the test database
+    conn = test_get_db()
+    cursor = conn.cursor()
+    cursor.execute("""CREATE TABLE IF NOT EXISTS Users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE NOT NULL,
+        password_hash TEXT, email TEXT UNIQUE)""")
+    cursor.execute("""CREATE TABLE IF NOT EXISTS Trips (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, destination TEXT NOT NULL,
+        budget REAL DEFAULT 0, owner_id INTEGER, local_participants TEXT DEFAULT '[]')""")
+    cursor.execute("""CREATE TABLE IF NOT EXISTS Expenses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, trip_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL, amount REAL NOT NULL, currency TEXT DEFAULT 'ILS',
+        description TEXT, category TEXT DEFAULT 'General',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(trip_id) REFERENCES Trips(id),
+        FOREIGN KEY(user_id) REFERENCES Users(id))""")
+    cursor.execute("""CREATE TABLE IF NOT EXISTS TripMembers (
+        trip_id INTEGER NOT NULL, user_id INTEGER NOT NULL,
+        PRIMARY KEY (trip_id, user_id),
+        FOREIGN KEY(trip_id) REFERENCES Trips(id),
+        FOREIGN KEY(user_id) REFERENCES Users(id))""")
+    conn.commit()
+    conn.close()
+
+    yield Server.app
+
+    # Cleanup
+    Server.get_db_connection = original_get_db
+    os.close(db_fd)
+    os.unlink(db_path)
+
+
+@pytest.fixture
+def client(app):
+    """Test client."""
+    return app.test_client()
+
+
+# ---------------------
+#  Helper functions
+# ---------------------
+
+def signup(client, username='testuser', password='test1234'):
+    return client.post('/api/signup',
+                       json={'username': username, 'password': password},
+                       content_type='application/json')
+
+
+def login(client, username='testuser', password='test1234'):
+    return client.post('/api/login',
+                       json={'username': username, 'password': password},
+                       content_type='application/json')
+
+
+def create_trip(client, name='Test Trip', budget=1000, participants=None):
+    return client.post('/api/trips',
+                       json={'name': name, 'budget': budget,
+                             'participants': participants or []},
+                       content_type='application/json')
+
+
+def add_expense(client, trip_id, amount=100, description='Test expense', category='כללי'):
+    return client.post('/api/expenses',
+                       json={'trip_id': trip_id, 'amount': amount,
+                             'description': description, 'category': category},
+                       content_type='application/json')
+
+
+# =====================
+#   HEALTH CHECK
+# =====================
+
+class TestHealthCheck:
+    def test_health_ok(self, client):
+        res = client.get('/api/health')
+        assert res.status_code == 200
+        data = res.get_json()
+        assert data['status'] == 'ok'
+        assert data['database'] == 'connected'
+
+
+# =====================
+#   AUTH TESTS
+# =====================
+
+class TestAuth:
+    def test_signup_success(self, client):
+        res = signup(client)
+        assert res.status_code == 200
+        assert res.get_json()['success'] is True
+
+    def test_signup_duplicate_username(self, client):
+        signup(client, 'dup_user')
+        res = signup(client, 'dup_user')
+        assert res.status_code == 400
+
+    def test_signup_missing_fields(self, client):
+        res = client.post('/api/signup', json={'username': ''}, content_type='application/json')
+        assert res.status_code == 400
+
+    def test_signup_short_password(self, client):
+        res = signup(client, 'newuser', 'ab')
+        assert res.status_code == 400
+
+    def test_login_success(self, client):
+        signup(client)
+        client.post('/api/logout', content_type='application/json')
+        res = login(client)
+        assert res.status_code == 200
+        assert res.get_json()['success'] is True
+
+    def test_login_wrong_password(self, client):
+        signup(client)
+        client.post('/api/logout', content_type='application/json')
+        res = login(client, password='wrongpass')
+        assert res.status_code == 401
+
+    def test_login_missing_fields(self, client):
+        res = client.post('/api/login', json={}, content_type='application/json')
+        assert res.status_code == 400
+
+    def test_me_authenticated(self, client):
+        signup(client, 'meuser')
+        res = client.get('/api/me')
+        assert res.status_code == 200
+        data = res.get_json()
+        assert data['name'] == 'meuser'
+
+    def test_me_unauthenticated(self, client):
+        res = client.get('/api/me')
+        assert res.status_code == 401
+
+    def test_logout(self, client):
+        signup(client)
+        res = client.post('/api/logout', content_type='application/json')
+        assert res.status_code == 200
+        res2 = client.get('/api/me')
+        assert res2.status_code == 401
+
+
+# =====================
+#   TRIP TESTS
+# =====================
+
+class TestTrips:
+    def test_create_trip(self, client):
+        signup(client)
+        res = create_trip(client, 'Budapest', 5000, ['Alice', 'Bob'])
+        assert res.status_code == 200
+        data = res.get_json()
+        assert data['success'] is True
+        assert 'trip_id' in data
+
+    def test_create_trip_empty_name(self, client):
+        signup(client)
+        res = create_trip(client, '', 0)
+        assert res.status_code == 400
+
+    def test_list_trips(self, client):
+        signup(client)
+        create_trip(client, 'Trip A')
+        create_trip(client, 'Trip B')
+        res = client.get('/api/trips')
+        assert res.status_code == 200
+        trips = res.get_json()
+        assert len(trips) == 2
+
+    def test_list_trips_unauthenticated(self, client):
+        res = client.get('/api/trips')
+        assert res.status_code == 401
+
+    def test_update_trip(self, client):
+        signup(client)
+        trip_res = create_trip(client, 'Original')
+        trip_id = trip_res.get_json()['trip_id']
+        res = client.put(f'/api/trips/{trip_id}',
+                         json={'name': 'Updated', 'budget': 9999},
+                         content_type='application/json')
+        assert res.status_code == 200
+        # Verify the update
+        trips = client.get('/api/trips').get_json()
+        assert trips[0]['name'] == 'Updated'
+        assert trips[0]['budget'] == 9999
+
+    def test_update_trip_non_owner(self, client):
+        signup(client, 'owner1')
+        trip_res = create_trip(client, 'Owner Trip')
+        trip_id = trip_res.get_json()['trip_id']
+        client.post('/api/logout', content_type='application/json')
+        signup(client, 'other_user')
+        res = client.put(f'/api/trips/{trip_id}',
+                         json={'name': 'Hijacked'},
+                         content_type='application/json')
+        assert res.status_code == 403
+
+    def test_trip_members(self, client):
+        signup(client)
+        trip_res = create_trip(client, 'Group Trip', 0, ['LocalFriend'])
+        trip_id = trip_res.get_json()['trip_id']
+        res = client.get(f'/api/trip_members/{trip_id}')
+        assert res.status_code == 200
+        members = res.get_json()
+        names = [m['name'] for m in members]
+        assert 'testuser' in names
+        assert 'LocalFriend' in names
+
+
+# =====================
+#   EXPENSE TESTS
+# =====================
+
+class TestExpenses:
+    def test_add_expense(self, client):
+        signup(client)
+        trip_id = create_trip(client).get_json()['trip_id']
+        res = add_expense(client, trip_id, 150.5, 'Dinner')
+        assert res.status_code == 200
+        assert res.get_json()['success'] is True
+
+    def test_add_expense_invalid_amount(self, client):
+        signup(client)
+        trip_id = create_trip(client).get_json()['trip_id']
+        res = add_expense(client, trip_id, -10, 'Bad')
+        assert res.status_code == 400
+
+    def test_add_expense_zero_amount(self, client):
+        signup(client)
+        trip_id = create_trip(client).get_json()['trip_id']
+        res = add_expense(client, trip_id, 0, 'Free')
+        assert res.status_code == 400
+
+    def test_add_expense_missing_description(self, client):
+        signup(client)
+        trip_id = create_trip(client).get_json()['trip_id']
+        res = client.post('/api/expenses',
+                          json={'trip_id': trip_id, 'amount': 100, 'description': ''},
+                          content_type='application/json')
+        assert res.status_code == 400
+
+    def test_list_expenses(self, client):
+        signup(client)
+        trip_id = create_trip(client).get_json()['trip_id']
+        add_expense(client, trip_id, 100, 'Lunch')
+        add_expense(client, trip_id, 200, 'Hotel')
+        res = client.get(f'/api/expenses/{trip_id}')
+        assert res.status_code == 200
+        expenses = res.get_json()
+        assert len(expenses) == 2
+
+    def test_delete_expense(self, client):
+        signup(client)
+        trip_id = create_trip(client).get_json()['trip_id']
+        add_expense(client, trip_id, 100, 'To delete')
+        expenses = client.get(f'/api/expenses/{trip_id}').get_json()
+        exp_id = expenses[0]['id']
+        res = client.delete(f'/api/expenses/{exp_id}')
+        assert res.status_code == 200
+        assert res.get_json()['success'] is True
+        # Verify deletion
+        remaining = client.get(f'/api/expenses/{trip_id}').get_json()
+        assert len(remaining) == 0
+
+    def test_delete_expense_not_found(self, client):
+        signup(client)
+        res = client.delete('/api/expenses/99999')
+        assert res.status_code == 404
+
+    def test_delete_expense_not_owner(self, client):
+        signup(client, 'creator')
+        trip_id = create_trip(client).get_json()['trip_id']
+        add_expense(client, trip_id, 100, 'Protected')
+        expenses = client.get(f'/api/expenses/{trip_id}').get_json()
+        exp_id = expenses[0]['id']
+        client.post('/api/logout', content_type='application/json')
+        signup(client, 'attacker')
+        res = client.delete(f'/api/expenses/{exp_id}')
+        assert res.status_code == 403
+
+
+# =====================
+#   BALANCE TESTS
+# =====================
+
+class TestBalances:
+    def test_balances_single_user(self, client):
+        signup(client)
+        trip_id = create_trip(client).get_json()['trip_id']
+        add_expense(client, trip_id, 300, 'Solo expense')
+        res = client.get(f'/api/balances/{trip_id}')
+        assert res.status_code == 200
+        data = res.get_json()
+        assert data['total'] == 300
+        assert data['average'] == 300
+        # Single user should be balanced
+        assert data['balances'][0]['balance'] == 0
+
+    def test_balances_empty_trip(self, client):
+        signup(client)
+        trip_id = create_trip(client).get_json()['trip_id']
+        res = client.get(f'/api/balances/{trip_id}')
+        assert res.status_code == 200
+        data = res.get_json()
+        assert data['total'] == 0
+
+
+# =====================
+#   AUTHORIZATION TESTS
+# =====================
+
+class TestAuthorization:
+    def test_access_other_trip_expenses(self, client):
+        signup(client, 'user_a')
+        trip_id = create_trip(client, 'Private Trip').get_json()['trip_id']
+        client.post('/api/logout', content_type='application/json')
+        signup(client, 'user_b')
+        res = client.get(f'/api/expenses/{trip_id}')
+        assert res.status_code == 403
+
+    def test_access_other_trip_balances(self, client):
+        signup(client, 'user_a2')
+        trip_id = create_trip(client, 'Private 2').get_json()['trip_id']
+        client.post('/api/logout', content_type='application/json')
+        signup(client, 'user_b2')
+        res = client.get(f'/api/balances/{trip_id}')
+        assert res.status_code == 403
+
+    def test_add_expense_to_other_trip(self, client):
+        signup(client, 'user_x')
+        trip_id = create_trip(client, 'X Trip').get_json()['trip_id']
+        client.post('/api/logout', content_type='application/json')
+        signup(client, 'user_y')
+        res = add_expense(client, trip_id, 100, 'Sneak')
+        assert res.status_code == 403
+
+
+# =====================
+#   INPUT VALIDATION TESTS
+# =====================
+
+class TestInputValidation:
+    def test_very_long_trip_name(self, client):
+        signup(client)
+        res = create_trip(client, 'A' * 200)
+        assert res.status_code == 400
+
+    def test_very_long_description(self, client):
+        signup(client)
+        trip_id = create_trip(client).get_json()['trip_id']
+        res = add_expense(client, trip_id, 10, 'X' * 600)
+        assert res.status_code == 400
+
+    def test_huge_amount(self, client):
+        signup(client)
+        trip_id = create_trip(client).get_json()['trip_id']
+        res = add_expense(client, trip_id, 99_999_999, 'Too much')
+        assert res.status_code == 400
+
+    def test_string_amount(self, client):
+        signup(client)
+        trip_id = create_trip(client).get_json()['trip_id']
+        res = client.post('/api/expenses',
+                          json={'trip_id': trip_id, 'amount': 'abc', 'description': 'Bad'},
+                          content_type='application/json')
+        assert res.status_code == 400

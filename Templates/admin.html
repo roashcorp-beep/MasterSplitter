@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MasterSplitter Admin Command Center</title>
+    <link rel="stylesheet" href="/static/css/admin.css">
+</head>
+<body>
+    <div class="matrix-bg"></div>
+    <div class="container">
+        <header>
+            <h1><span class="glitch" data-text="MASTERSPLITTER">MASTERSPLITTER</span> // COMMAND CENTER</h1>
+            <div class="status-indicator">
+                <span class="dot blinking"></span> SYSTEM ONLINE
+            </div>
+        </header>
+
+        <main>
+            <section class="telemetry-grid">
+                <div class="card">
+                    <h3>ARCHITECT</h3>
+                    <div class="metrics">
+                        <div class="metric"><span class="label">Architecture:</span> <span class="value success">Decoupled</span></div>
+                        <div class="metric"><span class="label">Dependencies:</span> <span class="value success">Stable</span></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>DEVELOPER</h3>
+                    <div class="metrics">
+                        <div class="metric"><span class="label">Codebase:</span> <span class="value success">Nominal</span></div>
+                        <div class="metric"><span class="label">API Health:</span> <span class="value success">100%</span></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>QA ENGINEER</h3>
+                    <div class="metrics">
+                        <div class="metric"><span class="label">Test Coverage:</span> <span class="value success">35/35 Passing</span></div>
+                        <div class="metric"><span class="label">Security Scan:</span> <span class="value success">Encrypted</span></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>DEVOPS</h3>
+                    <div class="metrics">
+                        <div class="metric"><span class="label">CI/CD Pipeline:</span> <span class="value success">Armed</span></div>
+                        <div class="metric"><span class="label">Remote Sync:</span> <span class="value">Awaiting Push</span></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>PRODUCT MGR</h3>
+                    <div class="metrics">
+                        <div class="metric"><span class="label">Roadmap:</span> <span class="value success">On Track</span></div>
+                        <div class="metric"><span class="label">UX/UI:</span> <span class="value success">Modernized</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="terminal-section">
+                <div class="terminal-header">
+                    <span>root@mastersplitter:~/logs</span>
+                    <span id="poll-status">Polling: 3s</span>
+                </div>
+                <div class="terminal-window" id="log-container">
+                    <!-- Logs will be injected here -->
+                    <div class="log-line">> Initializing secure connection...</div>
+                    <div class="log-line">> Awaiting telemetry stream...</div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Hidden div to store the admin key for the JS fetch requests -->
+    <div id="admin-key-storage" data-key="{{ admin_key }}" style="display: none;"></div>
+    
+    <script src="/static/js/admin.js"></script>
+</body>
+</html>

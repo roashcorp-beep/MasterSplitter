@@ -166,10 +166,13 @@ input:not(.floating-input-wrapper input):focus, select:focus { border-color: var
 .item-icon-wrapper { width: 40px; height: 40px; border-radius: 12px; background: var(--primary-light); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; }
 .item-details h4 { margin-bottom: 3px; font-size: 0.98rem; font-weight: 700; color: var(--text-main); }
 .item-details p { font-size: 0.78rem; color: var(--text-sec); font-weight: 500; }
-.item-right { text-align: left; flex-shrink: 0; }
+.item-right { text-align: left; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
 .item-amount { font-weight: 800; font-size: 1.05rem; color: var(--text-main); }
 .amount-pos { color: var(--success); }
 .amount-neg { color: var(--error); }
+.delete-expense-btn { background: none; border: none; cursor: pointer; font-size: 0.85rem; padding: 2px 6px; border-radius: 8px; transition: all 0.2s ease; opacity: 0.4; }
+.delete-expense-btn:hover { opacity: 1; background: #fee2e2; transform: scale(1.15); }
+.list-item:hover .delete-expense-btn { opacity: 0.7; }
 
 /* Checkboxes */
 .checkbox-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; margin-top: 8px; }

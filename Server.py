@@ -1,17 +1,56 @@
-from flask import Flask, jsonify, request, render_template, session, redirect, url_for
-from werkzeug.security import generate_password_hash, check_password_hash
+import os
+import logging
 import sqlite3
 import json
+from datetime import datetime, timezone
+from functools import wraps
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
+from flask import Flask, jsonify, request, render_template, session, redirect, url_for, abort
+from werkzeug.security import generate_password_hash, check_password_hash
+
+# ---------------------
+#   LOGGING SETUP
+# ---------------------
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('master_splitter.log', encoding='utf-8'),
+    ]
+)
+logger = logging.getLogger('MasterSplitter')
+
+# ---------------------
+#   APP CONFIG
+# ---------------------
 app = Flask(__name__, static_folder='Static', static_url_path='/static', template_folder='Templates')
-app.secret_key = 'master_splitter_super_secret_key'
+app.secret_key = os.environ.get('SECRET_KEY', os.urandom(32))
 
+# Warn if no explicit secret key is set
+if not os.environ.get('SECRET_KEY'):
+    logger.warning("No SECRET_KEY environment variable set — using random key. Sessions will reset on restart.")
+
+
+# ---------------------
+#   DATABASE
+# ---------------------
 def get_db_connection():
+    """Get a new database connection with row_factory and foreign keys enabled."""
     conn = sqlite3.connect('master_splitter.db')
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
+
 def init_db_updates():
+    """Create tables if missing and run safe migrations for new columns."""
     conn = get_db_connection()
     cursor = conn.cursor()
 
@@ -43,7 +82,10 @@ def init_db_updates():
             amount REAL NOT NULL,
             currency TEXT DEFAULT 'ILS',
             description TEXT,
-            category TEXT DEFAULT 'General'
+            category TEXT DEFAULT 'General',
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(trip_id) REFERENCES Trips(id),
+            FOREIGN KEY(user_id) REFERENCES Users(id)
         )
     """)
 
@@ -63,35 +105,118 @@ def init_db_updates():
         cols = [c['name'] for c in cursor.fetchall()]
         if 'budget' not in cols:
             cursor.execute("ALTER TABLE Trips ADD COLUMN budget REAL DEFAULT 0")
+            logger.info("Migration: added 'budget' column to Trips")
         if 'owner_id' not in cols:
             cursor.execute("ALTER TABLE Trips ADD COLUMN owner_id INTEGER")
+            logger.info("Migration: added 'owner_id' column to Trips")
         if 'local_participants' not in cols:
             cursor.execute("ALTER TABLE Trips ADD COLUMN local_participants TEXT DEFAULT '[]'")
-    except Exception as e:
-        print(f"Trips migration: {e}")
+            logger.info("Migration: added 'local_participants' column to Trips")
+    except sqlite3.Error as e:
+        logger.error(f"Trips migration error: {e}")
 
     try:
         cursor.execute("PRAGMA table_info(Expenses)")
         cols = [c['name'] for c in cursor.fetchall()]
         if 'category' not in cols:
             cursor.execute("ALTER TABLE Expenses ADD COLUMN category TEXT DEFAULT 'General'")
-    except Exception as e:
-        print(f"Expenses migration: {e}")
+            logger.info("Migration: added 'category' column to Expenses")
+        if 'created_at' not in cols:
+            cursor.execute("ALTER TABLE Expenses ADD COLUMN created_at TEXT DEFAULT CURRENT_TIMESTAMP")
+            logger.info("Migration: added 'created_at' column to Expenses")
+    except sqlite3.Error as e:
+        logger.error(f"Expenses migration error: {e}")
 
     try:
         cursor.execute("PRAGMA table_info(Users)")
         cols = [c['name'] for c in cursor.fetchall()]
         if 'password_hash' not in cols:
             cursor.execute("ALTER TABLE Users ADD COLUMN password_hash TEXT")
+            logger.info("Migration: added 'password_hash' column to Users")
         if 'email' not in cols:
             cursor.execute("ALTER TABLE Users ADD COLUMN email TEXT")
-    except Exception as e:
-        print(f"Users migration: {e}")
+            logger.info("Migration: added 'email' column to Users")
+    except sqlite3.Error as e:
+        logger.error(f"Users migration error: {e}")
 
     conn.commit()
     conn.close()
+    logger.info("Database initialization complete.")
+
 
 init_db_updates()
+
+
+# ---------------------
+#   AUTH DECORATORS
+# ---------------------
+def login_required(f):
+    """Decorator: returns 401 if user is not logged in."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'user_id' not in session:
+            return jsonify({"error": "Unauthorized"}), 401
+        return f(*args, **kwargs)
+    return decorated
+
+
+def require_trip_access(f):
+    """Decorator: verifies the logged-in user is a member or owner of the trip.
+    Expects 'trip_id' as a URL parameter (kwargs)."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        trip_id = kwargs.get('trip_id')
+        if trip_id is None:
+            return jsonify({"error": "Missing trip_id"}), 400
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT 1 FROM TripMembers WHERE trip_id = ? AND user_id = ?
+            UNION
+            SELECT 1 FROM Trips WHERE id = ? AND owner_id = ?
+        """, (trip_id, session['user_id'], trip_id, session['user_id']))
+        has_access = cursor.fetchone() is not None
+        conn.close()
+        if not has_access:
+            logger.warning(f"User {session['user_id']} denied access to trip {trip_id}")
+            return jsonify({"error": "Forbidden"}), 403
+        return f(*args, **kwargs)
+    return decorated
+
+
+# ---------------------
+#   INPUT VALIDATION
+# ---------------------
+MAX_NAME_LENGTH = 100
+MAX_DESCRIPTION_LENGTH = 500
+MAX_EMAIL_LENGTH = 254
+MIN_PASSWORD_LENGTH = 4
+
+
+def validate_string(value, field_name, max_length=MAX_NAME_LENGTH, required=True):
+    """Validate a string field. Returns (cleaned_value, error_message)."""
+    if value is None:
+        value = ''
+    value = str(value).strip()
+    if required and not value:
+        return None, f"{field_name} is required."
+    if len(value) > max_length:
+        return None, f"{field_name} is too long (max {max_length} characters)."
+    return value, None
+
+
+def validate_amount(value):
+    """Validate an amount field. Returns (float_value, error_message)."""
+    try:
+        amount = float(value)
+    except (TypeError, ValueError):
+        return None, "סכום חייב להיות מספר."
+    if amount <= 0:
+        return None, "סכום חייב להיות גדול מ-0."
+    if amount > 10_000_000:
+        return None, "סכום גדול מדי."
+    return amount, None
+
 
 # =====================
 #   PAGE ROUTES
@@ -107,25 +232,33 @@ def serve_app():
         return redirect('/')
     return render_template('app.html')
 
+
 # =====================
 #   AUTH APIS
 # =====================
 
 @app.route('/api/me', methods=['GET'])
+@login_required
 def get_me():
-    if 'user_id' not in session:
-        return jsonify({"error": "Unauthorized"}), 401
     return jsonify({"id": session['user_id'], "name": session['username']})
+
 
 @app.route('/api/signup', methods=['POST'])
 def signup():
-    data = request.json
-    username = data.get('username', '').strip()
-    password = data.get('password', '')
-    email = data.get('email', '').strip() or None
+    data = request.json or {}
+    username, err = validate_string(data.get('username'), 'שם משתמש')
+    if err:
+        return jsonify({"error": err}), 400
 
-    if not username or not password:
-        return jsonify({"error": "יש למלא שם משתמש וסיסמה."}), 400
+    password = data.get('password', '')
+    if len(password) < MIN_PASSWORD_LENGTH:
+        return jsonify({"error": f"סיסמה חייבת להיות לפחות {MIN_PASSWORD_LENGTH} תווים."}), 400
+
+    email_raw = data.get('email', '').strip() or None
+    if email_raw:
+        email_raw, err = validate_string(email_raw, 'אימייל', MAX_EMAIL_LENGTH, required=False)
+        if err:
+            return jsonify({"error": err}), 400
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -137,25 +270,27 @@ def signup():
         pwd_hash = generate_password_hash(password)
         cursor.execute(
             "INSERT INTO Users (name, password_hash, email) VALUES (?, ?, ?)",
-            (username, pwd_hash, email)
+            (username, pwd_hash, email_raw)
         )
         user_id = cursor.lastrowid
         conn.commit()
         session['user_id'] = user_id
         session['username'] = username
+        logger.info(f"New user registered: {username} (id={user_id})")
         return jsonify({"success": True})
     except sqlite3.IntegrityError:
         return jsonify({"error": "שם המשתמש או האימייל כבר קיימים."}), 400
-    except Exception as e:
-        print(f"Signup error: {e}")
+    except sqlite3.Error as e:
+        logger.error(f"Signup DB error: {e}")
         return jsonify({"error": "שגיאת שרת. נסה שוב."}), 500
     finally:
         conn.close()
 
+
 @app.route('/api/login', methods=['POST'])
 def login():
-    data = request.json
-    username = data.get('username', '').strip()
+    data = request.json or {}
+    username = (data.get('username') or '').strip()
     password = data.get('password', '')
 
     if not username or not password:
@@ -169,25 +304,33 @@ def login():
         if user and user['password_hash'] and check_password_hash(user['password_hash'], password):
             session['user_id'] = user['id']
             session['username'] = user['name']
+            logger.info(f"User logged in: {user['name']} (id={user['id']})")
             return jsonify({"success": True})
         else:
+            logger.info(f"Failed login attempt for username: {username}")
             return jsonify({"error": "שם משתמש או סיסמה שגויים."}), 401
+    except sqlite3.Error as e:
+        logger.error(f"Login DB error: {e}")
+        return jsonify({"error": "שגיאת שרת."}), 500
     finally:
         conn.close()
 
+
 @app.route('/api/logout', methods=['POST'])
 def logout():
+    username = session.get('username', 'unknown')
     session.clear()
+    logger.info(f"User logged out: {username}")
     return jsonify({"success": True})
+
 
 # =====================
 #   TRIP APIS
 # =====================
 
 @app.route('/api/trips', methods=['GET'])
+@login_required
 def get_trips():
-    if 'user_id' not in session:
-        return jsonify({"error": "Unauthorized"}), 401
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
@@ -204,8 +347,8 @@ def get_trips():
         participants = []
         try:
             participants = json.loads(t['local_participants'] or '[]')
-        except:
-            pass
+        except (json.JSONDecodeError, TypeError):
+            logger.warning(f"Invalid local_participants JSON for trip {t['id']}")
         result.append({
             'id': t['id'],
             'name': t['destination'],
@@ -215,17 +358,28 @@ def get_trips():
         })
     return jsonify(result)
 
-@app.route('/api/trips', methods=['POST'])
-def create_trip():
-    if 'user_id' not in session:
-        return jsonify({"error": "Unauthorized"}), 401
-    data = request.json
-    name = data.get('name', '').strip()
-    budget = data.get('budget', 0)
-    participants = data.get('participants', [])  # list of local name strings
 
-    if not name:
-        return jsonify({"error": "יש לתת שם לטיול."}), 400
+@app.route('/api/trips', methods=['POST'])
+@login_required
+def create_trip():
+    data = request.json or {}
+    name, err = validate_string(data.get('name'), 'שם הטיול')
+    if err:
+        return jsonify({"error": err}), 400
+
+    budget_raw = data.get('budget', 0)
+    try:
+        budget = max(0, float(budget_raw))
+    except (TypeError, ValueError):
+        budget = 0
+
+    participants = data.get('participants', [])  # list of local name strings
+    if not isinstance(participants, list):
+        participants = []
+    # Validate each participant name
+    participants = [str(p).strip() for p in participants if str(p).strip()]
+    if len(participants) > 50:
+        return jsonify({"error": "Too many participants."}), 400
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -242,17 +396,81 @@ def create_trip():
             (trip_id, session['user_id'])
         )
         conn.commit()
+        logger.info(f"Trip created: '{name}' (id={trip_id}) by user {session['user_id']}")
         return jsonify({"success": True, "trip_id": trip_id})
-    except Exception as e:
-        print(f"Create trip error: {e}")
+    except sqlite3.Error as e:
+        logger.error(f"Create trip error: {e}")
         return jsonify({"error": "שגיאה ביצירת הטיול."}), 500
     finally:
         conn.close()
 
+
+@app.route('/api/trips/<int:trip_id>', methods=['PUT'])
+@login_required
+@require_trip_access
+def update_trip(trip_id):
+    """Update trip details. Only the trip owner can edit."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Verify ownership
+        cursor.execute("SELECT owner_id FROM Trips WHERE id = ?", (trip_id,))
+        trip = cursor.fetchone()
+        if not trip:
+            return jsonify({"error": "טיול לא נמצא."}), 404
+        if trip['owner_id'] != session['user_id']:
+            return jsonify({"error": "רק יוצר הטיול יכול לערוך אותו."}), 403
+
+        data = request.json or {}
+        updates = []
+        params = []
+
+        if 'name' in data:
+            name, err = validate_string(data['name'], 'שם הטיול')
+            if err:
+                conn.close()
+                return jsonify({"error": err}), 400
+            updates.append("destination = ?")
+            params.append(name)
+
+        if 'budget' in data:
+            try:
+                budget = max(0, float(data['budget']))
+            except (TypeError, ValueError):
+                budget = 0
+            updates.append("budget = ?")
+            params.append(budget)
+
+        if 'participants' in data:
+            participants = data['participants']
+            if not isinstance(participants, list):
+                participants = []
+            participants = [str(p).strip() for p in participants if str(p).strip()]
+            if len(participants) > 50:
+                conn.close()
+                return jsonify({"error": "Too many participants."}), 400
+            updates.append("local_participants = ?")
+            params.append(json.dumps(participants, ensure_ascii=False))
+
+        if not updates:
+            return jsonify({"error": "אין שינויים."}), 400
+
+        params.append(trip_id)
+        cursor.execute(f"UPDATE Trips SET {', '.join(updates)} WHERE id = ?", params)
+        conn.commit()
+        logger.info(f"Trip updated: id={trip_id} by user {session['user_id']}")
+        return jsonify({"success": True})
+    except sqlite3.Error as e:
+        logger.error(f"Update trip error: {e}")
+        return jsonify({"error": "שגיאה בעדכון הטיול."}), 500
+    finally:
+        conn.close()
+
+
 @app.route('/api/trip_members/<int:trip_id>', methods=['GET'])
+@login_required
+@require_trip_access
 def get_trip_members(trip_id):
-    if 'user_id' not in session:
-        return jsonify({"error": "Unauthorized"}), 401
     conn = get_db_connection()
     cursor = conn.cursor()
     # Registered users
@@ -272,22 +490,23 @@ def get_trip_members(trip_id):
         try:
             names = json.loads(row['local_participants'])
             local = [{'id': f'local_{i}', 'name': n, 'type': 'local'} for i, n in enumerate(names)]
-        except:
-            pass
+        except (json.JSONDecodeError, TypeError):
+            logger.warning(f"Invalid local_participants JSON for trip {trip_id}")
     return jsonify(registered + local)
+
 
 # =====================
 #   EXPENSE APIS
 # =====================
 
 @app.route('/api/expenses/<int:trip_id>', methods=['GET'])
+@login_required
+@require_trip_access
 def get_expenses(trip_id):
-    if 'user_id' not in session:
-        return jsonify({"error": "Unauthorized"}), 401
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT e.id, u.name as payer, e.amount, e.description, e.category
+        SELECT e.id, u.name as payer, e.amount, e.description, e.category, e.created_at
         FROM Expenses e
         JOIN Users u ON e.user_id = u.id
         WHERE e.trip_id = ?
@@ -297,41 +516,102 @@ def get_expenses(trip_id):
     conn.close()
     return jsonify([dict(e) for e in expenses])
 
-@app.route('/api/expenses', methods=['POST'])
-def add_expense():
-    if 'user_id' not in session:
-        return jsonify({"error": "Unauthorized"}), 401
-    data = request.json
-    trip_id = data.get('trip_id')
-    amount = data.get('amount')
-    description = data.get('description', '').strip()
-    category = data.get('category', 'General')
 
-    if not trip_id or not amount or not description:
+@app.route('/api/expenses', methods=['POST'])
+@login_required
+def add_expense():
+    data = request.json or {}
+    trip_id = data.get('trip_id')
+
+    if not trip_id:
         return jsonify({"error": "נתונים חסרים."}), 400
 
+    # Verify trip access
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT 1 FROM TripMembers WHERE trip_id = ? AND user_id = ?
+        UNION
+        SELECT 1 FROM Trips WHERE id = ? AND owner_id = ?
+    """, (trip_id, session['user_id'], trip_id, session['user_id']))
+    if not cursor.fetchone():
+        conn.close()
+        return jsonify({"error": "Forbidden"}), 403
+
+    # Validate amount
+    amount, err = validate_amount(data.get('amount'))
+    if err:
+        conn.close()
+        return jsonify({"error": err}), 400
+
+    # Validate description
+    description, err = validate_string(data.get('description'), 'תיאור', MAX_DESCRIPTION_LENGTH)
+    if err:
+        conn.close()
+        return jsonify({"error": err}), 400
+
+    category = (data.get('category') or 'General').strip()
+    if len(category) > 50:
+        category = category[:50]
+
+    try:
+        cursor.execute("""
+            INSERT INTO Expenses (trip_id, user_id, amount, currency, description, category, created_at)
+            VALUES (?, ?, ?, 'ILS', ?, ?, ?)
+        """, (trip_id, session['user_id'], amount, description, category,
+              datetime.now(timezone.utc).isoformat()))
+        conn.commit()
+        logger.info(f"Expense added: ₪{amount} for trip {trip_id} by user {session['user_id']}")
+        return jsonify({"success": True})
+    except sqlite3.Error as e:
+        logger.error(f"Add expense error: {e}")
+        return jsonify({"error": "שגיאה בהוספת הוצאה."}), 500
+    finally:
+        conn.close()
+
+
+@app.route('/api/expenses/<int:expense_id>', methods=['DELETE'])
+@login_required
+def delete_expense(expense_id):
+    """Delete an expense. Only the trip owner or the user who created it can delete."""
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
+        # Get the expense and verify ownership
         cursor.execute("""
-            INSERT INTO Expenses (trip_id, user_id, amount, currency, description, category)
-            VALUES (?, ?, ?, 'ILS', ?, ?)
-        """, (trip_id, session['user_id'], amount, description, category))
+            SELECT e.id, e.trip_id, e.user_id, e.amount, e.description, t.owner_id
+            FROM Expenses e
+            JOIN Trips t ON e.trip_id = t.id
+            WHERE e.id = ?
+        """, (expense_id,))
+        expense = cursor.fetchone()
+
+        if not expense:
+            return jsonify({"error": "הוצאה לא נמצאה."}), 404
+
+        # Allow deletion by expense creator or trip owner
+        if expense['user_id'] != session['user_id'] and expense['owner_id'] != session['user_id']:
+            return jsonify({"error": "אין הרשאה למחוק הוצאה זו."}), 403
+
+        cursor.execute("DELETE FROM Expenses WHERE id = ?", (expense_id,))
         conn.commit()
+        logger.info(f"Expense deleted: id={expense_id} (₪{expense['amount']}, '{expense['description']}') by user {session['user_id']}")
         return jsonify({"success": True})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    except sqlite3.Error as e:
+        logger.error(f"Delete expense error: {e}")
+        return jsonify({"error": "שגיאה במחיקת הוצאה."}), 500
     finally:
         conn.close()
+
 
 # =====================
 #   BALANCE API
 # =====================
 
 @app.route('/api/balances/<int:trip_id>', methods=['GET'])
+@login_required
+@require_trip_access
 def get_balances(trip_id):
-    if 'user_id' not in session:
-        return jsonify({"error": "Unauthorized"}), 401
     conn = get_db_connection()
     cursor = conn.cursor()
 
@@ -370,5 +650,84 @@ def get_balances(trip_id):
         'balances': balances
     })
 
+
+# =====================
+#   HEALTH CHECK
+# =====================
+
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    """Health check endpoint for monitoring."""
+    try:
+        conn = get_db_connection()
+        conn.execute("SELECT 1")
+        conn.close()
+        return jsonify({"status": "ok", "database": "connected"})
+    except sqlite3.Error as e:
+        logger.error(f"Health check failed: {e}")
+        return jsonify({"status": "error", "database": "disconnected"}), 503
+
+
+# =====================
+#   ERROR HANDLERS
+# =====================
+
+@app.errorhandler(404)
+def not_found(e):
+    return jsonify({"error": "Resource not found"}), 404
+
+@app.errorhandler(500)
+def server_error(e):
+    logger.error(f"Internal server error: {e}")
+    return jsonify({"error": "Internal server error"}), 500
+
+
+# =====================
+#   REQUEST LOGGING
+# =====================
+
+@app.before_request
+def log_request():
+    if request.path.startswith('/api/'):
+        logger.debug(f"{request.method} {request.path} from user_id={session.get('user_id', 'anonymous')}")
+
+
+# =====================
+#   ADMIN DASHBOARD
+# =====================
+
+@app.route('/admin-panel', methods=['GET'])
+def admin_panel():
+    """Serve the Standalone Admin Dashboard."""
+    admin_key = request.args.get('key')
+    secret = os.environ.get('ADMIN_SECRET_KEY')
+    if not secret or admin_key != secret:
+        abort(403)
+    return render_template('admin.html', admin_key=admin_key)
+
+@app.route('/api/admin/logs', methods=['GET'])
+def admin_logs():
+    """Stream the latest log entries."""
+    admin_key = request.headers.get('X-Admin-Key') or request.args.get('key')
+    secret = os.environ.get('ADMIN_SECRET_KEY')
+    if not secret or admin_key != secret:
+        return jsonify({"error": "Unauthorized"}), 403
+    
+    log_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'master_splitter.log')
+    try:
+        if not os.path.exists(log_file_path):
+            return jsonify({"logs": ["[SYSTEM] Log file not found. Awaiting first log entry..."]})
+        with open(log_file_path, 'r', encoding='utf-8') as f:
+            lines = [line.strip() for line in f.readlines() if line.strip()]
+            # Return last 100 lines
+            return jsonify({"logs": lines[-100:]})
+    except Exception as e:
+        logger.error(f"Admin log stream error: {e}")
+        return jsonify({"error": "Failed to read logs"}), 500
+
+
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    debug_mode = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
+    port = int(os.environ.get('PORT', 5000))
+    logger.info(f"Starting MasterSplitter on port {port} (debug={debug_mode})")
+    app.run(debug=debug_mode, port=port)

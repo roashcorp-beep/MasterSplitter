@@ -1,4 +1,19 @@
 // =====================
+//  UTILITIES
+// =====================
+
+/**
+ * Escape HTML special characters to prevent XSS.
+ * Used for ALL user-generated content before rendering.
+ */
+function escapeHTML(str) {
+    if (str === null || str === undefined) return '';
+    const div = document.createElement('div');
+    div.textContent = String(str);
+    return div.innerHTML;
+}
+
+// =====================
 //  AUTH (Login Page)
 // =====================
 let authMode = 'login';
@@ -13,15 +28,15 @@ function toggleAuthMode() {
     const toggle = document.getElementById('toggle-auth-btn');
     const err   = document.getElementById('error-msg');
     if (authMode === 'signup') {
-        if (title)  title.innerText  = 'צור חשבון 🚀';
-        if (sub)    sub.innerText    = 'הצטרף ותתחיל לחלק הוצאות';
-        if (submit) submit.innerText = 'הרשם';
-        if (toggle) toggle.innerText = 'יש לך כבר חשבון? התחבר';
+        if (title)  title.textContent  = 'צור חשבון 🚀';
+        if (sub)    sub.textContent    = 'הצטרף ותתחיל לחלק הוצאות';
+        if (submit) submit.textContent = 'הרשם';
+        if (toggle) toggle.textContent = 'יש לך כבר חשבון? התחבר';
     } else {
-        if (title)  title.innerText  = 'ברוך הבא! 👋';
-        if (sub)    sub.innerText    = 'התחבר כדי לנהל את ההוצאות שלך';
-        if (submit) submit.innerText = 'התחבר';
-        if (toggle) toggle.innerText = 'צור חשבון חדש';
+        if (title)  title.textContent  = 'ברוך הבא! 👋';
+        if (sub)    sub.textContent    = 'התחבר כדי לנהל את ההוצאות שלך';
+        if (submit) submit.textContent = 'התחבר';
+        if (toggle) toggle.textContent = 'צור חשבון חדש';
     }
     if (err) err.classList.remove('visible');
 }
@@ -32,7 +47,7 @@ async function submitAuth() {
     const err = document.getElementById('error-msg');
     if (err) err.classList.remove('visible');
     if (!username || !password) {
-        if (err) { err.innerText = 'יש למלא שם משתמש וסיסמה.'; err.classList.add('visible'); }
+        if (err) { err.textContent = 'יש למלא שם משתמש וסיסמה.'; err.classList.add('visible'); }
         return;
     }
     const endpoint = authMode === 'login' ? '/api/login' : '/api/signup';
@@ -46,10 +61,10 @@ async function submitAuth() {
         if (res.ok && data.success) {
             window.location.href = '/app';
         } else {
-            if (err) { err.innerText = data.error || 'שגיאה בחיבור.'; err.classList.add('visible'); }
+            if (err) { err.textContent = data.error || 'שגיאה בחיבור.'; err.classList.add('visible'); }
         }
     } catch (e) {
-        if (err) { err.innerText = 'שגיאת רשת. נסה שוב.'; err.classList.add('visible'); }
+        if (err) { err.textContent = 'שגיאת רשת. נסה שוב.'; err.classList.add('visible'); }
     }
 }
 
@@ -70,6 +85,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('lobby-view')) {
         initApp();
     }
+
+    // Friend input: Enter key
+    const fi = document.getElementById('friend-name-input');
+    if (fi) fi.addEventListener('keypress', e => { if (e.key === 'Enter') { e.preventDefault(); addFriendToList(); } });
 });
 
 async function initApp() {
@@ -77,10 +96,11 @@ async function initApp() {
         const res = await fetch('/api/me');
         if (!res.ok) { window.location.href = '/'; return; }
         currentUser = await res.json();
-        document.getElementById('lobby-username').innerText = currentUser.name;
+        const el = document.getElementById('lobby-username');
+        if (el) el.textContent = currentUser.name;
         await loadLobby();
     } catch (e) {
-        console.error(e);
+        console.error('Init error:', e);
         window.location.href = '/';
     }
 }
@@ -95,11 +115,10 @@ async function loadLobby() {
         if (res.status === 401) { window.location.href = '/'; return; }
         allTrips = await res.json();
         renderTripsList();
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error('Load lobby error:', e); }
 }
 
 function showView(view) {
-    // 'lobby' or 'dashboard'
     const lobby = document.getElementById('lobby-view');
     const dash  = document.getElementById('dashboard-view');
     if (view === 'lobby') {
@@ -123,29 +142,39 @@ function renderTripsList() {
         return;
     }
     const icons = ['✈️','🏖️','🗺️','🏔️','🎡','🚂'];
-    container.innerHTML = allTrips.map((t, i) => `
+    container.innerHTML = allTrips.map((t, i) => {
+        const safeName = escapeHTML(t.name);
+        const safeMeta = t.participants && t.participants.length
+            ? escapeHTML(t.participants.join(', '))
+            : 'אני בלבד';
+        return `
         <div class="trip-card" onclick="openTrip(${t.id})">
             <div class="trip-card-left">
                 <span class="trip-card-icon">${icons[i % icons.length]}</span>
                 <div class="trip-card-info">
-                    <div class="trip-card-name">${t.name}</div>
-                    <div class="trip-card-meta">${t.participants && t.participants.length ? t.participants.join(', ') : 'אני בלבד'}</div>
+                    <div class="trip-card-name">${safeName}</div>
+                    <div class="trip-card-meta">${safeMeta}</div>
                 </div>
             </div>
             <div class="trip-card-right">
                 <span class="trip-card-budget">₪${(t.budget || 0).toLocaleString()}</span>
                 <span class="trip-card-arrow">›</span>
             </div>
-        </div>`).join('');
+        </div>`;
+    }).join('');
 }
 
 async function openTrip(tripId) {
     currentTripId   = tripId;
     currentTripData = allTrips.find(t => t.id === tripId) || null;
     if (currentTripData) {
-        document.getElementById('trip-name-label').innerText = currentTripData.name;
-        document.getElementById('dashboard-trip-title').innerHTML =
-            `<span class="purple-text">${currentTripData.name.split(' ')[0]}</span>`;
+        const nameLabel = document.getElementById('trip-name-label');
+        const titleEl = document.getElementById('dashboard-trip-title');
+        if (nameLabel) nameLabel.textContent = currentTripData.name;
+        if (titleEl) {
+            const firstWord = escapeHTML(currentTripData.name.split(' ')[0]);
+            titleEl.innerHTML = `<span class="purple-text">${firstWord}</span>`;
+        }
     }
     showView('dashboard');
     switchTab('home');
@@ -179,18 +208,15 @@ function removeFriend(name) {
 function renderFriendsChips() {
     const container = document.getElementById('friends-chips');
     if (!container) return;
-    container.innerHTML = friendsList.map(n => `
+    container.innerHTML = friendsList.map(n => {
+        const safeName = escapeHTML(n);
+        return `
         <div class="friend-chip">
-            <span>${n}</span>
-            <span class="remove-chip" onclick="removeFriend('${n}')">✕</span>
-        </div>`).join('');
+            <span>${safeName}</span>
+            <span class="remove-chip" onclick="removeFriend('${safeName}')">✕</span>
+        </div>`;
+    }).join('');
 }
-
-// Allow pressing Enter in friend input
-document.addEventListener('DOMContentLoaded', () => {
-    const fi = document.getElementById('friend-name-input');
-    if (fi) fi.addEventListener('keypress', e => { if (e.key === 'Enter') { e.preventDefault(); addFriendToList(); } });
-});
 
 async function createTrip() {
     const name   = document.getElementById('new-trip-name')?.value.trim();
@@ -214,7 +240,7 @@ async function createTrip() {
             alert(data.error || 'שגיאה ביצירת הטיול.');
         }
     } catch (e) {
-        console.error(e);
+        console.error('Create trip error:', e);
         alert('שגיאת רשת.');
     }
 }
@@ -256,7 +282,7 @@ async function logout() {
 function showToast(msg) {
     const toast = document.getElementById('toast');
     if (toast) {
-        toast.innerText = msg;
+        toast.textContent = msg;
         toast.classList.add('show');
         setTimeout(() => toast.classList.remove('show'), 3000);
     }
@@ -273,7 +299,7 @@ async function fetchTripMembers() {
             tripMembers = await res.json();
             renderParticipantAvatars();
         }
-    } catch(e) { console.error(e); }
+    } catch(e) { console.error('Fetch members error:', e); }
 }
 
 function renderParticipantAvatars() {
@@ -284,19 +310,22 @@ function renderParticipantAvatars() {
     const shown  = tripMembers.slice(0, 3);
     const extra  = tripMembers.length - 3;
     container.innerHTML = shown.map((m, i) =>
-        `<div class="avatar ${colors[i % colors.length]}">${m.name.charAt(0)}</div>`
+        `<div class="avatar ${colors[i % colors.length]}">${escapeHTML(m.name.charAt(0))}</div>`
     ).join('');
     if (extra > 0) container.innerHTML += `<div class="avatar bg-light">+${extra}</div>`;
-    if (sub) sub.innerText = tripMembers.map(m => m.name).join(', ') || '';
+    if (sub) sub.textContent = tripMembers.map(m => m.name).join(', ') || '';
 }
 
 function renderParticipants() {
     const container = document.getElementById('participants-container');
     if (!container) return;
-    container.innerHTML = tripMembers.map(m => `
+    container.innerHTML = tripMembers.map(m => {
+        const safeName = escapeHTML(m.name);
+        return `
         <label class="checkbox-label">
-            <input type="checkbox" value="${m.id}" checked> ${m.name}
-        </label>`).join('');
+            <input type="checkbox" value="${escapeHTML(String(m.id))}" checked> ${safeName}
+        </label>`;
+    }).join('');
 }
 
 // =====================
@@ -319,17 +348,21 @@ async function fetchExpenses() {
             html = '<div class="loading-state">אין הוצאות בינתיים</div>';
         } else {
             expenses.forEach(exp => {
+                const safeDesc  = escapeHTML(exp.description);
+                const safePayer = escapeHTML(exp.payer);
+                const safeCat   = escapeHTML(exp.category || 'כללי');
                 html += `
-                <div class="list-item">
+                <div class="list-item" id="expense-${exp.id}">
                     <div class="item-left">
                         <div class="item-icon-wrapper">${getCategoryIcon(exp.category)}</div>
                         <div class="item-details">
-                            <h4>${exp.description}</h4>
-                            <p>שילם: ${exp.payer} • ${exp.category || 'כללי'}</p>
+                            <h4>${safeDesc}</h4>
+                            <p>שילם: ${safePayer} • ${safeCat}</p>
                         </div>
                     </div>
                     <div class="item-right">
                         <div class="item-amount">₪${parseFloat(exp.amount).toFixed(2)}</div>
+                        <button class="delete-expense-btn" onclick="deleteExpense(${exp.id})" title="מחק הוצאה">🗑️</button>
                     </div>
                 </div>`;
             });
@@ -338,35 +371,62 @@ async function fetchExpenses() {
         const home = document.getElementById('home-expenses-list');
         if (full) full.innerHTML = html;
         if (home) home.innerHTML = html;
-    } catch(e) { console.error(e); }
+    } catch(e) { console.error('Fetch expenses error:', e); }
+}
+
+async function deleteExpense(expenseId) {
+    if (!confirm('למחוק את ההוצאה?')) return;
+    try {
+        const res = await fetch(`/api/expenses/${expenseId}`, { method: 'DELETE' });
+        if (res.status === 401) { window.location.href = '/'; return; }
+        const data = await res.json();
+        if (res.ok && data.success) {
+            showToast('ההוצאה נמחקה 🗑️');
+            fetchExpenses();
+            fetchBalances();
+        } else {
+            alert(data.error || 'שגיאה במחיקת הוצאה.');
+        }
+    } catch (e) {
+        console.error('Delete expense error:', e);
+        alert('שגיאת רשת.');
+    }
 }
 
 async function addExpense() {
-    const amount   = document.getElementById('amount')?.value;
-    const desc     = document.getElementById('desc')?.value.trim();
+    const amountInput = document.getElementById('amount');
+    const descInput   = document.getElementById('desc');
+    const amount   = amountInput?.value;
+    const desc     = descInput?.value.trim();
     const category = document.getElementById('category')?.value;
     const checked  = document.querySelectorAll('#participants-container input[type="checkbox"]:checked');
     const parts    = Array.from(checked).map(cb => cb.value);
-    if (!amount || !desc)    { alert('יש למלא סכום ותיאור.'); return; }
-    if (!parts.length)       { alert('בחר לפחות משתתף אחד.'); return; }
-    if (!currentTripId)      { alert('לא נבחר טיול.'); return; }
+
+    if (!amount || parseFloat(amount) <= 0) { alert('יש למלא סכום תקין.'); return; }
+    if (!desc)           { alert('יש למלא תיאור.'); return; }
+    if (!parts.length)   { alert('בחר לפחות משתתף אחד.'); return; }
+    if (!currentTripId)  { alert('לא נבחר טיול.'); return; }
+
     try {
         const res = await fetch('/api/expenses', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ trip_id: currentTripId, amount, description: desc, category, participants: parts })
+            body: JSON.stringify({ trip_id: currentTripId, amount: parseFloat(amount), description: desc, category, participants: parts })
         });
         if (res.status === 401) { window.location.href = '/'; return; }
         const data = await res.json();
         if (res.ok && data.success) {
-            document.getElementById('amount').value = '';
-            document.getElementById('desc').value   = '';
+            amountInput.value = '';
+            descInput.value   = '';
             showToast('ההוצאה נוספה! 💸');
             switchTab('expenses');
         } else {
             alert(data.error || 'שגיאה.');
         }
-    } catch(e) { alert('שגיאת רשת.'); }
+    } catch(e) {
+        console.error('Add expense error:', e);
+        alert('שגיאת רשת.');
+    }
 }
 
 // =====================
@@ -387,10 +447,10 @@ async function fetchBalances() {
         const elBudget = document.getElementById('total-budget');
         const elLeft   = document.getElementById('budget-left');
         const elPct    = document.getElementById('circle-percent');
-        if (elSpent)  elSpent.innerText  = `₪${spent.toFixed(0)}`;
-        if (elBudget) elBudget.innerText = `₪${budget}`;
-        if (elLeft)   elLeft.innerText   = `₪${Math.max(0, left).toFixed(0)}`;
-        if (elPct)    elPct.innerText    = `${pct}%`;
+        if (elSpent)  elSpent.textContent  = `₪${spent.toFixed(0)}`;
+        if (elBudget) elBudget.textContent = `₪${budget}`;
+        if (elLeft)   elLeft.textContent   = `₪${Math.max(0, left).toFixed(0)}`;
+        if (elPct)    elPct.textContent    = `${pct}%`;
 
         const list = document.getElementById('balances-list');
         if (!list) return;
@@ -399,12 +459,13 @@ async function fetchBalances() {
             const cls  = b.balance >= 0 ? 'amount-pos' : 'amount-neg';
             const txt  = b.balance > 0 ? 'צריך לקבל' : b.balance < 0 ? 'צריך לשלם' : 'מאוזן';
             const me   = currentUser && b.user_id === currentUser.id ? ' (את/ה)' : '';
+            const safeName = escapeHTML(b.name);
             return `
             <div class="list-item">
                 <div class="item-left">
-                    <div class="avatar bg-purple" style="width:40px;height:40px;font-size:1.2rem;">${b.name.charAt(0)}</div>
+                    <div class="avatar bg-purple" style="width:40px;height:40px;font-size:1.2rem;">${escapeHTML(b.name.charAt(0))}</div>
                     <div class="item-details">
-                        <h4>${b.name}${me}</h4>
+                        <h4>${safeName}${me}</h4>
                         <p>${txt}</p>
                     </div>
                 </div>
@@ -413,5 +474,5 @@ async function fetchBalances() {
                 </div>
             </div>`;
         }).join('');
-    } catch(e) { console.error(e); }
+    } catch(e) { console.error('Fetch balances error:', e); }
 }

@@ -246,7 +246,15 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import threading
 
-def send_verification_email_async(email_addr, token):
+def send_verification_email(email_addr, token):
+    if app.config.get('TESTING'):
+        # Do not send actual emails during testing
+        domain = os.environ.get('PA_DOMAIN', 'localhost:5000')
+        protocol = "https" if domain != "localhost:5000" else "http"
+        verify_link = f"{protocol}://{domain}/api/verify/{token}"
+        logger.info(f"[TESTING] Verification link for {email_addr}: {verify_link}")
+        return True
+
     smtp_server = os.environ.get('SMTP_SERVER')
     smtp_port = os.environ.get('SMTP_PORT', 587)
     smtp_username = os.environ.get('SMTP_USERNAME')
@@ -258,7 +266,7 @@ def send_verification_email_async(email_addr, token):
     
     if not smtp_server or not smtp_username or not smtp_password:
         logger.warning(f"SMTP not configured. Verification link for {email_addr}: {verify_link}")
-        return
+        return False
 
     try:
         msg = MIMEMultipart()
@@ -283,21 +291,11 @@ def send_verification_email_async(email_addr, token):
         server.send_message(msg)
         server.quit()
         logger.info(f"Verification email sent to {email_addr}")
+        return True
     except Exception as e:
         logger.error(f"Failed to send verification email to {email_addr}: {e}")
+        return False
 
-def send_verification_email(email_addr, token):
-    if app.config.get('TESTING'):
-        # Do not send actual emails during testing
-        domain = os.environ.get('PA_DOMAIN', 'localhost:5000')
-        protocol = "https" if domain != "localhost:5000" else "http"
-        verify_link = f"{protocol}://{domain}/api/verify/{token}"
-        logger.info(f"[TESTING] Verification link for {email_addr}: {verify_link}")
-        return
-        
-    thread = threading.Thread(target=send_verification_email_async, args=(email_addr, token))
-    thread.daemon = True
-    thread.start()
 
 # =====================
 #   PAGE ROUTES
@@ -395,7 +393,10 @@ def signup():
         conn.commit()
         
         # Send Verification Email
-        send_verification_email(email_raw, token)
+        if not send_verification_email(email_raw, token):
+            cursor.execute("DELETE FROM Users WHERE id = ?", (user_id,))
+            conn.commit()
+            return jsonify({"error": "Email server configuration error. Registration paused."}), 500
         
         logger.info(f"New user registered (pending verification): {username} (id={user_id})")
         return jsonify({"success": True, "message": "Registration successful! Please check your email to verify your account before logging in."})

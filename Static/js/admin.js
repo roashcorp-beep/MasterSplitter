@@ -6,6 +6,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let isAutoScrolling = true;
     let logsActive = false; // Flag to indicate if logs are actively streaming
+    let isPolling = true;
+    let pollIntervalId = null;
 
     // Select all role cards
     const roles = {
@@ -139,11 +141,41 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchLogs();
     
     // Set polling interval for logs (3000ms)
-    setInterval(fetchLogs, 3000);
+    pollIntervalId = setInterval(fetchLogs, 3000);
 
     // Set productivity simulation interval (2500ms)
     setInterval(updateProductivity, 2500);
     
     // Initialize productivity immediately
     updateProductivity();
+
+    // Log Controls
+    const togglePollBtn = document.getElementById('toggle-poll-btn');
+    const clearLogsBtn = document.getElementById('clear-logs-btn');
+
+    if (togglePollBtn) {
+        togglePollBtn.addEventListener('click', () => {
+            isPolling = !isPolling;
+            if (isPolling) {
+                togglePollBtn.textContent = 'Live';
+                togglePollBtn.classList.add('active');
+                pollStatus.textContent = "Polling: 3s";
+                pollStatus.style.color = "";
+                pollIntervalId = setInterval(fetchLogs, 3000);
+                fetchLogs(); // Fetch immediately on resume
+            } else {
+                togglePollBtn.textContent = 'Paused';
+                togglePollBtn.classList.remove('active');
+                pollStatus.textContent = "Polling: Paused";
+                pollStatus.style.color = "var(--text-secondary)";
+                clearInterval(pollIntervalId);
+            }
+        });
+    }
+
+    if (clearLogsBtn) {
+        clearLogsBtn.addEventListener('click', () => {
+            logContainer.innerHTML = '';
+        });
+    }
 });

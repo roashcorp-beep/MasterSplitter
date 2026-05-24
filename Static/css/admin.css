@@ -315,10 +315,53 @@ header {
     border: 1px solid rgba(255, 204, 0, 0.3);
 }
 
-.log-tag.error {
-    background: rgba(255, 51, 102, 0.2);
-    color: var(--error-red);
-    border: 1px solid rgba(255, 51, 102, 0.3);
+.log-tag.error { background: rgba(255, 51, 102, 0.15); color: var(--error-red); border-color: rgba(255, 51, 102, 0.3); }
+
+/* Log Controls */
+.log-controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-right: 20px;
+    margin-left: auto;
+}
+
+.admin-btn {
+    background: var(--bg-dark);
+    color: var(--text-primary);
+    border: 1px solid var(--panel-border);
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: var(--font-main);
+}
+
+.admin-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.admin-btn.live-btn {
+    color: var(--text-secondary);
+    border-color: rgba(255,255,255,0.1);
+}
+
+.admin-btn.live-btn.active {
+    color: var(--emerald-green);
+    border-color: rgba(0, 255, 102, 0.3);
+    box-shadow: 0 0 10px rgba(0, 255, 102, 0.2);
+    text-shadow: 0 0 5px rgba(0, 255, 102, 0.5);
+}
+
+.admin-btn.clear-btn {
+    color: var(--warn-yellow);
+    border-color: rgba(255, 204, 0, 0.3);
+}
+
+.admin-btn.clear-btn:hover {
+    background: rgba(255, 204, 0, 0.1);
 }
 
 .log-content {

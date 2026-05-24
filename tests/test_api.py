@@ -174,6 +174,21 @@ class TestAuth:
         res = login(client, password='wrongpass')
         assert res.status_code == 401
 
+    def test_signup_smtp_failure(self, client):
+        # Temporarily disable TESTING to force SMTP attempt which will fail because credentials are missing
+        import Server
+        original_testing = Server.app.config.get('TESTING')
+        Server.app.config['TESTING'] = False
+        try:
+            res = client.post('/api/signup',
+                   json={'username': 'smtp_fail', 'password': 'test1234', 'phone': '050-smtp', 'email': 'smtp@fail.com'},
+                   content_type='application/json')
+            assert res.status_code == 500
+            data = res.get_json()
+            assert "Email server configuration error" in data['error']
+        finally:
+            Server.app.config['TESTING'] = original_testing
+
     def test_login_unverified(self, client):
         # Directly signup without using helper which auto-verifies
         client.post('/api/signup',

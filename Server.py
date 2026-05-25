@@ -60,7 +60,10 @@ def init_db_updates():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE NOT NULL,
             password_hash TEXT,
-            email TEXT UNIQUE
+            email TEXT UNIQUE,
+            phone TEXT UNIQUE,
+            is_verified INTEGER DEFAULT 0,
+            verification_token TEXT
         )
     """)
 
@@ -130,21 +133,37 @@ def init_db_updates():
     try:
         cursor.execute("PRAGMA table_info(Users)")
         cols = [c['name'] for c in cursor.fetchall()]
-        if 'password_hash' not in cols:
-            cursor.execute("ALTER TABLE Users ADD COLUMN password_hash TEXT")
-            logger.info("Migration: added 'password_hash' column to Users")
-        if 'email' not in cols:
-            cursor.execute("ALTER TABLE Users ADD COLUMN email TEXT")
-            logger.info("Migration: added 'email' column to Users")
-        if 'phone' not in cols:
-            cursor.execute("ALTER TABLE Users ADD COLUMN phone TEXT UNIQUE")
-            logger.info("Migration: added 'phone' column to Users")
-        if 'is_verified' not in cols:
-            cursor.execute("ALTER TABLE Users ADD COLUMN is_verified INTEGER DEFAULT 0")
-            logger.info("Migration: added 'is_verified' column to Users")
-        if 'verification_token' not in cols:
-            cursor.execute("ALTER TABLE Users ADD COLUMN verification_token TEXT")
-            logger.info("Migration: added 'verification_token' column to Users")
+        
+        expected_cols = ['password_hash', 'email', 'phone', 'is_verified', 'verification_token']
+        needs_migration = any(c not in cols for c in expected_cols)
+        
+        if needs_migration:
+            cursor.execute("""
+                CREATE TABLE Users_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT UNIQUE NOT NULL,
+                    password_hash TEXT,
+                    email TEXT UNIQUE,
+                    phone TEXT UNIQUE,
+                    is_verified INTEGER DEFAULT 0,
+                    verification_token TEXT
+                )
+            """)
+            
+            select_cols = []
+            for col in ['id', 'name', 'password_hash', 'email', 'phone', 'is_verified', 'verification_token']:
+                if col in cols:
+                    select_cols.append(col)
+                else:
+                    if col == 'email': select_cols.append("'temp_' || id || '@migrate.com'")
+                    elif col == 'phone': select_cols.append("'temp_' || id")
+                    elif col == 'is_verified': select_cols.append("0")
+                    else: select_cols.append("NULL")
+            
+            cursor.execute(f"INSERT INTO Users_new (id, name, password_hash, email, phone, is_verified, verification_token) SELECT {', '.join(select_cols)} FROM Users")
+            cursor.execute("DROP TABLE Users")
+            cursor.execute("ALTER TABLE Users_new RENAME TO Users")
+            logger.info("Migration: Performed table swap for Users schema update.")
     except sqlite3.Error as e:
         logger.error(f"Users migration error: {e}")
 

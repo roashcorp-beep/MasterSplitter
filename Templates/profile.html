@@ -47,7 +47,7 @@
             </div>
 
             <!-- Change Password Section Toggle -->
-            <button class="secondary-btn full-width" style="margin-bottom: 16px;" onclick="document.getElementById('pwd-section').classList.toggle('open')" data-i18n="profile_change_pwd">שינוי סיסמה 🔐</button>
+            <button class="secondary-btn full-width" style="margin-bottom: 16px;" onclick="togglePasswordSection()" data-i18n="profile_change_pwd">שינוי סיסמה 🔐</button>
             
             <div class="profile-card accordion-body" id="pwd-section">
                 <div class="form-group">
@@ -177,6 +177,18 @@
             } catch (e) {
                 errEl.textContent = i18n('error_network');
                 errEl.classList.add('visible');
+            }
+        }
+
+        function togglePasswordSection() {
+            const sec = document.getElementById('pwd-section');
+            if (sec) {
+                sec.classList.toggle('open');
+                if (sec.classList.contains('open')) {
+                    setTimeout(() => {
+                        sec.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }, 350);
+                }
             }
         }
 

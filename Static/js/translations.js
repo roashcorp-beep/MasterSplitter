@@ -32,7 +32,7 @@ const translations = {
         
         // Lobby
         "lobby_hello": "שלום, ",
-        "lobby_my_trips": "הטיולים שלי",
+        "lobby_my_trips": "הטיולים שלי 🌍",
         "lobby_no_trips": "אין טיולים עדיין. צור טיול חדש!",
         "lobby_btn_create": "+ צור טיול חדש ✈️",
         "create_trip_title": "צור טיול חדש ✈️",
@@ -95,7 +95,7 @@ const translations = {
         "profile_display_name": "שם תצוגה",
         "profile_new_name": "שם חדש",
         "profile_new_name_ph": "הכנס שם תצוגה חדש",
-        "profile_btn_save_name": "שמור שם 👤",
+        "profile_btn_save_name": "לשמור 👤",
         "profile_language": "שפה / Language",
         "profile_change_pwd": "שינוי סיסמה 🔐",
         "profile_current_pwd": "סיסמה נוכחית",
@@ -186,7 +186,7 @@ const translations = {
         
         // Lobby
         "lobby_hello": "Hello, ",
-        "lobby_my_trips": "My Trips",
+        "lobby_my_trips": "My Trips 🌍",
         "lobby_no_trips": "No trips yet. Create a new trip!",
         "lobby_btn_create": "+ Create New Trip ✈️",
         "create_trip_title": "Create New Trip ✈️",
@@ -249,7 +249,7 @@ const translations = {
         "profile_display_name": "Display Name",
         "profile_new_name": "New Name",
         "profile_new_name_ph": "Enter new display name",
-        "profile_btn_save_name": "Save Name 👤",
+        "profile_btn_save_name": "Save 👤",
         "profile_language": "Language / שפה",
         "profile_change_pwd": "Change Password 🔐",
         "profile_current_pwd": "Current Password",
@@ -299,8 +299,8 @@ const translations = {
         "toast_settled": "Debt settled! 🎉",
 
         // Phase 4: Activity Feed
-        "activity_title": "Activity",
-        "tab_activity": "Activity",
+        "activity_title": "Activity 📋",
+        "tab_activity": "Activity 📋",
         "activity_no_data": "No activity yet",
         "activity_expense_added": "Added expense",
         "activity_expense_edited": "Edited expense",

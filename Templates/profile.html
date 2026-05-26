@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="MasterSplitter — פרופיל משתמש. עדכן שם תצוגה ושנה סיסמה.">
+    <title>MasterSplitter - פרופיל</title>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="profile-body">
+    <div class="profile-container">
+
+        <div class="profile-header">
+            <button class="back-btn" onclick="window.location.href='/app'" title="חזור">→</button>
+            <h2>פרופיל</h2>
+        </div>
+
+        <div class="profile-content">
+
+            <!-- Avatar & Info -->
+            <div class="profile-avatar-section">
+                <div class="profile-avatar" id="profile-avatar">?</div>
+                <div class="profile-name-display" id="profile-name-display">טוען...</div>
+                <div class="profile-email-display" id="profile-email-display"></div>
+            </div>
+
+            <!-- Display Name Section -->
+            <div class="profile-section-title">שם תצוגה</div>
+            <div class="profile-card">
+                <div class="form-group">
+                    <label for="profile-name">שם חדש</label>
+                    <input type="text" id="profile-name" placeholder="הכנס שם תצוגה חדש">
+                </div>
+                <button class="primary-btn full-width" onclick="updateProfileName()">שמור שם</button>
+                <div class="error-message" id="name-error"></div>
+                <div class="success-message" id="name-success"></div>
+            </div>
+
+            <!-- Change Password Section -->
+            <div class="profile-section-title">שינוי סיסמה</div>
+            <div class="profile-card">
+                <div class="form-group">
+                    <label for="current-password">סיסמה נוכחית</label>
+                    <input type="password" id="current-password" placeholder="הכנס סיסמה נוכחית" autocomplete="current-password">
+                </div>
+                <div class="form-group">
+                    <label for="new-password">סיסמה חדשה</label>
+                    <input type="password" id="new-password" placeholder="הכנס סיסמה חדשה" autocomplete="new-password">
+                </div>
+                <div class="form-group">
+                    <label for="confirm-new-password">אימות סיסמה חדשה</label>
+                    <input type="password" id="confirm-new-password" placeholder="הכנס שוב סיסמה חדשה" autocomplete="new-password">
+                </div>
+                <button class="primary-btn full-width" onclick="changePassword()">עדכן סיסמה</button>
+                <div class="error-message" id="pwd-error"></div>
+                <div class="success-message" id="pwd-success"></div>
+            </div>
+
+            <!-- Logout -->
+            <button class="profile-logout-btn" onclick="profileLogout()">⎋ התנתק</button>
+
+        </div>
+    </div>
+
+    <script>
+        // Load profile on page load
+        document.addEventListener('DOMContentLoaded', loadProfile);
+
+        async function loadProfile() {
+            try {
+                const res = await fetch('/api/profile');
+                if (!res.ok) { window.location.href = '/'; return; }
+                const data = await res.json();
+                document.getElementById('profile-avatar').textContent = data.name.charAt(0).toUpperCase();
+                document.getElementById('profile-name-display').textContent = data.name;
+                document.getElementById('profile-email-display').textContent = data.email || '';
+                document.getElementById('profile-name').value = data.name;
+            } catch (e) {
+                window.location.href = '/';
+            }
+        }
+
+        async function updateProfileName() {
+            const name = document.getElementById('profile-name').value.trim();
+            const errEl = document.getElementById('name-error');
+            const successEl = document.getElementById('name-success');
+            errEl.classList.remove('visible');
+            successEl.classList.remove('visible');
+
+            if (!name) {
+                errEl.textContent = 'שם תצוגה הוא שדה חובה.';
+                errEl.classList.add('visible');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/profile', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    successEl.textContent = 'השם עודכן בהצלחה!';
+                    successEl.classList.add('visible');
+                    document.getElementById('profile-name-display').textContent = name;
+                    document.getElementById('profile-avatar').textContent = name.charAt(0).toUpperCase();
+                } else {
+                    errEl.textContent = data.error || 'שגיאה בעדכון השם.';
+                    errEl.classList.add('visible');
+                }
+            } catch (e) {
+                errEl.textContent = 'שגיאת רשת.';
+                errEl.classList.add('visible');
+            }
+        }
+
+        async function changePassword() {
+            const current = document.getElementById('current-password').value;
+            const newPwd = document.getElementById('new-password').value;
+            const confirm = document.getElementById('confirm-new-password').value;
+            const errEl = document.getElementById('pwd-error');
+            const successEl = document.getElementById('pwd-success');
+            errEl.classList.remove('visible');
+            successEl.classList.remove('visible');
+
+            if (!current || !newPwd || !confirm) {
+                errEl.textContent = 'יש למלא את כל השדות.';
+                errEl.classList.add('visible');
+                return;
+            }
+            if (newPwd !== confirm) {
+                errEl.textContent = 'הסיסמאות החדשות לא תואמות.';
+                errEl.classList.add('visible');
+                return;
+            }
+            if (newPwd.length < 4) {
+                errEl.textContent = 'סיסמה חדשה חייבת להיות לפחות 4 תווים.';
+                errEl.classList.add('visible');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/profile/change-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ current_password: current, new_password: newPwd })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    successEl.textContent = data.message || 'הסיסמה עודכנה בהצלחה!';
+                    successEl.classList.add('visible');
+                    document.getElementById('current-password').value = '';
+                    document.getElementById('new-password').value = '';
+                    document.getElementById('confirm-new-password').value = '';
+                } else {
+                    errEl.textContent = data.error || 'שגיאה בשינוי הסיסמה.';
+                    errEl.classList.add('visible');
+                }
+            } catch (e) {
+                errEl.textContent = 'שגיאת רשת.';
+                errEl.classList.add('visible');
+            }
+        }
+
+        async function profileLogout() {
+            try { await fetch('/api/logout', { method: 'POST' }); } catch(e) {}
+            window.location.href = '/';
+        }
+    </script>
+</body>
+</html>

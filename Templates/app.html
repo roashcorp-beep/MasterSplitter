@@ -32,30 +32,37 @@
                 </div>
             </div>
 
-            <!-- Create Trip Card -->
-            <div class="card create-trip-card">
-                <h3 class="screen-title">+ צור טיול חדש</h3>
+            <!-- Create Trip Toggle Button -->
+            <button class="create-trip-toggle" id="create-trip-toggle-btn" onclick="toggleCreateTrip()">
+                + צור טיול חדש
+            </button>
 
-                <div class="form-group">
-                    <label>שם הטיול / יעד</label>
-                    <input type="text" id="new-trip-name" placeholder="למשל: תאילנד, פריז...">
-                </div>
+            <!-- Collapsible Create Trip Form -->
+            <div class="create-trip-collapsible" id="create-trip-collapsible">
+                <div class="card create-trip-card">
+                    <h3 class="screen-title">צור טיול חדש ✈️</h3>
 
-                <div class="form-group">
-                    <label>תקציב (₪)</label>
-                    <input type="number" id="new-trip-budget" placeholder="0" min="0">
-                </div>
-
-                <div class="form-group">
-                    <label>הזמן חברים (אימייל או טלפון)</label>
-                    <div class="friend-add-row">
-                        <input type="text" id="friend-name-input" placeholder="הכנס טלפון או אימייל">
-                        <button class="add-friend-btn" onclick="addFriendToList()">+</button>
+                    <div class="form-group">
+                        <label>שם הטיול / יעד</label>
+                        <input type="text" id="new-trip-name" placeholder="למשל: תאילנד, פריז...">
                     </div>
-                    <div id="friends-chips" class="friends-chips"></div>
-                </div>
 
-                <button class="primary-btn full-width" onclick="createTrip()">צור טיול</button>
+                    <div class="form-group">
+                        <label>תקציב (₪)</label>
+                        <input type="number" id="new-trip-budget" placeholder="0" min="0">
+                    </div>
+
+                    <div class="form-group">
+                        <label>הזמן חברים (אימייל או טלפון)</label>
+                        <div class="friend-add-row">
+                            <input type="text" id="friend-name-input" placeholder="הכנס טלפון או אימייל">
+                            <button class="add-friend-btn" onclick="addFriendToList()">+</button>
+                        </div>
+                        <div id="friends-chips" class="friends-chips"></div>
+                    </div>
+
+                    <button class="primary-btn full-width" onclick="createTrip()">צור טיול</button>
+                </div>
             </div>
         </div>
     </div>
@@ -73,6 +80,7 @@
                 <button class="menu-item" onclick="goToLobby()">🌍 הטיולים שלי</button>
                 <button class="menu-item" onclick="switchTab('home'); closeHamburgerMenu()">🏠 דשבורד</button>
                 <button class="menu-item" onclick="switchTab('balances'); closeHamburgerMenu()">📊 יתרות</button>
+                <button class="menu-item" onclick="window.location.href='/profile'">👤 פרופיל</button>
                 <div class="menu-divider"></div>
                 <button class="menu-item danger" onclick="logout()">⎋ התנתק</button>
             </div>
@@ -149,8 +157,38 @@
                     <h3 class="screen-title">הוספת הוצאה</h3>
                     <label>על מה היה?</label>
                     <input type="text" id="desc" placeholder="למשל: ארוחת ערב, מונית...">
-                    <label style="margin-top:16px;">סכום (₪)</label>
-                    <input type="number" id="amount" placeholder="0" min="0" step="0.01">
+
+                    <label style="margin-top:16px;">סכום</label>
+                    <div class="currency-row">
+                        <div class="amount-col">
+                            <input type="number" id="amount" placeholder="0" min="0" step="0.01">
+                        </div>
+                        <div class="currency-col">
+                            <select id="currency">
+                                <optgroup label="מועדפים">
+                                    <option value="USD">$ USD</option>
+                                    <option value="EUR">€ EUR</option>
+                                    <option value="ILS" selected>₪ ILS</option>
+                                </optgroup>
+                                <optgroup label="מטבעות נוספים">
+                                    <option value="GBP">£ GBP</option>
+                                    <option value="JPY">¥ JPY</option>
+                                    <option value="CHF">₣ CHF</option>
+                                    <option value="AUD">A$ AUD</option>
+                                    <option value="CAD">C$ CAD</option>
+                                    <option value="THB">฿ THB</option>
+                                    <option value="HUF">Ft HUF</option>
+                                    <option value="PLN">zł PLN</option>
+                                    <option value="CZK">Kč CZK</option>
+                                    <option value="TRY">₺ TRY</option>
+                                    <option value="SEK">kr SEK</option>
+                                    <option value="NOK">kr NOK</option>
+                                    <option value="DKK">kr DKK</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                    </div>
+
                     <label style="margin-top:16px;">קטגוריה</label>
                     <select id="category">
                         <option value="אוכל">🍕 אוכל</option>
@@ -159,8 +197,10 @@
                         <option value="אטרקציות">🎟️ אטרקציות</option>
                         <option value="כללי" selected>💡 כללי</option>
                     </select>
+
                     <label style="margin-top:16px;">עבור מי?</label>
-                    <div class="checkbox-grid" id="participants-container"></div>
+                    <div class="participants-pills" id="participants-container"></div>
+
                     <button class="primary-btn full-width" style="margin-top:20px;" onclick="addExpense()">שמור הוצאה</button>
                 </div>
             </div>
@@ -169,13 +209,6 @@
                 <div class="card">
                     <h3 class="screen-title">סיכומים ויתרות</h3>
                     <div id="balances-list"></div>
-                </div>
-            </div>
-
-            <div id="screen-more" class="screen">
-                <div class="card">
-                    <h3 class="screen-title">פרופיל</h3>
-                    <p style="text-align:center; color:var(--text-sec); margin-top:20px;">מסך פרופיל יתווסף בקרוב.</p>
                 </div>
             </div>
 
@@ -195,9 +228,43 @@
             <button class="nav-item" onclick="switchTab('balances')" id="tab-balances">
                 <span class="nav-icon">📊</span><span>סיכומים</span>
             </button>
-            <button class="nav-item" onclick="switchTab('more')" id="tab-more">
+            <button class="nav-item" onclick="window.location.href='/profile'" id="tab-more">
                 <span class="nav-icon">👤</span><span>פרופיל</span>
             </button>
+        </div>
+    </div>
+
+    <!-- ================ EDIT TRIP MODAL ================ -->
+    <div id="edit-trip-modal" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>✏️ עריכת טיול</h3>
+                <button class="modal-close-btn" onclick="closeEditTripModal()">✕</button>
+            </div>
+
+            <div class="form-group">
+                <label>שם הטיול</label>
+                <input type="text" id="edit-trip-name" placeholder="שם הטיול">
+            </div>
+
+            <div class="form-group">
+                <label>תקציב (₪)</label>
+                <input type="number" id="edit-trip-budget" placeholder="0" min="0">
+            </div>
+
+            <div class="form-group">
+                <label>הזמן חברים חדשים (אימייל או טלפון)</label>
+                <div class="friend-add-row">
+                    <input type="text" id="edit-friend-input" placeholder="הכנס טלפון או אימייל">
+                    <button class="add-friend-btn" onclick="addEditFriend()">+</button>
+                </div>
+                <div id="edit-friends-chips" class="friends-chips"></div>
+            </div>
+
+            <div class="modal-actions">
+                <button class="secondary-btn" onclick="closeEditTripModal()">ביטול</button>
+                <button class="primary-btn" onclick="saveEditTrip()">שמור</button>
+            </div>
         </div>
     </div>
 

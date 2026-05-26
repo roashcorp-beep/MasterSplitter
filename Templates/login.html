@@ -19,17 +19,18 @@
             </h1>
         </div>
 
-        <!-- White floating card -->
+        <!-- Glass floating card -->
         <div class="login-card">
             <h2 class="welcome-text" id="welcome-title">ברוך הבא! 👋</h2>
             <p class="welcome-sub" id="welcome-sub">התחבר כדי לנהל את ההוצאות שלך</p>
 
+            <!-- LOGIN / SIGNUP FORM -->
             <div id="auth-form">
                 <div class="form-group">
                     <div class="floating-input-wrapper">
                         <span class="input-icon">👤</span>
                         <input type="text" id="username" placeholder=" " required autocomplete="username">
-                        <label for="username">שם משתמש</label>
+                        <label for="username">שם משתמש או אימייל</label>
                     </div>
                 </div>
 
@@ -59,14 +60,34 @@
 
                 <button class="primary-btn full-width" id="submit-btn" onclick="submitAuth()">התחבר</button>
 
+                <div class="forgot-link-wrapper" id="forgot-link-wrapper">
+                    <a href="#" class="forgot-pwd" onclick="showForgotForm(); return false;">שכחת סיסמה?</a>
+                </div>
+
                 <div class="divider">או</div>
 
                 <button class="secondary-btn full-width" id="toggle-auth-btn" onclick="toggleAuthMode()">צור חשבון חדש</button>
+            </div>
 
+            <!-- FORGOT PASSWORD FORM (hidden by default) -->
+            <div id="forgot-form" style="display: none;">
+                <div class="form-group">
+                    <div class="floating-input-wrapper">
+                        <span class="input-icon">✉️</span>
+                        <input type="email" id="forgot-email" placeholder=" " required>
+                        <label for="forgot-email">כתובת אימייל</label>
+                    </div>
+                </div>
 
+                <button class="primary-btn full-width" onclick="submitForgotPassword()">שלח קישור לאיפוס</button>
+
+                <div style="text-align: center; margin-top: 16px;">
+                    <a href="#" class="forgot-pwd" onclick="hideForgotForm(); return false;">← חזור להתחברות</a>
+                </div>
             </div>
 
             <div class="error-message" id="error-msg"></div>
+            <div class="success-message" id="success-msg"></div>
         </div>
 
     </div>

@@ -2,7 +2,8 @@ import os
 import logging
 import sqlite3
 import json
-from datetime import datetime, timezone
+import secrets
+from datetime import datetime, timezone, timedelta
 from functools import wraps
 
 try:
@@ -37,6 +38,13 @@ app.secret_key = os.environ.get('SECRET_KEY', os.urandom(32))
 if not os.environ.get('SECRET_KEY'):
     logger.warning("No SECRET_KEY environment variable set — using random key. Sessions will reset on restart.")
 
+# Allowed currency codes
+ALLOWED_CURRENCIES = [
+    'USD', 'EUR', 'ILS', 'GBP', 'JPY', 'CHF', 'AUD', 'CAD',
+    'THB', 'HUF', 'PLN', 'CZK', 'TRY', 'SEK', 'NOK', 'DKK',
+    'NZD', 'SGD', 'HKD', 'KRW', 'MXN', 'BRL', 'INR', 'ZAR',
+]
+
 
 # ---------------------
 #   DATABASE
@@ -63,7 +71,9 @@ def init_db_updates():
             email TEXT UNIQUE,
             phone TEXT UNIQUE,
             is_verified INTEGER DEFAULT 0,
-            verification_token TEXT
+            verification_token TEXT,
+            reset_token TEXT,
+            reset_token_expiry TEXT
         )
     """)
 
@@ -130,13 +140,14 @@ def init_db_updates():
     except sqlite3.Error as e:
         logger.error(f"Expenses migration error: {e}")
 
+    # --- Safe table-swap migration for Users (adds reset_token, reset_token_expiry) ---
     try:
         cursor.execute("PRAGMA table_info(Users)")
         cols = [c['name'] for c in cursor.fetchall()]
-        
-        expected_cols = ['password_hash', 'email', 'phone', 'is_verified', 'verification_token']
+
+        expected_cols = ['password_hash', 'email', 'phone', 'is_verified', 'verification_token', 'reset_token', 'reset_token_expiry']
         needs_migration = any(c not in cols for c in expected_cols)
-        
+
         if needs_migration:
             cursor.execute("""
                 CREATE TABLE Users_new (
@@ -146,12 +157,14 @@ def init_db_updates():
                     email TEXT UNIQUE,
                     phone TEXT UNIQUE,
                     is_verified INTEGER DEFAULT 0,
-                    verification_token TEXT
+                    verification_token TEXT,
+                    reset_token TEXT,
+                    reset_token_expiry TEXT
                 )
             """)
-            
+
             select_cols = []
-            for col in ['id', 'name', 'password_hash', 'email', 'phone', 'is_verified', 'verification_token']:
+            for col in ['id', 'name', 'password_hash', 'email', 'phone', 'is_verified', 'verification_token', 'reset_token', 'reset_token_expiry']:
                 if col in cols:
                     select_cols.append(col)
                 else:
@@ -159,11 +172,11 @@ def init_db_updates():
                     elif col == 'phone': select_cols.append("'temp_' || id")
                     elif col == 'is_verified': select_cols.append("0")
                     else: select_cols.append("NULL")
-            
-            cursor.execute(f"INSERT INTO Users_new (id, name, password_hash, email, phone, is_verified, verification_token) SELECT {', '.join(select_cols)} FROM Users")
+
+            cursor.execute(f"INSERT INTO Users_new (id, name, password_hash, email, phone, is_verified, verification_token, reset_token, reset_token_expiry) SELECT {', '.join(select_cols)} FROM Users")
             cursor.execute("DROP TABLE Users")
             cursor.execute("ALTER TABLE Users_new RENAME TO Users")
-            logger.info("Migration: Performed table swap for Users schema update.")
+            logger.info("Migration: Performed table swap for Users schema update (added reset_token columns).")
     except sqlite3.Error as e:
         logger.error(f"Users migration error: {e}")
 
@@ -295,10 +308,12 @@ def send_verification_email(email_addr, token):
 
         body = f"""
         <html>
-          <body>
-            <h2>Welcome to MasterSplitter!</h2>
-            <p>Please click the link below to verify your email address:</p>
-            <p><a href="{verify_link}">{verify_link}</a></p>
+          <body style="font-family: 'Heebo', Arial, sans-serif; background: #0a0a1a; color: #e2e8f0; padding: 40px 20px;">
+            <div style="max-width: 420px; margin: 0 auto; background: #12122a; border-radius: 20px; padding: 32px; border: 1px solid rgba(255,255,255,0.08);">
+              <h2 style="color: #a855f7; text-align: center;">Welcome to MasterSplitter! 🎉</h2>
+              <p style="text-align: center; color: #94a3b8;">Please click the link below to verify your email address:</p>
+              <p style="text-align: center;"><a href="{verify_link}" style="color: #facc15; font-weight: bold;">{verify_link}</a></p>
+            </div>
           </body>
         </html>
         """
@@ -316,6 +331,60 @@ def send_verification_email(email_addr, token):
         return False
 
 
+def send_reset_email(email_addr, token):
+    """Send a password reset email with a secure link."""
+    if app.config.get('TESTING'):
+        domain = os.environ.get('PA_DOMAIN', 'localhost:5000')
+        protocol = "https" if domain != "localhost:5000" else "http"
+        reset_link = f"{protocol}://{domain}/reset-password/{token}"
+        logger.info(f"[TESTING] Reset link for {email_addr}: {reset_link}")
+        return True
+
+    smtp_server = os.environ.get('SMTP_SERVER')
+    smtp_port = os.environ.get('SMTP_PORT', 587)
+    smtp_username = os.environ.get('SMTP_USERNAME')
+    smtp_password = os.environ.get('SMTP_PASSWORD')
+    domain = os.environ.get('PA_DOMAIN', 'localhost:5000')
+    protocol = "https" if domain != "localhost:5000" else "http"
+
+    reset_link = f"{protocol}://{domain}/reset-password/{token}"
+
+    if not smtp_server or not smtp_username or not smtp_password:
+        logger.warning(f"SMTP not configured. Reset link for {email_addr}: {reset_link}")
+        return False
+
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = f"MasterSplitter <{smtp_username}>"
+        msg['To'] = email_addr
+        msg['Subject'] = "MasterSplitter - Password Reset"
+
+        body = f"""
+        <html>
+          <body style="font-family: 'Heebo', Arial, sans-serif; background: #0a0a1a; color: #e2e8f0; padding: 40px 20px;">
+            <div style="max-width: 420px; margin: 0 auto; background: #12122a; border-radius: 20px; padding: 32px; border: 1px solid rgba(255,255,255,0.08);">
+              <h2 style="color: #a855f7; text-align: center;">Password Reset 🔐</h2>
+              <p style="text-align: center; color: #94a3b8;">Click the link below to reset your password. This link expires in 1 hour.</p>
+              <p style="text-align: center;"><a href="{reset_link}" style="color: #facc15; font-weight: bold;">Reset My Password</a></p>
+              <p style="text-align: center; color: #64748b; font-size: 0.85rem;">If you didn't request this, you can safely ignore this email.</p>
+            </div>
+          </body>
+        </html>
+        """
+        msg.attach(MIMEText(body, 'html'))
+
+        server = smtplib.SMTP(smtp_server, int(smtp_port))
+        server.starttls()
+        server.login(smtp_username, smtp_password)
+        server.send_message(msg)
+        server.quit()
+        logger.info(f"Reset email sent to {email_addr}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to send reset email to {email_addr}: {e}")
+        return False
+
+
 # =====================
 #   PAGE ROUTES
 # =====================
@@ -329,6 +398,30 @@ def serve_app():
     if 'user_id' not in session:
         return redirect('/')
     return render_template('app.html')
+
+@app.route('/profile')
+def serve_profile():
+    if 'user_id' not in session:
+        return redirect('/')
+    return render_template('profile.html')
+
+@app.route('/reset-password/<token>')
+def serve_reset_password(token):
+    """Serve the password reset page if token is valid."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id, reset_token_expiry FROM Users WHERE reset_token = ?", (token,))
+        user = cursor.fetchone()
+        if not user:
+            return render_template('login.html'), 400
+        if user['reset_token_expiry']:
+            expiry = datetime.fromisoformat(user['reset_token_expiry'])
+            if datetime.now(timezone.utc) > expiry:
+                return render_template('login.html'), 400
+        return render_template('reset_password.html', token=token)
+    finally:
+        conn.close()
 
 
 # =====================
@@ -435,12 +528,13 @@ def login():
     password = data.get('password', '')
 
     if not username or not password:
-        return jsonify({"error": "יש למלא שם משתמש וסיסמה."}), 400
+        return jsonify({"error": "יש למלא שם משתמש/אימייל וסיסמה."}), 400
 
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute("SELECT id, name, password_hash, is_verified FROM Users WHERE name = ?", (username,))
+        # Flexible login: accept either username OR email
+        cursor.execute("SELECT id, name, password_hash, is_verified FROM Users WHERE name = ? OR email = ?", (username, username))
         user = cursor.fetchone()
         if user and user['password_hash'] and check_password_hash(user['password_hash'], password):
             if user['is_verified'] == 0:
@@ -466,6 +560,161 @@ def logout():
     session.clear()
     logger.info(f"User logged out: {username}")
     return jsonify({"success": True})
+
+
+# =====================
+#   FORGOT PASSWORD
+# =====================
+
+@app.route('/api/forgot-password', methods=['POST'])
+def forgot_password():
+    data = request.json or {}
+    email = (data.get('email') or '').strip()
+    if not email:
+        return jsonify({"error": "יש למלא כתובת אימייל."}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id, email FROM Users WHERE email = ?", (email,))
+        user = cursor.fetchone()
+        if not user:
+            # Return success even if user not found (security: don't reveal if email exists)
+            return jsonify({"success": True, "message": "אם הכתובת קיימת במערכת, נשלח אליך קישור לאיפוס סיסמה."})
+
+        token = secrets.token_urlsafe(32)
+        expiry = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+        cursor.execute("UPDATE Users SET reset_token = ?, reset_token_expiry = ? WHERE id = ?", (token, expiry, user['id']))
+        conn.commit()
+
+        send_reset_email(user['email'], token)
+        logger.info(f"Password reset requested for user {user['id']}")
+        return jsonify({"success": True, "message": "אם הכתובת קיימת במערכת, נשלח אליך קישור לאיפוס סיסמה."})
+    except sqlite3.Error as e:
+        logger.error(f"Forgot password DB error: {e}")
+        return jsonify({"error": "שגיאת שרת."}), 500
+    finally:
+        conn.close()
+
+
+@app.route('/api/reset-password/<token>', methods=['POST'])
+def reset_password(token):
+    data = request.json or {}
+    password = data.get('password', '')
+
+    if len(password) < MIN_PASSWORD_LENGTH:
+        return jsonify({"error": f"סיסמה חייבת להיות לפחות {MIN_PASSWORD_LENGTH} תווים."}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id, reset_token_expiry FROM Users WHERE reset_token = ?", (token,))
+        user = cursor.fetchone()
+        if not user:
+            return jsonify({"error": "קישור לא תקין או שפג תוקפו."}), 400
+
+        if user['reset_token_expiry']:
+            expiry = datetime.fromisoformat(user['reset_token_expiry'])
+            if datetime.now(timezone.utc) > expiry:
+                return jsonify({"error": "קישור פג תוקף. בקש קישור חדש."}), 400
+
+        pwd_hash = generate_password_hash(password)
+        cursor.execute("UPDATE Users SET password_hash = ?, reset_token = NULL, reset_token_expiry = NULL WHERE id = ?", (pwd_hash, user['id']))
+        conn.commit()
+        logger.info(f"Password reset successfully for user {user['id']}")
+        return jsonify({"success": True, "message": "הסיסמה עודכנה בהצלחה! ניתן להתחבר."})
+    except sqlite3.Error as e:
+        logger.error(f"Reset password DB error: {e}")
+        return jsonify({"error": "שגיאת שרת."}), 500
+    finally:
+        conn.close()
+
+
+# =====================
+#   PROFILE APIS
+# =====================
+
+@app.route('/api/profile', methods=['GET'])
+@login_required
+def get_profile():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id, name, email FROM Users WHERE id = ?", (session['user_id'],))
+        user = cursor.fetchone()
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+        return jsonify({"id": user['id'], "name": user['name'], "email": user['email']})
+    finally:
+        conn.close()
+
+
+@app.route('/api/profile', methods=['PUT'])
+@login_required
+def update_profile():
+    data = request.json or {}
+    new_name = data.get('name', '').strip()
+
+    if not new_name:
+        return jsonify({"error": "שם תצוגה הוא שדה חובה."}), 400
+
+    new_name, err = validate_string(new_name, 'שם תצוגה')
+    if err:
+        return jsonify({"error": err}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Check uniqueness
+        cursor.execute("SELECT id FROM Users WHERE name = ? AND id != ?", (new_name, session['user_id']))
+        if cursor.fetchone():
+            return jsonify({"error": "שם המשתמש כבר תפוס."}), 400
+
+        cursor.execute("UPDATE Users SET name = ? WHERE id = ?", (new_name, session['user_id']))
+        conn.commit()
+        session['username'] = new_name
+        logger.info(f"User {session['user_id']} updated display name to '{new_name}'")
+        return jsonify({"success": True})
+    except sqlite3.IntegrityError:
+        return jsonify({"error": "שם המשתמש כבר תפוס."}), 400
+    except sqlite3.Error as e:
+        logger.error(f"Update profile error: {e}")
+        return jsonify({"error": "שגיאת שרת."}), 500
+    finally:
+        conn.close()
+
+
+@app.route('/api/profile/change-password', methods=['POST'])
+@login_required
+def change_password():
+    data = request.json or {}
+    current_password = data.get('current_password', '')
+    new_password = data.get('new_password', '')
+
+    if not current_password or not new_password:
+        return jsonify({"error": "יש למלא את כל השדות."}), 400
+
+    if len(new_password) < MIN_PASSWORD_LENGTH:
+        return jsonify({"error": f"סיסמה חדשה חייבת להיות לפחות {MIN_PASSWORD_LENGTH} תווים."}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT password_hash FROM Users WHERE id = ?", (session['user_id'],))
+        user = cursor.fetchone()
+        if not user or not check_password_hash(user['password_hash'], current_password):
+            return jsonify({"error": "הסיסמה הנוכחית שגויה."}), 400
+
+        pwd_hash = generate_password_hash(new_password)
+        cursor.execute("UPDATE Users SET password_hash = ? WHERE id = ?", (pwd_hash, session['user_id']))
+        conn.commit()
+        logger.info(f"User {session['user_id']} changed their password")
+        return jsonify({"success": True, "message": "הסיסמה עודכנה בהצלחה."})
+    except sqlite3.Error as e:
+        logger.error(f"Change password error: {e}")
+        return jsonify({"error": "שגיאת שרת."}), 500
+    finally:
+        conn.close()
 
 
 # =====================
@@ -758,7 +1007,7 @@ def get_expenses(trip_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT e.id, u.name as payer, e.amount, e.description, e.category, e.created_at
+        SELECT e.id, u.name as payer, e.amount, e.currency, e.description, e.category, e.created_at
         FROM Expenses e
         JOIN Users u ON e.user_id = u.id
         WHERE e.trip_id = ?
@@ -806,14 +1055,19 @@ def add_expense():
     if len(category) > 50:
         category = category[:50]
 
+    # Validate currency
+    currency = (data.get('currency') or 'ILS').strip().upper()
+    if currency not in ALLOWED_CURRENCIES:
+        currency = 'ILS'
+
     try:
         cursor.execute("""
             INSERT INTO Expenses (trip_id, user_id, amount, currency, description, category, created_at)
-            VALUES (?, ?, ?, 'ILS', ?, ?, ?)
-        """, (trip_id, session['user_id'], amount, description, category,
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (trip_id, session['user_id'], amount, currency, description, category,
               datetime.now(timezone.utc).isoformat()))
         conn.commit()
-        logger.info(f"Expense added: ₪{amount} for trip {trip_id} by user {session['user_id']}")
+        logger.info(f"Expense added: {currency} {amount} for trip {trip_id} by user {session['user_id']}")
         return jsonify({"success": True})
     except sqlite3.Error as e:
         logger.error(f"Add expense error: {e}")

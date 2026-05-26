@@ -1,6 +1,7 @@
 """
 MasterSplitter — API Test Suite
-Tests all endpoints: auth, trips, expenses, balances, health, authorization.
+Tests all endpoints: auth, trips, expenses, balances, health, authorization,
+forgot password, profile, flexible login, currency.
 Run with: python -m pytest tests/test_api.py -v
 """
 import json
@@ -34,13 +35,14 @@ def app():
     Server.app.config['TESTING'] = True
     Server.app.config['SECRET_KEY'] = 'test-secret'
 
-    # Initialize the test database
+    # Initialize the test database with all columns including new ones
     conn = test_get_db()
     cursor = conn.cursor()
     cursor.execute("""CREATE TABLE IF NOT EXISTS Users (
         id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE NOT NULL,
         password_hash TEXT, email TEXT UNIQUE, phone TEXT UNIQUE,
-        is_verified INTEGER DEFAULT 0, verification_token TEXT)""")
+        is_verified INTEGER DEFAULT 0, verification_token TEXT,
+        reset_token TEXT, reset_token_expiry TEXT)""")
     cursor.execute("""CREATE TABLE IF NOT EXISTS Trips (
         id INTEGER PRIMARY KEY AUTOINCREMENT, destination TEXT NOT NULL,
         budget REAL DEFAULT 0, owner_id INTEGER, local_participants TEXT DEFAULT '[]')""")
@@ -118,10 +120,11 @@ def create_trip(client, name='Test Trip', budget=1000, participants=None):
                        content_type='application/json')
 
 
-def add_expense(client, trip_id, amount=100, description='Test expense', category='כללי'):
+def add_expense(client, trip_id, amount=100, description='Test expense', category='כללי', currency='ILS'):
     return client.post('/api/expenses',
                        json={'trip_id': trip_id, 'amount': amount,
-                             'description': description, 'category': category},
+                             'description': description, 'category': category,
+                             'currency': currency},
                        content_type='application/json')
 
 
@@ -224,6 +227,187 @@ class TestAuth:
         assert res.status_code == 200
         res2 = client.get('/api/me')
         assert res2.status_code == 401
+
+
+# =====================
+#   FLEXIBLE LOGIN TESTS
+# =====================
+
+class TestFlexibleLogin:
+    def test_login_with_email(self, client):
+        """Should be able to login using email address instead of username."""
+        signup(client, 'emailuser', email='emailuser@test.com')
+        client.post('/api/logout', content_type='application/json')
+        # Login using email
+        res = client.post('/api/login',
+                          json={'username': 'emailuser@test.com', 'password': 'test1234'},
+                          content_type='application/json')
+        assert res.status_code == 200
+        assert res.get_json()['success'] is True
+
+    def test_login_with_username_still_works(self, client):
+        """Original username login should still work."""
+        signup(client, 'usernameuser')
+        client.post('/api/logout', content_type='application/json')
+        res = login(client, 'usernameuser')
+        assert res.status_code == 200
+        assert res.get_json()['success'] is True
+
+    def test_login_with_email_wrong_password(self, client):
+        signup(client, 'emailwrong', email='emailwrong@test.com')
+        client.post('/api/logout', content_type='application/json')
+        res = client.post('/api/login',
+                          json={'username': 'emailwrong@test.com', 'password': 'badpass'},
+                          content_type='application/json')
+        assert res.status_code == 401
+
+
+# =====================
+#   FORGOT PASSWORD TESTS
+# =====================
+
+class TestForgotPassword:
+    def test_forgot_password_request(self, client):
+        """Should return success even for non-existent email (security)."""
+        res = client.post('/api/forgot-password',
+                          json={'email': 'nonexist@test.com'},
+                          content_type='application/json')
+        assert res.status_code == 200
+        assert res.get_json()['success'] is True
+
+    def test_forgot_password_generates_token(self, client):
+        signup(client, 'resetme', email='resetme@test.com')
+        client.post('/api/logout', content_type='application/json')
+        res = client.post('/api/forgot-password',
+                          json={'email': 'resetme@test.com'},
+                          content_type='application/json')
+        assert res.status_code == 200
+        # Verify token was stored in DB
+        import Server
+        conn = Server.get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT reset_token, reset_token_expiry FROM Users WHERE email = ?", ('resetme@test.com',))
+        user = cursor.fetchone()
+        conn.close()
+        assert user['reset_token'] is not None
+        assert user['reset_token_expiry'] is not None
+
+    def test_reset_password_with_valid_token(self, client):
+        signup(client, 'resetvalid', email='resetvalid@test.com')
+        client.post('/api/logout', content_type='application/json')
+        client.post('/api/forgot-password',
+                    json={'email': 'resetvalid@test.com'},
+                    content_type='application/json')
+        # Get token from DB
+        import Server
+        conn = Server.get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT reset_token FROM Users WHERE email = ?", ('resetvalid@test.com',))
+        token = cursor.fetchone()['reset_token']
+        conn.close()
+        # Reset password
+        res = client.post(f'/api/reset-password/{token}',
+                          json={'password': 'newpass1234'},
+                          content_type='application/json')
+        assert res.status_code == 200
+        assert res.get_json()['success'] is True
+        # Login with new password
+        res = login(client, 'resetvalid', 'newpass1234')
+        assert res.status_code == 200
+
+    def test_reset_password_with_invalid_token(self, client):
+        res = client.post('/api/reset-password/invalidtoken123',
+                          json={'password': 'newpass1234'},
+                          content_type='application/json')
+        assert res.status_code == 400
+
+    def test_reset_password_short_password(self, client):
+        signup(client, 'resetshort', email='resetshort@test.com')
+        client.post('/api/logout', content_type='application/json')
+        client.post('/api/forgot-password',
+                    json={'email': 'resetshort@test.com'},
+                    content_type='application/json')
+        import Server
+        conn = Server.get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT reset_token FROM Users WHERE email = ?", ('resetshort@test.com',))
+        token = cursor.fetchone()['reset_token']
+        conn.close()
+        res = client.post(f'/api/reset-password/{token}',
+                          json={'password': 'ab'},
+                          content_type='application/json')
+        assert res.status_code == 400
+
+    def test_forgot_password_missing_email(self, client):
+        res = client.post('/api/forgot-password',
+                          json={},
+                          content_type='application/json')
+        assert res.status_code == 400
+
+
+# =====================
+#   PROFILE TESTS
+# =====================
+
+class TestProfile:
+    def test_get_profile(self, client):
+        signup(client, 'profileuser', email='profile@test.com')
+        res = client.get('/api/profile')
+        assert res.status_code == 200
+        data = res.get_json()
+        assert data['name'] == 'profileuser'
+        assert data['email'] == 'profile@test.com'
+
+    def test_get_profile_unauthenticated(self, client):
+        res = client.get('/api/profile')
+        assert res.status_code == 401
+
+    def test_update_profile_name(self, client):
+        signup(client, 'oldname')
+        res = client.put('/api/profile',
+                         json={'name': 'newname'},
+                         content_type='application/json')
+        assert res.status_code == 200
+        assert res.get_json()['success'] is True
+        # Verify update
+        me = client.get('/api/me').get_json()
+        assert me['name'] == 'newname'
+
+    def test_update_profile_duplicate_name(self, client):
+        signup(client, 'original')
+        signup(client, 'taken_name')
+        client.post('/api/logout', content_type='application/json')
+        login(client, 'original')
+        res = client.put('/api/profile',
+                         json={'name': 'taken_name'},
+                         content_type='application/json')
+        assert res.status_code == 400
+
+    def test_change_password(self, client):
+        signup(client, 'pwdchange')
+        res = client.post('/api/profile/change-password',
+                          json={'current_password': 'test1234', 'new_password': 'newpass5678'},
+                          content_type='application/json')
+        assert res.status_code == 200
+        assert res.get_json()['success'] is True
+        # Verify: logout and login with new password
+        client.post('/api/logout', content_type='application/json')
+        res = login(client, 'pwdchange', 'newpass5678')
+        assert res.status_code == 200
+
+    def test_change_password_wrong_current(self, client):
+        signup(client, 'pwdwrong')
+        res = client.post('/api/profile/change-password',
+                          json={'current_password': 'wrongpass', 'new_password': 'newpass5678'},
+                          content_type='application/json')
+        assert res.status_code == 400
+
+    def test_change_password_short_new(self, client):
+        signup(client, 'pwdshort')
+        res = client.post('/api/profile/change-password',
+                          json={'current_password': 'test1234', 'new_password': 'ab'},
+                          content_type='application/json')
+        assert res.status_code == 400
 
 
 # =====================
@@ -371,6 +555,49 @@ class TestExpenses:
         signup(client, 'attacker')
         res = client.delete(f'/api/expenses/{exp_id}')
         assert res.status_code == 403
+
+
+# =====================
+#   CURRENCY TESTS
+# =====================
+
+class TestCurrency:
+    def test_add_expense_with_currency(self, client):
+        """Should store and return the specified currency."""
+        signup(client)
+        trip_id = create_trip(client).get_json()['trip_id']
+        res = add_expense(client, trip_id, 50, 'Coffee', 'כללי', 'USD')
+        assert res.status_code == 200
+        # Verify currency in response
+        expenses = client.get(f'/api/expenses/{trip_id}').get_json()
+        assert expenses[0]['currency'] == 'USD'
+
+    def test_add_expense_with_eur(self, client):
+        signup(client)
+        trip_id = create_trip(client).get_json()['trip_id']
+        add_expense(client, trip_id, 30, 'Museum', 'אטרקציות', 'EUR')
+        expenses = client.get(f'/api/expenses/{trip_id}').get_json()
+        assert expenses[0]['currency'] == 'EUR'
+
+    def test_add_expense_default_currency(self, client):
+        """Omitting currency should default to ILS."""
+        signup(client)
+        trip_id = create_trip(client).get_json()['trip_id']
+        res = client.post('/api/expenses',
+                          json={'trip_id': trip_id, 'amount': 100, 'description': 'Default'},
+                          content_type='application/json')
+        assert res.status_code == 200
+        expenses = client.get(f'/api/expenses/{trip_id}').get_json()
+        assert expenses[0]['currency'] == 'ILS'
+
+    def test_add_expense_invalid_currency_defaults(self, client):
+        """Invalid currency code should default to ILS."""
+        signup(client)
+        trip_id = create_trip(client).get_json()['trip_id']
+        res = add_expense(client, trip_id, 100, 'Bad Currency', 'כללי', 'FAKE')
+        assert res.status_code == 200
+        expenses = client.get(f'/api/expenses/{trip_id}').get_json()
+        assert expenses[0]['currency'] == 'ILS'
 
 
 # =====================

@@ -42,18 +42,18 @@ function toggleAuthMode() {
     const emailGrp = document.getElementById('email-group');
     const forgotLink = document.getElementById('forgot-link-wrapper');
     if (authMode === 'signup') {
-        if (title)  title.textContent  = 'צור חשבון 🚀';
-        if (sub)    sub.textContent    = 'הצטרף ותתחיל לחלק הוצאות';
-        if (submit) submit.textContent = 'הרשם';
-        if (toggle) toggle.textContent = 'יש לך כבר חשבון? התחבר';
+        if (title)  title.textContent  = i18n('signup_title');
+        if (sub)    sub.textContent    = i18n('signup_sub');
+        if (submit) submit.textContent = i18n('signup_btn_signup');
+        if (toggle) toggle.textContent = i18n('signup_btn_login');
         if (phoneGrp) phoneGrp.style.display = 'block';
         if (emailGrp) emailGrp.style.display = 'block';
         if (forgotLink) forgotLink.style.display = 'none';
     } else {
-        if (title)  title.textContent  = 'ברוך הבא! 👋';
-        if (sub)    sub.textContent    = 'התחבר כדי לנהל את ההוצאות שלך';
-        if (submit) submit.textContent = 'התחבר';
-        if (toggle) toggle.textContent = 'צור חשבון חדש';
+        if (title)  title.textContent  = i18n('login_welcome');
+        if (sub)    sub.textContent    = i18n('login_sub');
+        if (submit) submit.textContent = i18n('login_btn_login');
+        if (toggle) toggle.textContent = i18n('login_btn_signup');
         if (phoneGrp) phoneGrp.style.display = 'none';
         if (emailGrp) emailGrp.style.display = 'none';
         if (forgotLink) forgotLink.style.display = 'block';
@@ -128,8 +128,8 @@ function showForgotForm() {
     if (success) success.classList.remove('visible');
     const title = document.getElementById('welcome-title');
     const sub = document.getElementById('welcome-sub');
-    if (title) title.textContent = 'שכחת סיסמה? 🔑';
-    if (sub) sub.textContent = 'הכנס את האימייל שלך ונשלח קישור לאיפוס';
+    if (title) title.textContent = i18n('forgot_title');
+    if (sub) sub.textContent = i18n('forgot_sub');
 }
 
 function hideForgotForm() {
@@ -141,8 +141,8 @@ function hideForgotForm() {
     if (success) success.classList.remove('visible');
     const title = document.getElementById('welcome-title');
     const sub = document.getElementById('welcome-sub');
-    if (title) title.textContent = 'ברוך הבא! 👋';
-    if (sub) sub.textContent = 'התחבר כדי לנהל את ההוצאות שלך';
+    if (title) title.textContent = i18n('login_welcome');
+    if (sub) sub.textContent = i18n('login_sub');
 }
 
 async function submitForgotPassword() {
@@ -195,13 +195,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // App page: init
-    if (document.getElementById('lobby-view')) {
+    if (document.getElementById('screen-lobby')) {
         initApp();
     }
 
     // Friend input: Enter key
-    const fi = document.getElementById('friend-name-input');
-    if (fi) fi.addEventListener('keypress', e => { if (e.key === 'Enter') { e.preventDefault(); addFriendToList(); } });
+    const fi = document.getElementById('friend-input');
+    if (fi) fi.addEventListener('keypress', e => { if (e.key === 'Enter') { e.preventDefault(); addFriend(); } });
 
     // Edit friend input: Enter key
     const efi = document.getElementById('edit-friend-input');
@@ -213,7 +213,7 @@ async function initApp() {
         const res = await fetch('/api/me');
         if (!res.ok) { window.location.href = '/'; return; }
         currentUser = await res.json();
-        const el = document.getElementById('lobby-username');
+        const el = document.getElementById('user-name-display');
         if (el) el.textContent = currentUser.name;
         await loadLobby();
         fetchInvitations();
@@ -286,14 +286,20 @@ async function loadLobby() {
 }
 
 function showView(view) {
-    const lobby = document.getElementById('lobby-view');
-    const dash  = document.getElementById('dashboard-view');
+    const screens = document.querySelectorAll('.screen');
+    screens.forEach(s => s.classList.remove('active'));
+    
+    const bottomNav = document.querySelector('.bottom-nav');
+    
     if (view === 'lobby') {
-        lobby.style.display = 'flex';
-        dash.style.display  = 'none';
+        const lobbyScreen = document.getElementById('screen-lobby');
+        if (lobbyScreen) lobbyScreen.classList.add('active');
+        if (bottomNav) bottomNav.style.display = 'none';
     } else {
-        lobby.style.display = 'none';
-        dash.style.display  = 'flex';
+        // 'dashboard'
+        const homeScreen = document.getElementById('screen-home');
+        if (homeScreen) homeScreen.classList.add('active');
+        if (bottomNav) bottomNav.style.display = 'flex';
     }
 }
 
@@ -357,27 +363,34 @@ function goToLobby() {
     loadLobby();
 }
 
-// =====================
-//  CREATE TRIP (TOGGLE)
-// =====================
-let createTripOpen = false;
-
-function toggleCreateTrip() {
-    createTripOpen = !createTripOpen;
-    const collapsible = document.getElementById('create-trip-collapsible');
-    const btn = document.getElementById('create-trip-toggle-btn');
-    if (createTripOpen) {
-        collapsible.classList.add('open');
-        btn.textContent = '✕ סגור';
-    } else {
-        collapsible.classList.remove('open');
-        btn.textContent = '+ צור טיול חדש';
-    }
+function showLobby() {
+    loadLobby();
 }
 
-function addFriendToList() {
-    const input = document.getElementById('friend-name-input');
-    const name  = input?.value.trim();
+// =====================
+//  CREATE TRIP MODAL
+// =====================
+function openCreateTripModal() {
+    friendsList = [];
+    renderFriendsChips();
+    const nameInput = document.getElementById('trip-name');
+    const budgetInput = document.getElementById('trip-budget');
+    const friendInput = document.getElementById('friend-input');
+    if (nameInput) nameInput.value = '';
+    if (budgetInput) budgetInput.value = '';
+    if (friendInput) friendInput.value = '';
+    const modal = document.getElementById('create-trip-modal');
+    if (modal) modal.classList.add('open');
+}
+
+function closeCreateTripModal() {
+    const modal = document.getElementById('create-trip-modal');
+    if (modal) modal.classList.remove('open');
+}
+
+function addFriend() {
+    const input = document.getElementById('friend-input');
+    const name = input?.value.trim();
     if (!name) return;
     if (!friendsList.includes(name)) friendsList.push(name);
     input.value = '';
@@ -403,8 +416,8 @@ function renderFriendsChips() {
 }
 
 async function createTrip() {
-    const name   = document.getElementById('new-trip-name')?.value.trim();
-    const budget = parseFloat(document.getElementById('new-trip-budget')?.value) || 0;
+    const name   = document.getElementById('trip-name')?.value.trim();
+    const budget = parseFloat(document.getElementById('trip-budget')?.value) || 0;
     if (!name) { alert('יש לתת שם לטיול.'); return; }
     try {
         const res = await fetch('/api/trips', {
@@ -414,14 +427,7 @@ async function createTrip() {
         });
         const data = await res.json();
         if (res.ok && data.success) {
-            document.getElementById('new-trip-name').value   = '';
-            document.getElementById('new-trip-budget').value = '';
-            friendsList = [];
-            renderFriendsChips();
-            // Close the form
-            createTripOpen = false;
-            document.getElementById('create-trip-collapsible')?.classList.remove('open');
-            document.getElementById('create-trip-toggle-btn').textContent = '+ צור טיול חדש';
+            closeCreateTripModal();
             showToast('הטיול נוצר בהצלחה! 🎉');
             await loadLobby();
         } else {
@@ -607,6 +613,9 @@ function renderParticipants() {
 
 function togglePill(el) {
     el.classList.toggle('selected');
+    if (document.getElementById('split-mode-toggle')?.checked) {
+        renderCustomSplits();
+    }
 }
 
 function getSelectedParticipants() {
@@ -631,25 +640,32 @@ async function fetchExpenses() {
 
         let html = '';
         if (!expenses.length) {
-            html = '<div class="loading-state">אין הוצאות בינתיים</div>';
+            html = `<div class="loading-state">${typeof i18n === 'function' ? i18n('expenses_no_data') : 'אין הוצאות בינתיים'}</div>`;
         } else {
             expenses.forEach(exp => {
                 const safeDesc  = escapeHTML(exp.description);
                 const safePayer = escapeHTML(exp.payer);
                 const safeCat   = escapeHTML(exp.category || 'כללי');
                 const currSym   = getCurrencySymbol(exp.currency || 'ILS');
+                
+                const canEdit = currentUser && exp.user_id === currentUser.id;
+                const editBtn = canEdit ? `<button class="edit-expense-btn" onclick="openEditExpenseModal(${exp.id}, ${exp.amount}, '${safeDesc}', '${safeCat}', '${exp.currency}')" title="ערוך הוצאה">✏️</button>` : '';
+
                 html += `
                 <div class="list-item" id="expense-${exp.id}">
                     <div class="item-left">
                         <div class="item-icon-wrapper">${getCategoryIcon(exp.category)}</div>
                         <div class="item-details">
                             <h4>${safeDesc}</h4>
-                            <p>שילם: ${safePayer} • ${safeCat}</p>
+                            <p>${typeof i18n === 'function' ? i18n('expense_paid_by') : 'שילם: '} ${safePayer} • ${safeCat}</p>
                         </div>
                     </div>
                     <div class="item-right">
                         <div class="item-amount">${currSym}${parseFloat(exp.amount).toFixed(2)}</div>
-                        <button class="delete-expense-btn" onclick="deleteExpense(${exp.id})" title="מחק הוצאה">🗑️</button>
+                        <div class="expense-actions">
+                            ${editBtn}
+                            <button class="delete-expense-btn" onclick="deleteExpense(${exp.id})" title="מחק הוצאה">🗑️</button>
+                        </div>
                     </div>
                 </div>`;
             });
@@ -658,11 +674,59 @@ async function fetchExpenses() {
         const home = document.getElementById('home-expenses-list');
         if (full) full.innerHTML = html;
         if (home) home.innerHTML = html;
+        
+        renderCategoryChart(expenses);
     } catch(e) { console.error('Fetch expenses error:', e); }
 }
 
+function openEditExpenseModal(id, amount, desc, category, currency) {
+    document.getElementById('edit-expense-id').value = id;
+    document.getElementById('edit-expense-desc').value = desc;
+    document.getElementById('edit-expense-amount').value = amount;
+    document.getElementById('edit-expense-category').value = category;
+    document.getElementById('edit-expense-currency').value = currency;
+    document.getElementById('edit-expense-modal').classList.add('open');
+}
+
+function closeEditExpenseModal() {
+    document.getElementById('edit-expense-modal').classList.remove('open');
+}
+
+async function saveEditExpense() {
+    const id = document.getElementById('edit-expense-id').value;
+    const amount = document.getElementById('edit-expense-amount').value;
+    const desc = document.getElementById('edit-expense-desc').value.trim();
+    const category = document.getElementById('edit-expense-category').value;
+    const currency = document.getElementById('edit-expense-currency').value;
+
+    if (!amount || parseFloat(amount) <= 0 || !desc) {
+        alert(typeof i18n === 'function' ? i18n('err_fill_all') : 'יש למלא את כל השדות.');
+        return;
+    }
+
+    try {
+        const res = await fetch(`/api/expenses/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ amount: parseFloat(amount), description: desc, category, currency })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            closeEditExpenseModal();
+            showToast(typeof i18n === 'function' ? i18n('toast_expense_updated') : 'ההוצאה עודכנה! ✏️');
+            fetchExpenses();
+            fetchBalances();
+        } else {
+            alert(data.error || 'שגיאה בעדכון ההוצאה.');
+        }
+    } catch (e) {
+        alert('שגיאת רשת.');
+    }
+}
+
 async function deleteExpense(expenseId) {
-    if (!confirm('למחוק את ההוצאה?')) return;
+    const msg = typeof i18n === 'function' ? i18n('confirm_delete_expense') : 'למחוק את ההוצאה?';
+    if (!confirm(msg)) return;
     try {
         const res = await fetch(`/api/expenses/${expenseId}`, { method: 'DELETE' });
         if (res.status === 401) { window.location.href = '/'; return; }
@@ -683,32 +747,64 @@ async function deleteExpense(expenseId) {
 async function addExpense() {
     const amountInput = document.getElementById('amount');
     const descInput   = document.getElementById('desc');
-    const amount   = amountInput?.value;
-    const desc     = descInput?.value.trim();
-    const category = document.getElementById('category')?.value;
-    const currency = document.getElementById('currency')?.value || 'ILS';
-    const parts    = getSelectedParticipants();
+    const amountVal   = amountInput?.value;
+    const desc        = descInput?.value.trim();
+    const category    = document.getElementById('category')?.value;
+    const currency    = document.getElementById('currency')?.value || 'ILS';
+    const parts       = getSelectedParticipants();
 
-    if (!amount || parseFloat(amount) <= 0) { alert('יש למלא סכום תקין.'); return; }
-    if (!desc)           { alert('יש למלא תיאור.'); return; }
-    if (!parts.length)   { alert('בחר לפחות משתתף אחד.'); return; }
-    if (!currentTripId)  { alert('לא נבחר טיול.'); return; }
+    const errAmount = typeof i18n === 'function' ? i18n('err_invalid_amount') : 'יש למלא סכום תקין.';
+    const errDesc = typeof i18n === 'function' ? i18n('err_fill_all') : 'יש למלא תיאור.';
+    const errParts = typeof i18n === 'function' ? i18n('err_no_participants') : 'בחר לפחות משתתף אחד.';
+
+    if (!amountVal || parseFloat(amountVal) <= 0) { alert(errAmount); return; }
+    if (!desc)                                    { alert(errDesc); return; }
+    if (!parts.length)                            { alert(errParts); return; }
+    if (!currentTripId)                           { alert('לא נבחר טיול.'); return; }
+
+    const amount = parseFloat(amountVal);
+    let splits = null;
+
+    if (document.getElementById('split-mode-toggle')?.checked) {
+        splits = [];
+        let splitSum = 0;
+        for (const pid of parts) {
+            const inputVal = parseFloat(document.getElementById(`split-user-${pid}`)?.value || 0);
+            splits.push({ user_id: parseInt(pid), amount: inputVal });
+            splitSum += inputVal;
+        }
+
+        if (Math.abs(splitSum - amount) > 0.01) {
+            const sumErr = typeof i18n === 'function' ? i18n('split_sum_error') : 'הסכומים לא תואמים לסכום הכולל';
+            alert(sumErr);
+            return;
+        }
+    }
 
     try {
         const res = await fetch('/api/expenses', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ trip_id: currentTripId, amount: parseFloat(amount), description: desc, category, currency, participants: parts })
+            body: JSON.stringify({
+                trip_id: currentTripId,
+                amount: amount,
+                description: desc,
+                category,
+                currency,
+                splits: splits
+            })
         });
         if (res.status === 401) { window.location.href = '/'; return; }
         const data = await res.json();
         if (res.ok && data.success) {
             amountInput.value = '';
             descInput.value   = '';
+            document.getElementById('split-mode-toggle').checked = false;
+            toggleSplitMode();
             showToast('ההוצאה נוספה! 💸');
             switchTab('expenses');
         } else {
-            alert(data.error || 'שגיאה.');
+            alert(data.error || 'שגיאה בהוספת ההוצאה.');
         }
     } catch(e) {
         console.error('Add expense error:', e);
@@ -731,9 +827,9 @@ function calculateSettlements(balances) {
 
     balances.forEach(b => {
         if (b.balance < -0.01) {
-            debts.push({ name: b.name, amount: Math.abs(b.balance) });
+            debts.push({ name: b.name, user_id: b.user_id, amount: Math.abs(b.balance) });
         } else if (b.balance > 0.01) {
-            credits.push({ name: b.name, amount: b.balance });
+            credits.push({ name: b.name, user_id: b.user_id, amount: b.balance });
         }
     });
 
@@ -749,7 +845,9 @@ function calculateSettlements(balances) {
         if (transfer > 0.01) {
             settlements.push({
                 from: debts[di].name,
+                from_id: debts[di].user_id,
                 to: credits[ci].name,
+                to_id: credits[ci].user_id,
                 amount: transfer
             });
         }
@@ -784,7 +882,7 @@ async function fetchBalances() {
 
         const list = document.getElementById('balances-list');
         if (!list) return;
-        if (!data.balances?.length) { list.innerHTML = '<div class="loading-state">אין נתונים</div>'; return; }
+        if (!data.balances?.length) { list.innerHTML = `<div class="loading-state">${typeof i18n === 'function' ? i18n('balances_no_data') : 'אין נתונים'}</div>`; return; }
 
         // Calculate settlements for the accordion
         const settlements = calculateSettlements(data.balances);
@@ -793,9 +891,14 @@ async function fetchBalances() {
             const isPos = b.balance > 0.01;
             const isNeg = b.balance < -0.01;
             const badgeCls = isPos ? 'positive' : isNeg ? 'negative' : 'neutral';
-            const badgeTxt = isPos ? 'צריך לקבל' : isNeg ? 'צריך לשלם' : 'מאוזן';
+            
+            const txtReceive = typeof i18n === 'function' ? i18n('balance_receive') : 'צריך לקבל';
+            const txtPay = typeof i18n === 'function' ? i18n('balance_pay') : 'צריך לשלם';
+            const txtSettled = typeof i18n === 'function' ? i18n('balance_settled') : 'מאוזן';
+            const badgeTxt = isPos ? txtReceive : isNeg ? txtPay : txtSettled;
+            
             const amtCls   = isPos ? 'amount-pos' : isNeg ? 'amount-neg' : '';
-            const me       = currentUser && b.user_id === currentUser.id ? ' (את/ה)' : '';
+            const me       = currentUser && b.user_id === currentUser.id ? (typeof i18n === 'function' ? i18n('balance_you') : ' (את/ה)') : '';
             const safeName = escapeHTML(b.name);
 
             // Find this person's settlements
@@ -805,16 +908,31 @@ async function fetchBalances() {
                 debtLines = personDebts.map(s => {
                     const safeFrom = escapeHTML(s.from);
                     const safeTo = escapeHTML(s.to);
+                    
+                    const isDebtor = currentUser && currentUser.id === s.from_id;
+                    const isCreditor = currentUser && currentUser.id === s.to_id;
+                    
+                    let settleBtn = '';
+                    if (isDebtor || isCreditor) {
+                        const txtSettleUp = typeof i18n === 'function' ? i18n('settle_up') : 'סלק חוב 💸';
+                        settleBtn = `<button class="settle-btn" onclick="event.stopPropagation(); triggerSettleUp(${s.from_id}, ${s.to_id}, ${s.amount})">${txtSettleUp}</button>`;
+                    }
+
                     return `<div class="debt-line">
-                        <span>${safeFrom}</span>
-                        <span class="debt-arrow">←</span>
-                        <span>${safeTo}</span>
-                        <span class="debt-amount">₪${s.amount.toFixed(0)}</span>
+                        <div class="debt-info">
+                            <span>${safeFrom}</span>
+                            <span class="debt-arrow">←</span>
+                            <span>${safeTo}</span>
+                            <span class="debt-amount">₪${s.amount.toFixed(0)}</span>
+                        </div>
+                        ${settleBtn}
                     </div>`;
                 }).join('');
             } else {
-                debtLines = '<div class="debt-line" style="justify-content:center; color:var(--text-muted);">מאוזן ✓</div>';
+                debtLines = `<div class="debt-line" style="justify-content:center; color:var(--text-muted);">${txtSettled} ✓</div>`;
             }
+
+            const paidTxt = typeof i18n === 'function' ? i18n('balance_paid') : 'שילם: ';
 
             return `
             <div class="balance-item" onclick="this.classList.toggle('open')">
@@ -823,7 +941,7 @@ async function fetchBalances() {
                         <div class="avatar bg-purple" style="width:40px;height:40px;font-size:1.2rem;">${escapeHTML(b.name.charAt(0))}</div>
                         <div class="item-details">
                             <h4>${safeName}${me}</h4>
-                            <p>שילם: ₪${b.paid.toFixed(0)}</p>
+                            <p>${paidTxt}₪${b.paid.toFixed(0)}</p>
                         </div>
                     </div>
                     <div class="item-right">
@@ -839,3 +957,365 @@ async function fetchBalances() {
         }).join('');
     } catch(e) { console.error('Fetch balances error:', e); }
 }
+
+async function triggerSettleUp(payerId, payeeId, amount) {
+    const msg = typeof i18n === 'function' ? i18n('settle_confirm') : 'לסלק חוב?';
+    if (!confirm(`${msg} (₪${amount.toFixed(0)})`)) return;
+
+    try {
+        const res = await fetch('/api/settlements', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                trip_id: currentTripId,
+                payer_id: payerId,
+                payee_id: payeeId,
+                amount: amount
+            })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            const toastMsg = typeof i18n === 'function' ? i18n('toast_settled') : 'החוב סולק! 🎉';
+            showToast(toastMsg);
+            launchConfetti();
+            fetchBalances();
+            fetchExpenses();
+        } else {
+            alert(data.error || 'Failed to settle debt.');
+        }
+    } catch (e) {
+        console.error('Settle up error:', e);
+        alert('Network error.');
+    }
+}
+
+function launchConfetti() {
+    const container = document.getElementById('confetti-container');
+    if (!container) return;
+
+    container.innerHTML = '';
+    const colors = ['#facc15', '#a855f7', '#22d3ee', '#06d6a0', '#f43f5e', '#ff007f'];
+    
+    for (let i = 0; i < 60; i++) {
+        const piece = document.createElement('div');
+        piece.className = 'confetti-piece';
+        
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        const left = Math.random() * 100;
+        const delay = Math.random() * 2;
+        const size = Math.random() * 8 + 5;
+        
+        piece.style.backgroundColor = color;
+        piece.style.left = `${left}%`;
+        piece.style.animationDelay = `${delay}s`;
+        piece.style.width = `${size}px`;
+        piece.style.height = `${size}px`;
+        piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+        
+        container.appendChild(piece);
+    }
+
+    setTimeout(() => {
+        container.innerHTML = '';
+    }, 4000);
+}
+
+// =====================
+//  THEMES & CHARTS
+// =====================
+
+function initTheme() {
+    const saved = localStorage.getItem('theme');
+    const btn = document.getElementById('theme-toggle-btn');
+    if (saved === 'light') {
+        document.body.classList.add('light-theme');
+        if (btn) btn.textContent = '🌙';
+    } else {
+        document.body.classList.remove('light-theme');
+        if (btn) btn.textContent = '☀️';
+    }
+}
+
+function toggleTheme() {
+    document.body.classList.toggle('light-theme');
+    const isLight = document.body.classList.contains('light-theme');
+    localStorage.setItem('theme', isLight ? 'light' : 'dark');
+    const btn = document.getElementById('theme-toggle-btn');
+    if (btn) btn.textContent = isLight ? '🌙' : '☀️';
+}
+
+function toggleBudgetCard() {
+    const card = document.getElementById('budget-flip-card');
+    if (card) {
+        card.classList.toggle('flipped');
+    }
+}
+
+function renderCategoryChart(expenses) {
+    const chartContainer = document.getElementById('category-chart');
+    if (!chartContainer) return;
+
+    if (!expenses || expenses.length === 0) {
+        chartContainer.innerHTML = `<div style="color:var(--text-muted); width:100%; text-align:center;">${typeof i18n === 'function' ? i18n('balances_no_data') : 'אין נתונים'}</div>`;
+        return;
+    }
+
+    const catTotals = {};
+    let maxAmt = 0;
+
+    expenses.forEach(exp => {
+        const cat = exp.category || 'כללי';
+        catTotals[cat] = (catTotals[cat] || 0) + parseFloat(exp.amount);
+    });
+
+    Object.values(catTotals).forEach(val => {
+        if (val > maxAmt) maxAmt = val;
+    });
+
+    // Categories
+    const categoriesList = [
+        { name: 'אוכל', icon: '🍕', color: 'var(--accent-yellow)' },
+        { name: 'לינה', icon: '🛏️', color: 'var(--primary)' },
+        { name: 'תחבורה', icon: '🚕', color: 'var(--accent-cyan)' },
+        { name: 'אטרקציות', icon: '🎟️', color: 'var(--error)' },
+        { name: 'כללי', icon: '💡', color: 'var(--success)' }
+    ];
+
+    let html = '';
+    categoriesList.forEach(c => {
+        const val = catTotals[c.name] || 0;
+        let heightPct = 5;
+        if (maxAmt > 0 && val > 0) {
+            heightPct = Math.max(10, (val / maxAmt) * 100);
+        } else if (val === 0) {
+            heightPct = 0; // hide empty bars or keep 5%
+        }
+        
+        if (val > 0) {
+            html += `
+            <div class="chart-bar-wrapper">
+                <div class="chart-bar" style="height: ${heightPct}%; background: ${c.color};" data-tooltip="${c.name}: ₪${val.toFixed(0)}"></div>
+                <div class="chart-icon">${c.icon}</div>
+            </div>`;
+        }
+    });
+
+    chartContainer.innerHTML = html;
+}
+
+// ============================================
+//   PHASE 4: RECEIPT SCANNING LOGIC
+// ============================================
+
+function triggerReceiptScan() {
+    document.getElementById('receipt-file-input').click();
+}
+
+async function uploadReceipt(file) {
+    if (!file) return;
+
+    // Show loading overlay
+    document.getElementById('scan-overlay').style.display = 'flex';
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+        const res = await fetch('/api/expenses/scan-receipt', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.ok ? await res.json() : null;
+
+        if (data && data.success) {
+            renderScannedItems(data.items);
+        } else {
+            alert((data && data.error) || 'Failed to scan receipt.');
+        }
+    } catch (e) {
+        console.error(e);
+        alert('Network error while scanning.');
+    } finally {
+        document.getElementById('scan-overlay').style.display = 'none';
+    }
+}
+
+function renderScannedItems(items) {
+    const container = document.getElementById('scanned-items-container');
+    if (!container) return;
+
+    let total = 0;
+    let desc = '';
+
+    const html = `
+        <div style="font-weight: 700; margin-bottom: 8px;" data-i18n="scan_items_found">פריטים שנמצאו:</div>
+        ${items.map(item => {
+            total += item.price;
+            if (desc) desc += ', ';
+            desc += item.item;
+            return `
+                <div class="scanned-item-row">
+                    <span class="scanned-item-name">${escapeHTML(item.item)}</span>
+                    <span class="scanned-item-price">₪${item.price.toFixed(2)}</span>
+                </div>
+            `;
+        }).join('')}
+        <button class="primary-btn full-width" style="margin-top: 10px;" onclick="acceptScannedItems(${total}, '${escapeHTML(desc)}')">
+            שייך סכום כולל (₪${total.toFixed(2)})
+        </button>
+    `;
+
+    container.innerHTML = html;
+    container.style.display = 'block';
+}
+
+function acceptScannedItems(total, description) {
+    const amountEl = document.getElementById('amount');
+    const descEl = document.getElementById('desc');
+    if (amountEl) amountEl.value = total.toFixed(2);
+    if (descEl) descEl.value = description;
+
+    // Hide scanned container after accepting
+    document.getElementById('scanned-items-container').style.display = 'none';
+
+    // If split mode is currently active, recalculate split values
+    if (document.getElementById('split-mode-toggle')?.checked) {
+        renderCustomSplits();
+    }
+}
+
+// ============================================
+//   PHASE 4: UNEQUAL SPLITS LOGIC
+// ============================================
+
+function toggleSplitMode() {
+    const container = document.getElementById('custom-splits-container');
+    const msg = document.getElementById('split-validation-msg');
+    const isChecked = document.getElementById('split-mode-toggle').checked;
+    if (isChecked) {
+        container.style.display = 'flex';
+        msg.style.display = 'block';
+        renderCustomSplits();
+    } else {
+        container.style.display = 'none';
+        msg.style.display = 'none';
+    }
+}
+
+function renderCustomSplits() {
+    const container = document.getElementById('custom-splits-container');
+    if (!container) return;
+
+    const parts = getSelectedParticipants();
+    if (!parts.length) {
+        container.innerHTML = `<div style="color:var(--text-muted); text-align:center;">בחר קודם משתתפים</div>`;
+        updateSplitSum();
+        return;
+    }
+
+    const totalAmount = parseFloat(document.getElementById('amount')?.value || 0);
+    const equalShare = totalAmount > 0 ? (totalAmount / parts.length) : 0;
+
+    container.innerHTML = parts.map(pid => {
+        const member = tripMembers.find(m => String(m.id) === String(pid));
+        const name = member ? member.name : `משתתף ${pid}`;
+        return `
+            <div class="split-input-row">
+                <span class="split-input-name">${escapeHTML(name)}</span>
+                <input type="number" id="split-user-${pid}" class="split-input-field" 
+                       value="${equalShare.toFixed(2)}" min="0" step="0.01" oninput="updateSplitSum()">
+            </div>
+        `;
+    }).join('');
+
+    updateSplitSum();
+}
+
+function updateSplitSum() {
+    const parts = getSelectedParticipants();
+    const totalAmount = parseFloat(document.getElementById('amount')?.value || 0);
+    const msg = document.getElementById('split-validation-msg');
+    if (!msg) return;
+
+    let currentSum = 0;
+    for (const pid of parts) {
+        currentSum += parseFloat(document.getElementById(`split-user-${pid}`)?.value || 0);
+    }
+
+    const diff = totalAmount - currentSum;
+    if (Math.abs(diff) < 0.01) {
+        msg.className = 'split-validation-msg valid';
+        msg.textContent = typeof i18n === 'function' ? i18n('toast_expense_updated') : 'הסכומים תואמים! ✓';
+    } else {
+        msg.className = 'split-validation-msg invalid';
+        const formattedDiff = Math.abs(diff).toFixed(2);
+        if (diff > 0) {
+            msg.textContent = `חסרים עוד ₪${formattedDiff} לסכום הכולל`;
+        } else {
+            msg.textContent = `חריגה של ₪${formattedDiff} מהסכום הכולל`;
+        }
+    }
+}
+
+// Add direct amount input listener to trigger split update
+document.getElementById('amount')?.addEventListener('input', () => {
+    if (document.getElementById('split-mode-toggle')?.checked) {
+        renderCustomSplits();
+    }
+});
+
+// ============================================
+//   PHASE 4: ACTIVITY DRAWER LOGIC
+// ============================================
+
+function openActivityDrawer() {
+    document.getElementById('activity-drawer')?.classList.add('open');
+    document.getElementById('menu-overlay')?.classList.add('open');
+    fetchActivity();
+}
+
+function closeActivityDrawer() {
+    document.getElementById('activity-drawer')?.classList.remove('open');
+    document.getElementById('menu-overlay')?.classList.remove('open');
+}
+
+async function fetchActivity() {
+    if (!currentTripId) return;
+    const container = document.getElementById('activity-list');
+    if (!container) return;
+
+    try {
+        const res = await fetch(`/api/activity/${currentTripId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        if (!data || data.length === 0) {
+            const noAct = typeof i18n === 'function' ? i18n('activity_no_data') : 'אין פעילות עדיין';
+            container.innerHTML = `<div class="loading-state">${noAct}</div>`;
+            return;
+        }
+
+        container.innerHTML = data.map(item => {
+            const dateStr = new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const actionText = typeof i18n === 'function' ? (i18n(`activity_${item.action}`) || item.action) : item.action;
+            const detailText = item.detail ? ` (${escapeHTML(item.detail)})` : '';
+            return `
+                <div class="activity-item">
+                    <div class="activity-icon-dot"></div>
+                    <div class="activity-content">
+                        <strong>${escapeHTML(item.user_name)}</strong> ${actionText}${detailText}
+                        <span class="activity-time">${dateStr}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch (e) {
+        console.error('Fetch activity error:', e);
+        container.innerHTML = '<div class="loading-state">Error loading activity.</div>';
+    }
+}
+
+// Call initTheme on load
+document.addEventListener('DOMContentLoaded', () => {
+    initTheme();
+});

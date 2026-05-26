@@ -73,7 +73,8 @@ def init_db_updates():
             is_verified INTEGER DEFAULT 0,
             verification_token TEXT,
             reset_token TEXT,
-            reset_token_expiry TEXT
+            reset_token_expiry TEXT,
+            language TEXT DEFAULT 'he'
         )
     """)
 
@@ -140,12 +141,12 @@ def init_db_updates():
     except sqlite3.Error as e:
         logger.error(f"Expenses migration error: {e}")
 
-    # --- Safe table-swap migration for Users (adds reset_token, reset_token_expiry) ---
+    # --- Safe table-swap migration for Users (adds reset_token, reset_token_expiry, language) ---
     try:
         cursor.execute("PRAGMA table_info(Users)")
         cols = [c['name'] for c in cursor.fetchall()]
 
-        expected_cols = ['password_hash', 'email', 'phone', 'is_verified', 'verification_token', 'reset_token', 'reset_token_expiry']
+        expected_cols = ['password_hash', 'email', 'phone', 'is_verified', 'verification_token', 'reset_token', 'reset_token_expiry', 'language']
         needs_migration = any(c not in cols for c in expected_cols)
 
         if needs_migration:
@@ -159,24 +160,26 @@ def init_db_updates():
                     is_verified INTEGER DEFAULT 0,
                     verification_token TEXT,
                     reset_token TEXT,
-                    reset_token_expiry TEXT
+                    reset_token_expiry TEXT,
+                    language TEXT DEFAULT 'he'
                 )
             """)
 
             select_cols = []
-            for col in ['id', 'name', 'password_hash', 'email', 'phone', 'is_verified', 'verification_token', 'reset_token', 'reset_token_expiry']:
+            for col in ['id', 'name', 'password_hash', 'email', 'phone', 'is_verified', 'verification_token', 'reset_token', 'reset_token_expiry', 'language']:
                 if col in cols:
                     select_cols.append(col)
                 else:
                     if col == 'email': select_cols.append("'temp_' || id || '@migrate.com'")
                     elif col == 'phone': select_cols.append("'temp_' || id")
                     elif col == 'is_verified': select_cols.append("0")
+                    elif col == 'language': select_cols.append("'he'")
                     else: select_cols.append("NULL")
 
-            cursor.execute(f"INSERT INTO Users_new (id, name, password_hash, email, phone, is_verified, verification_token, reset_token, reset_token_expiry) SELECT {', '.join(select_cols)} FROM Users")
+            cursor.execute(f"INSERT INTO Users_new (id, name, password_hash, email, phone, is_verified, verification_token, reset_token, reset_token_expiry, language) SELECT {', '.join(select_cols)} FROM Users")
             cursor.execute("DROP TABLE Users")
             cursor.execute("ALTER TABLE Users_new RENAME TO Users")
-            logger.info("Migration: Performed table swap for Users schema update (added reset_token columns).")
+            logger.info("Migration: Performed table swap for Users schema update (added reset_token columns and language).")
     except sqlite3.Error as e:
         logger.error(f"Users migration error: {e}")
 
@@ -194,12 +197,71 @@ def init_db_updates():
         )
     """)
 
+    # --- Phase 4: ExpenseSplits table (unequal splits) ---
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS ExpenseSplits (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            expense_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            amount REAL NOT NULL,
+            FOREIGN KEY(expense_id) REFERENCES Expenses(id) ON DELETE CASCADE,
+            FOREIGN KEY(user_id) REFERENCES Users(id)
+        )
+    """)
+
+    # --- Phase 4: Settlements table (debt clearing) ---
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS Settlements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            trip_id INTEGER NOT NULL,
+            payer_id INTEGER NOT NULL,
+            payee_id INTEGER NOT NULL,
+            amount REAL NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(trip_id) REFERENCES Trips(id),
+            FOREIGN KEY(payer_id) REFERENCES Users(id),
+            FOREIGN KEY(payee_id) REFERENCES Users(id)
+        )
+    """)
+
+    # --- Phase 4: ActivityLog table (audit trail) ---
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS ActivityLog (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            trip_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            action TEXT NOT NULL,
+            detail TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(trip_id) REFERENCES Trips(id),
+            FOREIGN KEY(user_id) REFERENCES Users(id)
+        )
+    """)
+
     conn.commit()
     conn.close()
     logger.info("Database initialization complete.")
 
 
 init_db_updates()
+
+
+# ---------------------
+#   ACTIVITY LOG HELPER
+# ---------------------
+def log_activity(trip_id, user_id, action, detail=None):
+    """Insert an entry into the ActivityLog table. Non-blocking."""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO ActivityLog (trip_id, user_id, action, detail, created_at) VALUES (?, ?, ?, ?, ?)",
+            (trip_id, user_id, action, detail, datetime.now(timezone.utc).isoformat())
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.error(f"log_activity error: {e}")
 
 
 # ---------------------
@@ -451,7 +513,15 @@ def verify_email(token):
 @app.route('/api/me', methods=['GET'])
 @login_required
 def get_me():
-    return jsonify({"id": session['user_id'], "name": session['username']})
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT language FROM Users WHERE id = ?", (session['user_id'],))
+        user = cursor.fetchone()
+        lang = user['language'] if user else 'he'
+        return jsonify({"id": session['user_id'], "name": session['username'], "language": lang})
+    finally:
+        conn.close()
 
 
 @app.route('/api/signup', methods=['POST'])
@@ -640,11 +710,11 @@ def get_profile():
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute("SELECT id, name, email FROM Users WHERE id = ?", (session['user_id'],))
+        cursor.execute("SELECT id, name, email, language FROM Users WHERE id = ?", (session['user_id'],))
         user = cursor.fetchone()
         if not user:
             return jsonify({"error": "User not found"}), 404
-        return jsonify({"id": user['id'], "name": user['name'], "email": user['email']})
+        return jsonify({"id": user['id'], "name": user['name'], "email": user['email'], "language": user['language']})
     finally:
         conn.close()
 
@@ -654,26 +724,39 @@ def get_profile():
 def update_profile():
     data = request.json or {}
     new_name = data.get('name', '').strip()
+    language = data.get('language')
 
-    if not new_name:
-        return jsonify({"error": "שם תצוגה הוא שדה חובה."}), 400
+    updates = []
+    params = []
 
-    new_name, err = validate_string(new_name, 'שם תצוגה')
-    if err:
-        return jsonify({"error": err}), 400
+    if new_name:
+        new_name, err = validate_string(new_name, 'שם תצוגה')
+        if err:
+            return jsonify({"error": err}), 400
+        updates.append("name = ?")
+        params.append(new_name)
+
+    if language in ('he', 'en'):
+        updates.append("language = ?")
+        params.append(language)
+
+    if not updates:
+        return jsonify({"success": True})
 
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        # Check uniqueness
-        cursor.execute("SELECT id FROM Users WHERE name = ? AND id != ?", (new_name, session['user_id']))
-        if cursor.fetchone():
-            return jsonify({"error": "שם המשתמש כבר תפוס."}), 400
+        if new_name:
+            # Check uniqueness if name changed
+            cursor.execute("SELECT id FROM Users WHERE name = ? AND id != ?", (new_name, session['user_id']))
+            if cursor.fetchone():
+                return jsonify({"error": "שם המשתמש כבר תפוס."}), 400
+            session['username'] = new_name
 
-        cursor.execute("UPDATE Users SET name = ? WHERE id = ?", (new_name, session['user_id']))
+        params.append(session['user_id'])
+        cursor.execute(f"UPDATE Users SET {', '.join(updates)} WHERE id = ?", params)
         conn.commit()
-        session['username'] = new_name
-        logger.info(f"User {session['user_id']} updated display name to '{new_name}'")
+        logger.info(f"User {session['user_id']} updated profile fields: {', '.join(updates)}")
         return jsonify({"success": True})
     except sqlite3.IntegrityError:
         return jsonify({"error": "שם המשתמש כבר תפוס."}), 400
@@ -1007,7 +1090,7 @@ def get_expenses(trip_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT e.id, u.name as payer, e.amount, e.currency, e.description, e.category, e.created_at
+        SELECT e.id, u.name as payer, e.user_id, e.amount, e.currency, e.description, e.category, e.created_at
         FROM Expenses e
         JOIN Users u ON e.user_id = u.id
         WHERE e.trip_id = ?
@@ -1060,18 +1143,117 @@ def add_expense():
     if currency not in ALLOWED_CURRENCIES:
         currency = 'ILS'
 
+    # Parse optional splits
+    splits = data.get('splits')  # [{user_id: int, amount: float}, ...]
+
     try:
         cursor.execute("""
             INSERT INTO Expenses (trip_id, user_id, amount, currency, description, category, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         """, (trip_id, session['user_id'], amount, currency, description, category,
               datetime.now(timezone.utc).isoformat()))
+        expense_id = cursor.lastrowid
+
+        # Handle splits
+        if splits and isinstance(splits, list) and len(splits) > 0:
+            # Validate split amounts sum to total
+            split_total = sum(float(s.get('amount', 0)) for s in splits)
+            if abs(split_total - amount) > 0.01:
+                conn.rollback()
+                conn.close()
+                return jsonify({"error": "Split amounts must sum to the total expense amount."}), 400
+
+            for s in splits:
+                s_uid = int(s['user_id'])
+                s_amt = float(s['amount'])
+                if s_amt > 0:
+                    cursor.execute(
+                        "INSERT INTO ExpenseSplits (expense_id, user_id, amount) VALUES (?, ?, ?)",
+                        (expense_id, s_uid, s_amt)
+                    )
+        else:
+            # Auto-generate equal splits for all trip members
+            cursor.execute("SELECT user_id FROM TripMembers WHERE trip_id = ?", (trip_id,))
+            members = cursor.fetchall()
+            if members:
+                per_person = amount / len(members)
+                for m in members:
+                    cursor.execute(
+                        "INSERT INTO ExpenseSplits (expense_id, user_id, amount) VALUES (?, ?, ?)",
+                        (expense_id, m['user_id'], per_person)
+                    )
+
         conn.commit()
         logger.info(f"Expense added: {currency} {amount} for trip {trip_id} by user {session['user_id']}")
+        log_activity(trip_id, session['user_id'], 'expense_added', f"{description} — {currency} {amount}")
         return jsonify({"success": True})
     except sqlite3.Error as e:
         logger.error(f"Add expense error: {e}")
         return jsonify({"error": "שגיאה בהוספת הוצאה."}), 500
+    finally:
+        conn.close()
+
+
+@app.route('/api/expenses/<int:expense_id>', methods=['PUT'])
+@login_required
+def edit_expense(expense_id):
+    data = request.json or {}
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Verify ownership
+        cursor.execute("SELECT user_id FROM Expenses WHERE id = ?", (expense_id,))
+        expense = cursor.fetchone()
+        if not expense:
+            return jsonify({"error": "Expense not found"}), 404
+        if expense['user_id'] != session['user_id']:
+            return jsonify({"error": "Only the creator of the expense can edit it."}), 403
+
+        updates = []
+        params = []
+        
+        if 'amount' in data:
+            amount, err = validate_amount(data['amount'])
+            if err:
+                return jsonify({"error": err}), 400
+            updates.append("amount = ?")
+            params.append(amount)
+            
+        if 'description' in data:
+            desc, err = validate_string(data['description'], 'תיאור', MAX_DESCRIPTION_LENGTH)
+            if err:
+                return jsonify({"error": err}), 400
+            updates.append("description = ?")
+            params.append(desc)
+            
+        if 'category' in data:
+            cat = str(data['category']).strip()
+            if len(cat) > 50: cat = cat[:50]
+            updates.append("category = ?")
+            params.append(cat)
+            
+        if 'currency' in data:
+            curr = str(data['currency']).strip().upper()
+            if curr in ALLOWED_CURRENCIES:
+                updates.append("currency = ?")
+                params.append(curr)
+
+        if updates:
+            params.append(expense_id)
+            cursor.execute(f"UPDATE Expenses SET {', '.join(updates)} WHERE id = ?", params)
+            conn.commit()
+            logger.info(f"Expense {expense_id} updated by user {session['user_id']}")
+            # Log activity
+            cursor.execute("SELECT trip_id, description FROM Expenses WHERE id = ?", (expense_id,))
+            exp_row = cursor.fetchone()
+            if exp_row:
+                log_activity(exp_row['trip_id'], session['user_id'], 'expense_edited', exp_row['description'])
+            
+        return jsonify({"success": True})
+    except sqlite3.Error as e:
+        logger.error(f"Edit expense error: {e}")
+        return jsonify({"error": "Server error"}), 500
     finally:
         conn.close()
 
@@ -1099,9 +1281,12 @@ def delete_expense(expense_id):
         if expense['user_id'] != session['user_id'] and expense['owner_id'] != session['user_id']:
             return jsonify({"error": "אין הרשאה למחוק הוצאה זו."}), 403
 
+        # Delete related splits first
+        cursor.execute("DELETE FROM ExpenseSplits WHERE expense_id = ?", (expense_id,))
         cursor.execute("DELETE FROM Expenses WHERE id = ?", (expense_id,))
         conn.commit()
         logger.info(f"Expense deleted: id={expense_id} (₪{expense['amount']}, '{expense['description']}') by user {session['user_id']}")
+        log_activity(expense['trip_id'], session['user_id'], 'expense_deleted', expense['description'])
         return jsonify({"success": True})
     except sqlite3.Error as e:
         logger.error(f"Delete expense error: {e}")
@@ -1128,23 +1313,63 @@ def get_balances(trip_id):
     """, (trip_id,))
     users = cursor.fetchall()
 
+    # How much each user PAID (as the payer)
     cursor.execute(
         "SELECT user_id, SUM(amount) as total FROM Expenses WHERE trip_id = ? GROUP BY user_id",
         (trip_id,)
     )
-    expenses_data = {row['user_id']: row['total'] for row in cursor.fetchall()}
+    paid_data = {row['user_id']: row['total'] for row in cursor.fetchall()}
+
+    # How much each user OWES (from ExpenseSplits)
+    cursor.execute("""
+        SELECT es.user_id, SUM(es.amount) as total_owed
+        FROM ExpenseSplits es
+        JOIN Expenses e ON es.expense_id = e.id
+        WHERE e.trip_id = ?
+        GROUP BY es.user_id
+    """, (trip_id,))
+    owed_data = {row['user_id']: row['total_owed'] for row in cursor.fetchall()}
+
+    # Settlements: amounts already settled
+    cursor.execute("""
+        SELECT payer_id, SUM(amount) as total FROM Settlements
+        WHERE trip_id = ? GROUP BY payer_id
+    """, (trip_id,))
+    settled_out = {row['payer_id']: row['total'] for row in cursor.fetchall()}
+
+    cursor.execute("""
+        SELECT payee_id, SUM(amount) as total FROM Settlements
+        WHERE trip_id = ? GROUP BY payee_id
+    """, (trip_id,))
+    settled_in = {row['payee_id']: row['total'] for row in cursor.fetchall()}
+
     conn.close()
 
-    total_expenses = sum(expenses_data.values()) if expenses_data else 0
+    total_expenses = sum(paid_data.values()) if paid_data else 0
     num_users = len(users)
-    average_per_person = total_expenses / num_users if num_users > 0 else 0
+
+    # If no splits exist (legacy data), fall back to equal division
+    has_splits = bool(owed_data)
 
     balances = []
     for user in users:
-        paid = expenses_data.get(user['id'], 0.0)
-        balance = paid - average_per_person
+        uid = user['id']
+        paid = paid_data.get(uid, 0.0)
+
+        if has_splits:
+            owed = owed_data.get(uid, 0.0)
+        else:
+            # Legacy fallback: equal split
+            owed = total_expenses / num_users if num_users > 0 else 0
+
+        # Factor in settlements
+        s_out = settled_out.get(uid, 0.0)  # User paid off debts
+        s_in = settled_in.get(uid, 0.0)    # User received payments
+
+        balance = (paid + s_out) - (owed + s_in)
+
         balances.append({
-            'user_id': user['id'],
+            'user_id': uid,
             'name': user['name'],
             'paid': paid,
             'balance': balance
@@ -1152,9 +1377,194 @@ def get_balances(trip_id):
 
     return jsonify({
         'total': total_expenses,
-        'average': average_per_person,
+        'average': total_expenses / num_users if num_users > 0 else 0,
         'balances': balances
     })
+
+
+# =====================
+#   RECEIPT SCANNING
+# =====================
+
+@app.route('/api/expenses/scan-receipt', methods=['POST'])
+@login_required
+def scan_receipt():
+    """Accept a receipt image, extract line items via Gemini Vision or return mock data."""
+    if 'image' not in request.files:
+        return jsonify({"error": "No image file provided."}), 400
+
+    file = request.files['image']
+    if not file.filename:
+        return jsonify({"error": "Empty file."}), 400
+
+    # Validate file size (5MB max)
+    file.seek(0, 2)
+    size = file.tell()
+    file.seek(0)
+    if size > 5 * 1024 * 1024:
+        return jsonify({"error": "File too large. Max 5MB."}), 400
+
+    # Validate file type
+    allowed_ext = {'jpg', 'jpeg', 'png', 'webp'}
+    ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+    if ext not in allowed_ext:
+        return jsonify({"error": "Invalid file type. Use JPG, PNG, or WebP."}), 400
+
+    api_key = os.environ.get('GEMINI_API_KEY')
+
+    if api_key:
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel('gemini-2.0-flash')
+
+            import base64
+            image_data = file.read()
+            b64 = base64.b64encode(image_data).decode('utf-8')
+            mime = f"image/{ext}" if ext != 'jpg' else 'image/jpeg'
+
+            response = model.generate_content([
+                "Extract all line items from this receipt. Return ONLY a valid JSON array of objects, each with 'item' (string) and 'price' (float number). Example: [{\"item\": \"Coffee\", \"price\": 15.0}]. No markdown, no explanation, just the JSON array.",
+                {"mime_type": mime, "data": b64}
+            ])
+
+            import re
+            text = response.text.strip()
+            # Extract JSON array from response
+            match = re.search(r'\[.*\]', text, re.DOTALL)
+            if match:
+                items = json.loads(match.group())
+                logger.info(f"Receipt scanned via Gemini: {len(items)} items extracted")
+                return jsonify({"success": True, "items": items, "source": "gemini"})
+            else:
+                logger.warning(f"Gemini returned non-JSON: {text[:200]}")
+                return jsonify({"error": "Could not parse receipt. Try again."}), 422
+        except Exception as e:
+            logger.error(f"Gemini Vision error: {e}")
+            # Fall through to mock
+            pass
+
+    # Mock fallback — realistic receipt items
+    mock_items = [
+        {"item": "Cappuccino", "price": 18.0},
+        {"item": "Caesar Salad", "price": 52.0},
+        {"item": "Grilled Salmon", "price": 89.0},
+        {"item": "Sparkling Water", "price": 12.0},
+        {"item": "Tiramisu", "price": 38.0}
+    ]
+    logger.info("Receipt scan: using mock fallback (no GEMINI_API_KEY)")
+    return jsonify({"success": True, "items": mock_items, "source": "mock"})
+
+
+# =====================
+#   SETTLEMENT APIS
+# =====================
+
+@app.route('/api/settlements', methods=['POST'])
+@login_required
+def create_settlement():
+    """Record a debt settlement between two users."""
+    data = request.json or {}
+    trip_id = data.get('trip_id')
+    payer_id = data.get('payer_id')
+    payee_id = data.get('payee_id')
+    amount_raw = data.get('amount')
+
+    if not trip_id or not payer_id or not payee_id or not amount_raw:
+        return jsonify({"error": "Missing required fields."}), 400
+
+    amount, err = validate_amount(amount_raw)
+    if err:
+        return jsonify({"error": err}), 400
+
+    try:
+        payer_id = int(payer_id)
+        payee_id = int(payee_id)
+    except (ValueError, TypeError):
+        return jsonify({"error": "Invalid user ID format."}), 400
+
+    if session['user_id'] not in (payer_id, payee_id):
+        return jsonify({"error": "Forbidden"}), 403
+
+    if payer_id == payee_id:
+        return jsonify({"error": "Cannot settle with yourself."}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Verify caller has trip access
+        cursor.execute("""
+            SELECT 1 FROM TripMembers WHERE trip_id = ? AND user_id = ?
+            UNION
+            SELECT 1 FROM Trips WHERE id = ? AND owner_id = ?
+        """, (trip_id, session['user_id'], trip_id, session['user_id']))
+        if not cursor.fetchone():
+            return jsonify({"error": "Forbidden"}), 403
+
+        cursor.execute("""
+            INSERT INTO Settlements (trip_id, payer_id, payee_id, amount, created_at)
+            VALUES (?, ?, ?, ?, ?)
+        """, (trip_id, payer_id, payee_id, amount, datetime.now(timezone.utc).isoformat()))
+        conn.commit()
+
+        # Get payee name for activity log
+        cursor.execute("SELECT name FROM Users WHERE id = ?", (payee_id,))
+        payee = cursor.fetchone()
+        payee_name = payee['name'] if payee else f"User {payee_id}"
+
+        logger.info(f"Settlement: user {payer_id} settled {amount} with user {payee_id} in trip {trip_id}")
+        log_activity(trip_id, payer_id, 'settlement', f"₪{amount:.0f} -> {payee_name}")
+        return jsonify({"success": True})
+    except sqlite3.Error as e:
+        logger.error(f"Settlement error: {e}")
+        return jsonify({"error": "Server error."}), 500
+    finally:
+        conn.close()
+
+
+@app.route('/api/settlements/<int:trip_id>', methods=['GET'])
+@login_required
+@require_trip_access
+def get_settlements(trip_id):
+    """Get all settlements for a trip."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT s.id, s.payer_id, p.name as payer_name, s.payee_id, r.name as payee_name,
+               s.amount, s.created_at
+        FROM Settlements s
+        JOIN Users p ON s.payer_id = p.id
+        JOIN Users r ON s.payee_id = r.id
+        WHERE s.trip_id = ?
+        ORDER BY s.id DESC
+    """, (trip_id,))
+    settlements = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return jsonify(settlements)
+
+
+# =====================
+#   ACTIVITY FEED API
+# =====================
+
+@app.route('/api/activity/<int:trip_id>', methods=['GET'])
+@login_required
+@require_trip_access
+def get_activity(trip_id):
+    """Get the activity feed for a trip (last 50 entries)."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT a.id, a.action, a.detail, a.created_at, u.name as user_name
+        FROM ActivityLog a
+        JOIN Users u ON a.user_id = u.id
+        WHERE a.trip_id = ?
+        ORDER BY a.id DESC
+        LIMIT 50
+    """, (trip_id,))
+    entries = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return jsonify(entries)
 
 
 # =====================

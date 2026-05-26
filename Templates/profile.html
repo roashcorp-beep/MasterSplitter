@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="description" content="MasterSplitter — פרופיל משתמש. עדכן שם תצוגה ושנה סיסמה.">
-    <title>MasterSplitter - פרופיל</title>
+    <title>MasterSplitter - Profile</title>
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
@@ -13,7 +13,7 @@
 
         <div class="profile-header">
             <button class="back-btn" onclick="window.location.href='/app'" title="חזור">→</button>
-            <h2>פרופיל</h2>
+            <h2 data-i18n="profile_title">פרופיל</h2>
         </div>
 
         <div class="profile-content">
@@ -21,50 +21,60 @@
             <!-- Avatar & Info -->
             <div class="profile-avatar-section">
                 <div class="profile-avatar" id="profile-avatar">?</div>
-                <div class="profile-name-display" id="profile-name-display">טוען...</div>
+                <div class="profile-name-display" id="profile-name-display" data-i18n="loading">טוען...</div>
                 <div class="profile-email-display" id="profile-email-display"></div>
             </div>
 
-            <!-- Display Name Section -->
-            <div class="profile-section-title">שם תצוגה</div>
+            <!-- Profile Settings Section -->
+            <div class="profile-section-title" data-i18n="profile_display_name">שם תצוגה</div>
             <div class="profile-card">
                 <div class="form-group">
-                    <label for="profile-name">שם חדש</label>
-                    <input type="text" id="profile-name" placeholder="הכנס שם תצוגה חדש">
+                    <label for="profile-name" data-i18n="profile_new_name">שם חדש</label>
+                    <input type="text" id="profile-name" data-i18n="profile_new_name_ph" placeholder="הכנס שם תצוגה חדש">
                 </div>
-                <button class="primary-btn full-width" onclick="updateProfileName()">שמור שם</button>
+                
+                <div class="form-group" style="margin-top: 16px;">
+                    <label for="profile-lang" data-i18n="profile_language">שפה / Language</label>
+                    <select id="profile-lang" class="custom-select">
+                        <option value="he">עברית</option>
+                        <option value="en">English</option>
+                    </select>
+                </div>
+                
+                <button class="primary-btn full-width" style="margin-top: 20px;" onclick="saveProfileSettings()" data-i18n="profile_btn_save_name">שמור שם</button>
                 <div class="error-message" id="name-error"></div>
                 <div class="success-message" id="name-success"></div>
             </div>
 
-            <!-- Change Password Section -->
-            <div class="profile-section-title">שינוי סיסמה</div>
-            <div class="profile-card">
+            <!-- Change Password Section Toggle -->
+            <button class="secondary-btn full-width" style="margin-bottom: 16px;" onclick="document.getElementById('pwd-section').classList.toggle('open')" data-i18n="profile_change_pwd">שינוי סיסמה 🔐</button>
+            
+            <div class="profile-card accordion-body" id="pwd-section">
                 <div class="form-group">
-                    <label for="current-password">סיסמה נוכחית</label>
-                    <input type="password" id="current-password" placeholder="הכנס סיסמה נוכחית" autocomplete="current-password">
+                    <label for="current-password" data-i18n="profile_current_pwd">סיסמה נוכחית</label>
+                    <input type="password" id="current-password" placeholder="***" autocomplete="current-password">
                 </div>
                 <div class="form-group">
-                    <label for="new-password">סיסמה חדשה</label>
-                    <input type="password" id="new-password" placeholder="הכנס סיסמה חדשה" autocomplete="new-password">
+                    <label for="new-password" data-i18n="profile_new_pwd">סיסמה חדשה</label>
+                    <input type="password" id="new-password" placeholder="***" autocomplete="new-password">
                 </div>
                 <div class="form-group">
-                    <label for="confirm-new-password">אימות סיסמה חדשה</label>
-                    <input type="password" id="confirm-new-password" placeholder="הכנס שוב סיסמה חדשה" autocomplete="new-password">
+                    <label for="confirm-new-password" data-i18n="profile_confirm_pwd">אימות סיסמה חדשה</label>
+                    <input type="password" id="confirm-new-password" placeholder="***" autocomplete="new-password">
                 </div>
-                <button class="primary-btn full-width" onclick="changePassword()">עדכן סיסמה</button>
+                <button class="primary-btn full-width" onclick="changePassword()" data-i18n="profile_btn_update_pwd">עדכן סיסמה</button>
                 <div class="error-message" id="pwd-error"></div>
                 <div class="success-message" id="pwd-success"></div>
             </div>
 
             <!-- Logout -->
-            <button class="profile-logout-btn" onclick="profileLogout()">⎋ התנתק</button>
+            <button class="profile-logout-btn" onclick="profileLogout()" data-i18n="menu_logout">⎋ התנתק</button>
 
         </div>
     </div>
 
+    <script src="/static/js/translations.js"></script>
     <script>
-        // Load profile on page load
         document.addEventListener('DOMContentLoaded', loadProfile);
 
         async function loadProfile() {
@@ -76,20 +86,25 @@
                 document.getElementById('profile-name-display').textContent = data.name;
                 document.getElementById('profile-email-display').textContent = data.email || '';
                 document.getElementById('profile-name').value = data.name;
+                if(data.language) {
+                    document.getElementById('profile-lang').value = data.language;
+                    setLanguage(data.language);
+                }
             } catch (e) {
                 window.location.href = '/';
             }
         }
 
-        async function updateProfileName() {
+        async function saveProfileSettings() {
             const name = document.getElementById('profile-name').value.trim();
+            const language = document.getElementById('profile-lang').value;
             const errEl = document.getElementById('name-error');
             const successEl = document.getElementById('name-success');
             errEl.classList.remove('visible');
             successEl.classList.remove('visible');
 
             if (!name) {
-                errEl.textContent = 'שם תצוגה הוא שדה חובה.';
+                errEl.textContent = i18n('err_fill_all');
                 errEl.classList.add('visible');
                 return;
             }
@@ -98,20 +113,21 @@
                 const res = await fetch('/api/profile', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name })
+                    body: JSON.stringify({ name, language })
                 });
                 const data = await res.json();
                 if (res.ok && data.success) {
-                    successEl.textContent = 'השם עודכן בהצלחה!';
+                    successEl.textContent = i18n('toast_name_updated');
                     successEl.classList.add('visible');
                     document.getElementById('profile-name-display').textContent = name;
                     document.getElementById('profile-avatar').textContent = name.charAt(0).toUpperCase();
+                    setLanguage(language);
                 } else {
-                    errEl.textContent = data.error || 'שגיאה בעדכון השם.';
+                    errEl.textContent = data.error || 'שגיאה בעדכון.';
                     errEl.classList.add('visible');
                 }
             } catch (e) {
-                errEl.textContent = 'שגיאת רשת.';
+                errEl.textContent = i18n('error_network');
                 errEl.classList.add('visible');
             }
         }
@@ -126,12 +142,12 @@
             successEl.classList.remove('visible');
 
             if (!current || !newPwd || !confirm) {
-                errEl.textContent = 'יש למלא את כל השדות.';
+                errEl.textContent = i18n('err_fill_all');
                 errEl.classList.add('visible');
                 return;
             }
             if (newPwd !== confirm) {
-                errEl.textContent = 'הסיסמאות החדשות לא תואמות.';
+                errEl.textContent = 'הסיסמאות לא תואמות.';
                 errEl.classList.add('visible');
                 return;
             }
@@ -149,7 +165,7 @@
                 });
                 const data = await res.json();
                 if (res.ok && data.success) {
-                    successEl.textContent = data.message || 'הסיסמה עודכנה בהצלחה!';
+                    successEl.textContent = data.message || i18n('toast_pwd_updated');
                     successEl.classList.add('visible');
                     document.getElementById('current-password').value = '';
                     document.getElementById('new-password').value = '';
@@ -159,7 +175,7 @@
                     errEl.classList.add('visible');
                 }
             } catch (e) {
-                errEl.textContent = 'שגיאת רשת.';
+                errEl.textContent = i18n('error_network');
                 errEl.classList.add('visible');
             }
         }

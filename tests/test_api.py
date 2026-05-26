@@ -42,7 +42,7 @@ def app():
         id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE NOT NULL,
         password_hash TEXT, email TEXT UNIQUE, phone TEXT UNIQUE,
         is_verified INTEGER DEFAULT 0, verification_token TEXT,
-        reset_token TEXT, reset_token_expiry TEXT)""")
+        reset_token TEXT, reset_token_expiry TEXT, language TEXT DEFAULT 'he')""")
     cursor.execute("""CREATE TABLE IF NOT EXISTS Trips (
         id INTEGER PRIMARY KEY AUTOINCREMENT, destination TEXT NOT NULL,
         budget REAL DEFAULT 0, owner_id INTEGER, local_participants TEXT DEFAULT '[]')""")
@@ -63,6 +63,20 @@ def app():
         inviter_id INTEGER NOT NULL, invitee_phone_or_email TEXT NOT NULL,
         status TEXT DEFAULT 'PENDING', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(trip_id) REFERENCES Trips(id), FOREIGN KEY(inviter_id) REFERENCES Users(id))""")
+    cursor.execute("""CREATE TABLE IF NOT EXISTS ExpenseSplits (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, expense_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL, amount REAL NOT NULL,
+        FOREIGN KEY(expense_id) REFERENCES Expenses(id))""")
+    cursor.execute("""CREATE TABLE IF NOT EXISTS Settlements (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, trip_id INTEGER NOT NULL,
+        payer_id INTEGER NOT NULL, payee_id INTEGER NOT NULL, amount REAL NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(trip_id) REFERENCES Trips(id))""")
+    cursor.execute("""CREATE TABLE IF NOT EXISTS ActivityLog (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, trip_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL, action TEXT NOT NULL, detail TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(trip_id) REFERENCES Trips(id))""")
     conn.commit()
     conn.close()
 
@@ -556,6 +570,40 @@ class TestExpenses:
         res = client.delete(f'/api/expenses/{exp_id}')
         assert res.status_code == 403
 
+    def test_update_expense(self, client):
+        signup(client)
+        trip_id = create_trip(client).get_json()['trip_id']
+        add_expense(client, trip_id, 100, 'To Update', 'כללי', 'ILS')
+        expenses = client.get(f'/api/expenses/{trip_id}').get_json()
+        exp_id = expenses[0]['id']
+        
+        res = client.put(f'/api/expenses/{exp_id}',
+                         json={'amount': 200.5, 'description': 'Updated', 'category': 'אוכל', 'currency': 'USD'},
+                         content_type='application/json')
+        assert res.status_code == 200
+        assert res.get_json()['success'] is True
+        
+        # Verify
+        updated = client.get(f'/api/expenses/{trip_id}').get_json()
+        assert updated[0]['amount'] == 200.5
+        assert updated[0]['description'] == 'Updated'
+        assert updated[0]['category'] == 'אוכל'
+        assert updated[0]['currency'] == 'USD'
+
+    def test_update_expense_not_owner(self, client):
+        signup(client, 'creator2')
+        trip_id = create_trip(client).get_json()['trip_id']
+        add_expense(client, trip_id, 100, 'Protected Update')
+        expenses = client.get(f'/api/expenses/{trip_id}').get_json()
+        exp_id = expenses[0]['id']
+        client.post('/api/logout', content_type='application/json')
+        
+        signup(client, 'attacker2')
+        res = client.put(f'/api/expenses/{exp_id}',
+                         json={'amount': 9999},
+                         content_type='application/json')
+        assert res.status_code == 403
+
 
 # =====================
 #   CURRENCY TESTS
@@ -685,3 +733,181 @@ class TestInputValidation:
                           json={'trip_id': trip_id, 'amount': 'abc', 'description': 'Bad'},
                           content_type='application/json')
         assert res.status_code == 400
+
+
+# =====================
+#   PHASE 4 ENTERPRISE TESTS (EPICS 1 & 2)
+# =====================
+
+class TestPhase4Enterprise:
+    def test_scan_receipt_mock_fallback(self, client):
+        signup(client)
+        # Create a mock image file
+        import io
+        img_data = io.BytesIO(b"fake-image-data-here")
+        res = client.post('/api/expenses/scan-receipt',
+                          data={'image': (img_data, 'receipt.png')},
+                          content_type='multipart/form-data')
+        assert res.status_code == 200
+        json_data = res.get_json()
+        assert json_data['success'] is True
+        assert 'items' in json_data
+        assert json_data['source'] == 'mock'
+        assert len(json_data['items']) > 0
+
+    def test_unequal_splits_saving_and_retrieval(self, client):
+        signup(client, 'user1')
+        trip_id = create_trip(client).get_json()['trip_id']
+        
+        signup(client, 'user2')
+        signup(client, 'user3')
+
+        # Find user IDs
+        import Server
+        conn = Server.get_db_connection()
+        cursor = conn.cursor()
+        users = {row['name']: row['id'] for row in cursor.execute("SELECT id, name FROM Users").fetchall()}
+        
+        u1_id = users['user1']
+        u2_id = users['user2']
+        u3_id = users['user3']
+
+        # Manually link users to the trip members
+        cursor.execute("INSERT OR IGNORE INTO TripMembers (trip_id, user_id) VALUES (?, ?)", (trip_id, u1_id))
+        cursor.execute("INSERT OR IGNORE INTO TripMembers (trip_id, user_id) VALUES (?, ?)", (trip_id, u2_id))
+        cursor.execute("INSERT OR IGNORE INTO TripMembers (trip_id, user_id) VALUES (?, ?)", (trip_id, u3_id))
+        conn.commit()
+        conn.close()
+
+        # Login back as user1 to add expense
+        client.post('/api/login', json={'username': 'user1', 'password': 'test1234'}, content_type='application/json')
+
+        splits = [
+            {'user_id': u1_id, 'amount': 20.0},
+            {'user_id': u2_id, 'amount': 50.0},
+            {'user_id': u3_id, 'amount': 30.0}
+        ]
+
+        res = client.post('/api/expenses',
+                          json={
+                              'trip_id': trip_id,
+                              'amount': 100.0,
+                              'description': 'Unequal Dinner',
+                              'category': 'אוכל',
+                              'currency': 'ILS',
+                              'splits': splits
+                          },
+                          content_type='application/json')
+        assert res.status_code == 200
+
+        # Retrieve balances and verify calculation
+        res = client.get(f'/api/balances/{trip_id}')
+        assert res.status_code == 200
+        balances = res.get_json()['balances']
+        
+        b_map = {b['user_id']: b['balance'] for b in balances}
+        assert b_map[u1_id] == 80.0
+        assert b_map[u2_id] == -50.0
+        assert b_map[u3_id] == -30.0
+
+
+class TestSettleUp:
+    def test_settle_up_success(self, client):
+        signup(client, 'payer')
+        trip_id = create_trip(client).get_json()['trip_id']
+        signup(client, 'payee')
+
+        import Server
+        conn = Server.get_db_connection()
+        cursor = conn.cursor()
+        users = {row['name']: row['id'] for row in cursor.execute("SELECT id, name FROM Users").fetchall()}
+        payer_id = users['payer']
+        payee_id = users['payee']
+
+        cursor.execute("INSERT OR IGNORE INTO TripMembers (trip_id, user_id) VALUES (?, ?)", (trip_id, payer_id))
+        cursor.execute("INSERT OR IGNORE INTO TripMembers (trip_id, user_id) VALUES (?, ?)", (trip_id, payee_id))
+        conn.commit()
+        conn.close()
+
+        # Login as payer
+        client.post('/api/login', json={'username': 'payer', 'password': 'test1234'}, content_type='application/json')
+
+        res = client.post('/api/settlements',
+                          json={
+                              'trip_id': trip_id,
+                              'payer_id': payer_id,
+                              'payee_id': payee_id,
+                              'amount': 50.0
+                          },
+                          content_type='application/json')
+        assert res.status_code == 200
+        assert res.get_json()['success'] is True
+
+        # Verify settlement exists in DB
+        conn = Server.get_db_connection()
+        cursor = conn.cursor()
+        settlement = cursor.execute("SELECT * FROM Settlements WHERE trip_id = ?", (trip_id,)).fetchone()
+        assert settlement is not None
+        assert settlement['payer_id'] == payer_id
+        assert settlement['payee_id'] == payee_id
+        assert settlement['amount'] == 50.0
+        conn.close()
+
+    def test_settle_up_unauthorized_user(self, client):
+        signup(client, 'payer2')
+        trip_id = create_trip(client).get_json()['trip_id']
+        signup(client, 'payee2')
+        signup(client, 'outsider')
+
+        import Server
+        conn = Server.get_db_connection()
+        cursor = conn.cursor()
+        users = {row['name']: row['id'] for row in cursor.execute("SELECT id, name FROM Users").fetchall()}
+        payer_id = users['payer2']
+        payee_id = users['payee2']
+
+        cursor.execute("INSERT OR IGNORE INTO TripMembers (trip_id, user_id) VALUES (?, ?)", (trip_id, payer_id))
+        cursor.execute("INSERT OR IGNORE INTO TripMembers (trip_id, user_id) VALUES (?, ?)", (trip_id, payee_id))
+        conn.commit()
+        conn.close()
+
+        # Login as outsider (who is not payer or payee)
+        client.post('/api/login', json={'username': 'outsider', 'password': 'test1234'}, content_type='application/json')
+
+        res = client.post('/api/settlements',
+                          json={
+                              'trip_id': trip_id,
+                              'payer_id': payer_id,
+                              'payee_id': payee_id,
+                              'amount': 50.0
+                          },
+                          content_type='application/json')
+        assert res.status_code == 403
+
+
+class TestActivityLog:
+    def test_activity_logged_on_expense(self, client):
+        signup(client, 'user_act')
+        trip_id = create_trip(client).get_json()['trip_id']
+
+        import Server
+        conn = Server.get_db_connection()
+        cursor = conn.cursor()
+        user_id = cursor.execute("SELECT id FROM Users WHERE name = 'user_act'").fetchone()['id']
+        cursor.execute("INSERT OR IGNORE INTO TripMembers (trip_id, user_id) VALUES (?, ?)", (trip_id, user_id))
+        conn.commit()
+        conn.close()
+
+        # Add expense
+        add_expense(client, trip_id, 100.0, 'Activity Dinner')
+
+        # Retrieve activity
+        res = client.get(f'/api/activity/{trip_id}')
+        assert res.status_code == 200
+        entries = res.get_json()
+        assert len(entries) > 0
+        assert entries[0]['action'] == 'expense_added'
+        assert 'Activity Dinner' in entries[0]['detail']
+
+
+

@@ -30,17 +30,17 @@
         <!-- Side Drawer (Hamburger Menu) -->
         <div id="menu-overlay" class="menu-overlay" onclick="closeHamburgerMenu()"></div>
         <div id="hamburger-menu" class="hamburger-menu">
-            <div class="menu-header">
-                <h2>MASTER<span class="purple-text">SPLITTER</span></h2>
+            <div class="hamburger-menu-header">
+                <h2 class="header-brand">MASTER<span class="purple-text">SPLITTER</span></h2>
                 <button class="close-menu-btn" onclick="closeHamburgerMenu()">✕</button>
             </div>
-            <div class="menu-items">
-                <a href="#" onclick="showLobby(); closeHamburgerMenu();" data-i18n="menu_my_trips">🌍 הטיולים שלי</a>
-                <a href="#" onclick="switchTab('home'); closeHamburgerMenu();" data-i18n="menu_dashboard">🏠 דשבורד</a>
-                <a href="#" onclick="switchTab('balances'); closeHamburgerMenu();" data-i18n="menu_balances">📊 יתרות</a>
-                <a href="/profile" data-i18n="menu_profile">👤 פרופיל</a>
+            <div class="hamburger-menu-body">
+                <button class="menu-item" onclick="showLobby(); closeHamburgerMenu();" data-i18n="menu_my_trips">🌍 הטיולים שלי</button>
+                <button class="menu-item" onclick="switchTab('home'); closeHamburgerMenu();" data-i18n="menu_dashboard">🏠 דשבורד</button>
+                <button class="menu-item" onclick="switchTab('balances'); closeHamburgerMenu();" data-i18n="menu_balances">📊 יתרות</button>
+                <button class="menu-item" onclick="window.location.href='/profile';" data-i18n="menu_profile">👤 פרופיל</button>
                 <div class="menu-divider"></div>
-                <a href="#" class="logout-link" onclick="logout()" data-i18n="menu_logout">⎋ התנתק</a>
+                <button class="menu-item danger" onclick="logout()" data-i18n="menu_logout">⎋ התנתק</button>
             </div>
         </div>
 

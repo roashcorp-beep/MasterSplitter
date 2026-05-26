@@ -1319,3 +1319,20 @@ async function fetchActivity() {
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();
 });
+
+// =====================
+//  HAMBURGER MENU
+// =====================
+function openHamburgerMenu() {
+    const menu = document.getElementById('hamburger-menu');
+    const overlay = document.getElementById('menu-overlay');
+    if (menu) menu.classList.add('open');
+    if (overlay) overlay.classList.add('open');
+}
+
+function closeHamburgerMenu() {
+    const menu = document.getElementById('hamburger-menu');
+    const overlay = document.getElementById('menu-overlay');
+    if (menu) menu.classList.remove('open');
+    if (overlay) overlay.classList.remove('open');
+}

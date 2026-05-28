@@ -518,13 +518,12 @@ def get_me():
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute("SELECT language, email, phone, avatar_url FROM Users WHERE id = ?", (session['user_id'],))
+        cursor.execute("SELECT language, email, avatar_url FROM Users WHERE id = ?", (session['user_id'],))
         user = cursor.fetchone()
         lang = user['language'] if user else 'he'
         email = user['email'] if user and 'email' in user.keys() else ''
-        phone = user['phone'] if user and 'phone' in user.keys() else ''
         avatar_url = user['avatar_url'] if user and 'avatar_url' in user.keys() else None
-        return jsonify({"id": session['user_id'], "name": session['username'], "language": lang, "email": email, "phone": phone, "avatar_url": avatar_url})
+        return jsonify({"id": session['user_id'], "name": session['username'], "language": lang, "email": email, "avatar_url": avatar_url})
     finally:
         conn.close()
 
@@ -715,12 +714,11 @@ def get_profile():
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute("SELECT id, name, email, phone, language, avatar_url FROM Users WHERE id = ?", (session['user_id'],))
+        cursor.execute("SELECT id, name, email, language, avatar_url FROM Users WHERE id = ?", (session['user_id'],))
         user = cursor.fetchone()
         if not user:
             return jsonify({"error": "User not found"}), 404
-        phone = user['phone'] if 'phone' in user.keys() else ''
-        return jsonify({"id": user['id'], "name": user['name'], "email": user['email'], "phone": phone, "language": user['language'], "avatar_url": user['avatar_url']})
+        return jsonify({"id": user['id'], "name": user['name'], "email": user['email'], "language": user['language'], "avatar_url": user['avatar_url']})
     finally:
         conn.close()
 
@@ -857,35 +855,6 @@ def change_password():
     except sqlite3.Error as e:
         logger.error(f"Change password error: {e}")
         return jsonify({"error": "שגיאת שרת."}), 500
-    finally:
-        conn.close()
-
-
-# =====================
-#   USER LOOKUP API
-# =====================
-
-@app.route('/api/users/check', methods=['POST'])
-@login_required
-def check_user_exists():
-    """Check if a user exists by email or phone for real-time participant validation."""
-    data = request.json or {}
-    contact = str(data.get('contact', '')).strip()
-    if not contact:
-        return jsonify({"error": "Missing contact."}), 400
-
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    try:
-        cursor.execute("SELECT id, name FROM Users WHERE email = ? OR phone = ?", (contact, contact))
-        user = cursor.fetchone()
-        if user:
-            return jsonify({"exists": True, "name": user['name']})
-        else:
-            return jsonify({"exists": False})
-    except sqlite3.Error as e:
-        logger.error(f"Check user error: {e}")
-        return jsonify({"error": "Server error."}), 500
     finally:
         conn.close()
 

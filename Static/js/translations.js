@@ -151,7 +151,27 @@ const translations = {
         "activity_expense_added": "הוסיף הוצאה",
         "activity_expense_edited": "ערך הוצאה",
         "activity_expense_deleted": "מחק הוצאה",
-        "activity_settlement": "סילוק חוב"
+        "activity_settlement": "סילוק חוב",
+
+        // Profile Page (extended)
+        "profile_phone": "טלפון",
+        "profile_no_phone": "לא צוין",
+        "profile_no_email": "לא צוין",
+        "profile_back": "חזרה",
+        "profile_change_username": "שינוי שם תצוגה",
+        "profile_change_language": "שפה / Language",
+        "profile_verify_pwd": "אימות סיסמה",
+        "profile_verify_btn": "אמת סיסמה",
+        "profile_new_pwd_section": "סיסמה חדשה",
+        "profile_confirm_pwd_section": "אימות סיסמה חדשה",
+        "profile_save_pwd": "עדכן סיסמה",
+        "profile_save_name_btn": "שמור שם",
+        "profile_save_lang_btn": "שמור שפה",
+        "profile_current_pwd_ph": "הכנס סיסמה נוכחית",
+        "profile_new_pwd_ph": "הכנס סיסמה חדשה",
+        "profile_confirm_pwd_ph": "הכנס סיסמה חדשה שוב",
+        "profile_new_name_ph": "הכנס שם תצוגה חדש",
+        "profile_logout_btn": "התנתק"
     },
     en: {
         // General
@@ -305,7 +325,27 @@ const translations = {
         "activity_expense_added": "Added expense",
         "activity_expense_edited": "Edited expense",
         "activity_expense_deleted": "Deleted expense",
-        "activity_settlement": "Debt settlement"
+        "activity_settlement": "Debt settlement",
+
+        // Profile Page (extended)
+        "profile_phone": "Phone",
+        "profile_no_phone": "Not specified",
+        "profile_no_email": "Not specified",
+        "profile_back": "Back",
+        "profile_change_username": "Change Display Name",
+        "profile_change_language": "Language / שפה",
+        "profile_verify_pwd": "Verify Password",
+        "profile_verify_btn": "Verify Password",
+        "profile_new_pwd_section": "New Password",
+        "profile_confirm_pwd_section": "Confirm New Password",
+        "profile_save_pwd": "Update Password",
+        "profile_save_name_btn": "Save Name",
+        "profile_save_lang_btn": "Save Language",
+        "profile_current_pwd_ph": "Enter current password",
+        "profile_new_pwd_ph": "Enter new password",
+        "profile_confirm_pwd_ph": "Enter new password again",
+        "profile_new_name_ph": "Enter new display name",
+        "profile_logout_btn": "Log Out"
     }
 };
 

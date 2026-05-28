@@ -393,37 +393,17 @@ function closeCreateTripModal() {
     if (modal) modal.classList.remove('open');
 }
 
-async function addFriend() {
+function addFriend() {
     const input = document.getElementById('friend-input');
     const name = input?.value.trim();
     if (!name) return;
-    // Prevent duplicates
-    if (friendsList.some(f => (f.name || f) === name)) { input.value = ''; return; }
-    // Add as checking first
-    friendsList.push({ name: name, status: 'checking' });
+    if (!friendsList.includes(name)) friendsList.push(name);
     input.value = '';
-    renderFriendsChips();
-    // Check user existence
-    try {
-        const res = await fetch('/api/users/check', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contact: name })
-        });
-        const data = await res.json();
-        const entry = friendsList.find(f => f.name === name);
-        if (entry) {
-            entry.status = data.exists ? 'valid' : 'invalid';
-        }
-    } catch (e) {
-        const entry = friendsList.find(f => f.name === name);
-        if (entry) entry.status = 'invalid';
-    }
     renderFriendsChips();
 }
 
 function removeFriend(name) {
-    friendsList = friendsList.filter(f => (f.name || f) !== name);
+    friendsList = friendsList.filter(f => f !== name);
     renderFriendsChips();
 }
 
@@ -431,16 +411,11 @@ function renderFriendsChips() {
     const container = document.getElementById('friends-chips');
     if (!container) return;
     container.innerHTML = friendsList.map(n => {
-        const safeName = escapeHTML(n.name || n);
-        const status = n.status || 'checking';
-        const statusIcon = status === 'valid' ? '\u2713' : status === 'invalid' ? '\u2717' : '...';
-        const chipClass = `friend-chip ${status}`;
-        const nameForRemove = n.name || n;
+        const safeName = escapeHTML(n);
         return `
-        <div class="${chipClass}">
-            <span class="chip-status">${statusIcon}</span>
+        <div class="friend-chip">
             <span>${safeName}</span>
-            <span class="remove-chip" onclick="removeFriend('${escapeHTML(nameForRemove)}')">&times;</span>
+            <span class="remove-chip" onclick="removeFriend('${safeName}')">✕</span>
         </div>`;
     }).join('');
 }
@@ -453,7 +428,7 @@ async function createTrip() {
         const res = await fetch('/api/trips', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, budget, participants: friendsList.map(f => f.name || f) })
+            body: JSON.stringify({ name, budget, participants: [...friendsList] })
         });
         const data = await res.json();
         if (res.ok && data.success) {
@@ -493,34 +468,17 @@ function closeEditTripModal() {
     editFriendsList = [];
 }
 
-async function addEditFriend() {
+function addEditFriend() {
     const input = document.getElementById('edit-friend-input');
     const name = input?.value.trim();
     if (!name) return;
-    if (editFriendsList.some(f => (f.name || f) === name)) { input.value = ''; return; }
-    editFriendsList.push({ name: name, status: 'checking' });
+    if (!editFriendsList.includes(name)) editFriendsList.push(name);
     input.value = '';
-    renderEditFriendsChips();
-    try {
-        const res = await fetch('/api/users/check', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contact: name })
-        });
-        const data = await res.json();
-        const entry = editFriendsList.find(f => f.name === name);
-        if (entry) {
-            entry.status = data.exists ? 'valid' : 'invalid';
-        }
-    } catch (e) {
-        const entry = editFriendsList.find(f => f.name === name);
-        if (entry) entry.status = 'invalid';
-    }
     renderEditFriendsChips();
 }
 
 function removeEditFriend(name) {
-    editFriendsList = editFriendsList.filter(f => (f.name || f) !== name);
+    editFriendsList = editFriendsList.filter(f => f !== name);
     renderEditFriendsChips();
 }
 
@@ -528,16 +486,11 @@ function renderEditFriendsChips() {
     const container = document.getElementById('edit-friends-chips');
     if (!container) return;
     container.innerHTML = editFriendsList.map(n => {
-        const safeName = escapeHTML(n.name || n);
-        const status = n.status || 'checking';
-        const statusIcon = status === 'valid' ? '\u2713' : status === 'invalid' ? '\u2717' : '...';
-        const chipClass = `friend-chip ${status}`;
-        const nameForRemove = n.name || n;
+        const safeName = escapeHTML(n);
         return `
-        <div class="${chipClass}">
-            <span class="chip-status">${statusIcon}</span>
+        <div class="friend-chip">
             <span>${safeName}</span>
-            <span class="remove-chip" onclick="removeEditFriend('${escapeHTML(nameForRemove)}')">&times;</span>
+            <span class="remove-chip" onclick="removeEditFriend('${safeName}')">✕</span>
         </div>`;
     }).join('');
 }
@@ -551,7 +504,7 @@ async function saveEditTrip() {
 
     const payload = { name, budget };
     if (editFriendsList.length > 0) {
-        payload.participants = editFriendsList.map(f => f.name || f);
+        payload.participants = editFriendsList;
     }
 
     try {
@@ -680,27 +633,9 @@ function getSelectedParticipants() {
 // =====================
 //  EXPENSES
 // =====================
-// Category key mapping (Hebrew DB value -> i18n translation key)
-const CATEGORY_I18N_MAP = {
-    'אוכל': 'cat_food',
-    'לינה': 'cat_lodging',
-    'תחבורה': 'cat_transport',
-    'אטרקציות': 'cat_attractions',
-    'כללי': 'cat_general'
-};
-
 function getCategoryIcon(cat) {
-    const icons = { 'אוכל': '\uD83C\uDF55', 'לינה': '\uD83D\uDECF\uFE0F', 'תחבורה': '\uD83D\uDE95', 'אטרקציות': '\uD83C\uDF9F\uFE0F', 'כללי': '\uD83D\uDCA1' };
-    return icons[cat] || '\uD83D\uDCB3';
-}
-
-function translateCategory(cat) {
-    const key = CATEGORY_I18N_MAP[cat];
-    if (key && typeof i18n === 'function') {
-        const translated = i18n(key);
-        if (translated !== key) return translated;
-    }
-    return cat || 'כללי';
+    const icons = { 'אוכל': '🍕', 'לינה': '🛏️', 'תחבורה': '🚕', 'אטרקציות': '🎟️', 'כללי': '💡' };
+    return icons[cat] || '💳';
 }
 
 async function fetchExpenses() {
@@ -729,7 +664,7 @@ async function fetchExpenses() {
                         <div class="item-icon-wrapper">${getCategoryIcon(exp.category)}</div>
                         <div class="item-details">
                             <h4>${safeDesc}</h4>
-                            <p>${typeof i18n === 'function' ? i18n('expense_paid_by') : 'שילם: '} ${safePayer} • ${translateCategory(exp.category || 'כללי')}</p>
+                            <p>${typeof i18n === 'function' ? i18n('expense_paid_by') : 'שילם: '} ${safePayer} • ${safeCat}</p>
                         </div>
                     </div>
                     <div class="item-right">
@@ -1166,7 +1101,7 @@ function renderCategoryChart(expenses) {
         if (val > 0) {
             html += `
             <div class="chart-bar-wrapper">
-                <div class="chart-bar" style="height: ${heightPct}%; background: ${c.color};" data-tooltip="${translateCategory(c.name)}: ₪${val.toFixed(0)}"></div>
+                <div class="chart-bar" style="height: ${heightPct}%; background: ${c.color};" data-tooltip="${c.name}: ₪${val.toFixed(0)}"></div>
                 <div class="chart-icon">${c.icon}</div>
             </div>`;
         }

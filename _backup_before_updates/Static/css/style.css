@@ -164,7 +164,6 @@ body {
     display: flex;
     justify-content: center;
     height: 100vh;
-    height: 100dvh;
     color: var(--text-main);
     position: relative;
     overflow: hidden;
@@ -243,85 +242,6 @@ body.light-theme .app-container::before {
     background: linear-gradient(160deg, #0a0a1a 0%, #1a0533 40%, #0f172a 100%);
     position: relative;
     overflow: hidden;
-}
-
-/* ---- LIGHT THEME LOGIN ---- */
-body.light-theme.login-body {
-    background: linear-gradient(160deg, #f0f4ff 0%, #e8ecf8 40%, #f8fafc 100%);
-}
-
-body.light-theme.login-body::before {
-    background: none;
-    /* Travel landmark SVG illustrations at low opacity */
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='600' viewBox='0 0 800 600' fill='none' stroke='%233b82f6' stroke-width='1.5' opacity='0.07'%3E%3C!-- Eiffel Tower --%3E%3Cpath d='M100 550 L130 300 L115 200 L115 150 L115 100 L115 60 L115 40 M130 550 L100 300 M108 300 L122 300 M105 200 L125 200 M115 150 L115 100'/%3E%3C!-- Big Ben --%3E%3Crect x='280' y='250' width='40' height='300' rx='2'/%3E%3Crect x='285' y='200' width='30' height='50' rx='2'/%3E%3Cpath d='M290 200 L300 160 L310 200'/%3E%3Ccircle cx='300' cy='300' r='12'/%3E%3Cline x1='300' y1='292' x2='300' y2='300'/%3E%3Cline x1='300' y1='300' x2='306' y2='296'/%3E%3C!-- Statue of Liberty --%3E%3Cpath d='M500 550 L490 400 L485 350 L488 300 L492 280 L495 250 L498 230 L500 210 M500 550 L510 400 L515 350 L512 300 L508 280 L505 250 L502 230 L500 210'/%3E%3Cpath d='M500 210 L500 190 L498 170 L500 160'/%3E%3Cpath d='M488 220 L475 200 M512 220 L525 200'/%3E%3C!-- Airplane --%3E%3Cpath d='M620 120 L680 100 L700 95 L680 100 L670 130 M680 100 L650 105 L640 120'/%3E%3C!-- Pyramids --%3E%3Cpath d='M700 550 L750 400 L800 550 M730 550 L760 430 L790 550'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: cover;
-    animation: none;
-    width: 100%;
-    height: 100%;
-    top: 0;
-    left: 0;
-    opacity: 1;
-}
-
-body.light-theme.login-body::after {
-    background: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='400' viewBox='0 0 600 400' fill='none' stroke='%2310b981' stroke-width='1.2' opacity='0.06'%3E%3C!-- Globe --%3E%3Ccircle cx='300' cy='200' r='80'/%3E%3Cellipse cx='300' cy='200' rx='35' ry='80'/%3E%3Cpath d='M220 200 L380 200'/%3E%3Cpath d='M240 160 L360 160 M240 240 L360 240'/%3E%3C!-- Compass --%3E%3Ccircle cx='100' cy='300' r='30'/%3E%3Cpath d='M100 270 L100 275 M100 325 L100 330 M70 300 L75 300 M125 300 L130 300'/%3E%3Cpath d='M100 280 L108 300 L100 320 L92 300 Z'/%3E%3C!-- Suitcase --%3E%3Crect x='460' y='280' width='60' height='45' rx='4'/%3E%3Cpath d='M475 280 L475 270 L505 270 L505 280'/%3E%3Cline x1='490' y1='290' x2='490' y2='315'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: cover;
-    animation: none;
-    width: 100%;
-    height: 100%;
-    bottom: 0;
-    left: 0;
-    opacity: 1;
-}
-
-body.light-theme.login-body .login-card {
-    background: rgba(255, 255, 255, 0.85);
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08), 0 0 40px rgba(59, 130, 246, 0.05);
-}
-
-body.light-theme.login-body .floating-input-wrapper input {
-    background: rgba(255, 255, 255, 0.95) !important;
-    color: #1e293b !important;
-    border-color: #cbd5e1 !important;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
-}
-
-body.light-theme.login-body .floating-input-wrapper input:focus {
-    background: #ffffff !important;
-    border-color: var(--primary) !important;
-    box-shadow: 0 0 0 4px var(--primary-light), 0 0 15px rgba(59, 130, 246, 0.1) !important;
-}
-
-body.light-theme.login-body .floating-input-wrapper label {
-    color: #64748b;
-}
-
-body.light-theme.login-body .floating-input-wrapper input:focus + label,
-body.light-theme.login-body .floating-input-wrapper input:not(:placeholder-shown) + label {
-    color: var(--primary);
-}
-
-body.light-theme.login-body .dark-text {
-    color: #1e293b;
-}
-
-body.light-theme.login-body .welcome-text {
-    text-shadow: none;
-}
-
-body.light-theme.login-body .divider {
-    color: #94a3b8;
-}
-
-body.light-theme.login-body .divider::before,
-body.light-theme.login-body .divider::after {
-    border-bottom-color: #cbd5e1;
 }
 
 .login-body::before {
@@ -1013,29 +933,6 @@ body.light-theme select {
     font-size: 0.88rem;
     font-weight: 700;
     border: 1px solid rgba(168, 85, 247, 0.2);
-    transition: all 0.3s ease;
-}
-
-.friend-chip.valid {
-    border-color: var(--success);
-    background: rgba(6, 214, 160, 0.1);
-    color: var(--success);
-}
-
-.friend-chip.invalid {
-    border-color: var(--error);
-    background: rgba(244, 63, 94, 0.1);
-    color: var(--error);
-}
-
-.friend-chip.checking {
-    border-color: var(--accent-yellow);
-    opacity: 0.7;
-}
-
-.friend-chip .chip-status {
-    font-size: 0.75rem;
-    margin-right: 2px;
 }
 
 .friend-chip .remove-chip {
@@ -1147,7 +1044,6 @@ body.light-theme select {
     right: -300px;
     width: 280px;
     height: 100vh;
-    height: 100dvh;
     background: var(--surface-card-solid, #1a1a3a);
     z-index: 99999;
     box-shadow: -8px 0 40px rgba(0, 0, 0, 0.5);
@@ -1199,7 +1095,6 @@ body.light-theme select {
 /* Menu items list */
 .menu-items {
     padding: 16px 12px;
-    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
     display: flex;
     flex-direction: column;
     gap: 4px;
@@ -1249,7 +1144,6 @@ body.light-theme select {
     right: -300px;
     width: 280px;
     height: 100vh;
-    height: 100dvh;
     background: var(--surface-card-solid, #1a1a3a);
     z-index: 99999;
     box-shadow: -8px 0 40px rgba(0, 0, 0, 0.5);
@@ -2269,7 +2163,6 @@ body.light-theme .list-item:hover {
     justify-content: space-around;
     align-items: flex-end;
     padding: 10px 0 18px 0;
-    padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
     border-top: 1px solid var(--border);
     box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.3);
     z-index: 20;
@@ -2846,7 +2739,6 @@ body.light-theme .scanned-item-price {
     right: -280px !important;
     width: 280px !important;
     height: 100vh !important;
-    height: 100dvh !important;
     background: #0A0A16 !important;
     z-index: 999999 !important;
     transition: right 0.3s ease !important;
@@ -3032,7 +2924,6 @@ body.light-theme select {
     /* רקע קבוע ועמוק */
     width: 280px !important;
     height: 100vh !important;
-    height: 100dvh !important;
     background: var(--surface-card-solid) !important;
     /* מעל הכל בהררכיה */
     z-index: 999999 !important;

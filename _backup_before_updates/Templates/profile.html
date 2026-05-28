@@ -130,17 +130,8 @@
         .user-email {
             font-size: 14px;
             color: var(--text-muted, #94a3b8);
-            margin: 0 0 4px 0;
-            text-align: center;
-        }
-
-        .user-phone {
-            font-size: 13px;
-            color: var(--text-muted, #94a3b8);
             margin: 0 0 32px 0;
             text-align: center;
-            direction: ltr;
-            unicode-bidi: embed;
         }
 
         /* Accordions */
@@ -276,8 +267,7 @@
             color: #0f172a;
         }
 
-        .light-theme .user-email,
-        .light-theme .user-phone {
+        .light-theme .user-email {
             color: #475569;
         }
 
@@ -297,12 +287,11 @@
 
     <div class="profile-container">
         <div class="header-actions">
-            <button class="icon-back-btn" onclick="window.location.href='/app'" title="Back">
+            <button class="icon-back-btn" onclick="window.location.href='/app'" title="חזור">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                     stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="9 18 15 12 9 6"></polyline>
                 </svg>
-                <span style="display:none" data-i18n="profile_back"></span>
             </button>
         </div>
 
@@ -319,27 +308,26 @@
             <input type="file" id="avatarInput" accept="image/*">
         </div>
 
-        <h2 class="user-name" id="userNameDisplay">...</h2>
-        <p class="user-email" id="userEmailDisplay">...</p>
-        <p class="user-phone" id="userPhoneDisplay">...</p>
+        <h2 class="user-name" id="userNameDisplay">טוען...</h2>
+        <p class="user-email" id="userEmailDisplay">טוען...</p>
 
         <div class="accordion-item">
             <div class="accordion-header" onclick="toggleAccordion('usernameAcc')">
-                <span data-i18n="profile_change_username">שינוי שם משתמש</span>
+                <span>שינוי שם משתמש</span>
                 <span class="chevron">▼</span>
             </div>
             <div class="accordion-content" id="usernameAcc">
                 <div class="input-group" style="margin-top: 10px;">
-                    <input type="text" id="usernameInput" data-i18n="profile_new_name_ph" placeholder="שם משתמש חדש">
+                    <input type="text" id="usernameInput" placeholder="שם משתמש חדש">
                 </div>
-                <button class="action-btn" onclick="saveUsername()" data-i18n="profile_save_name_btn">שמור</button>
+                <button class="action-btn" onclick="saveUsername()">שמור</button>
                 <div id="usernameFeedback" class="feedback"></div>
             </div>
         </div>
 
         <div class="accordion-item">
             <div class="accordion-header" onclick="toggleAccordion('languageAcc')">
-                <span data-i18n="profile_change_language">שינוי שפה</span>
+                <span>שינוי שפה</span>
                 <span class="chevron">▼</span>
             </div>
             <div class="accordion-content" id="languageAcc">
@@ -349,40 +337,39 @@
                         <option value="en">English</option>
                     </select>
                 </div>
-                <button class="action-btn" onclick="saveLanguage()" style="margin-top: 10px;" data-i18n="profile_save_lang_btn">שמור שפה</button>
+                <button class="action-btn" onclick="saveLanguage()" style="margin-top: 10px;">שמור שפה</button>
                 <div id="languageFeedback" class="feedback"></div>
             </div>
         </div>
 
         <div class="accordion-item">
             <div class="accordion-header" onclick="toggleAccordion('passwordAcc')">
-                <span data-i18n="profile_change_pwd">שינוי סיסמה</span>
+                <span>שינוי סיסמה</span>
                 <span class="chevron">▼</span>
             </div>
             <div class="accordion-content" id="passwordAcc">
                 <div id="step1Password" style="margin-top: 10px;">
                     <div class="input-group">
-                        <input type="password" id="currentPassword" data-i18n="profile_current_pwd_ph" placeholder="סיסמה נוכחית">
+                        <input type="password" id="currentPassword" placeholder="סיסמה נוכחית">
                     </div>
-                    <button class="action-btn" onclick="verifyPassword()" data-i18n="profile_verify_btn">בדיקה</button>
+                    <button class="action-btn" onclick="verifyPassword()">בדיקה</button>
                     <div id="verifyFeedback" class="feedback"></div>
                 </div>
 
                 <div id="step2Password" class="hidden" style="margin-top: 10px;">
                     <div class="input-group">
-                        <input type="password" id="newPassword" data-i18n="profile_new_pwd_ph" placeholder="סיסמה חדשה">
+                        <input type="password" id="newPassword" placeholder="סיסמה חדשה">
                     </div>
                     <div class="input-group">
-                        <input type="password" id="confirmNewPassword" data-i18n="profile_confirm_pwd_ph" placeholder="אימות סיסמה חדשה">
+                        <input type="password" id="confirmNewPassword" placeholder="אימות סיסמה חדשה">
                     </div>
-                    <button class="action-btn" onclick="changePassword()" data-i18n="profile_save_pwd">אישור</button>
+                    <button class="action-btn" onclick="changePassword()">אישור</button>
                     <div id="changePasswordFeedback" class="feedback"></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <script src="/static/js/translations.js"></script>
     <script src="/static/js/main.js"></script>
 
     <script>
@@ -403,10 +390,6 @@
                     const data = await res.json();
                     profileUserData = data;
                     renderUserData();
-                    // Apply translations after data loads
-                    if (typeof setLanguage === 'function') {
-                        setLanguage(data.language || 'he');
-                    }
                 } else {
                     window.location.href = '/';
                 }
@@ -420,14 +403,8 @@
         function renderUserData() {
             if (!profileUserData) return;
 
-            document.getElementById('userNameDisplay').textContent = profileUserData.name || 'Unknown';
-            document.getElementById('userEmailDisplay').textContent = profileUserData.email || (typeof i18n === 'function' ? i18n('profile_no_email') : 'לא מוגדר אימייל');
-
-            // Phone display
-            const phoneEl = document.getElementById('userPhoneDisplay');
-            if (phoneEl) {
-                phoneEl.textContent = profileUserData.phone || (typeof i18n === 'function' ? i18n('profile_no_phone') : 'לא מוגדר טלפון');
-            }
+            document.getElementById('userNameDisplay').textContent = profileUserData.name || 'משתמש לא ידוע';
+            document.getElementById('userEmailDisplay').textContent = profileUserData.email || 'לא מוגדר אימייל';
 
             document.getElementById('usernameInput').value = profileUserData.name || '';
             const langSelect = document.getElementById('languageSelect');

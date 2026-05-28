@@ -1,13 +1,16 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="description" content="MasterSplitter — Dashboard">
     <title>MasterSplitter</title>
-    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
+
 <body>
     <div id="toast" class="toast"></div>
 
@@ -23,37 +26,12 @@
                 </div>
             </div>
             <div class="header-right">
-                <button class="theme-toggle-btn" onclick="toggleTheme()" title="Toggle Theme" id="theme-toggle-btn">☀️</button>
+                <button class="theme-toggle-btn" onclick="toggleTheme()" title="Toggle Theme"
+                    id="theme-toggle-btn">☀️</button>
             </div>
         </header>
 
-        <!-- Side Drawer (Hamburger Menu) -->
-        <div id="menu-overlay" class="menu-overlay" onclick="closeHamburgerMenu()"></div>
-        <div id="hamburger-menu" class="hamburger-menu">
-            <div class="hamburger-menu-header">
-                <h2 class="header-brand">MASTER<span class="purple-text">SPLITTER</span></h2>
-                <button class="close-menu-btn" onclick="closeHamburgerMenu()">✕</button>
-            </div>
-            <div class="hamburger-menu-body">
-                <button class="menu-item" onclick="showLobby(); closeHamburgerMenu();" data-i18n="menu_my_trips">🌍 הטיולים שלי</button>
-                <button class="menu-item" onclick="switchTab('home'); closeHamburgerMenu();" data-i18n="menu_dashboard">🏠 דשבורד</button>
-                <button class="menu-item" onclick="switchTab('balances'); closeHamburgerMenu();" data-i18n="menu_balances">📊 יתרות</button>
-                <button class="menu-item" onclick="window.location.href='/profile';" data-i18n="menu_profile">👤 פרופיל</button>
-                <div class="menu-divider"></div>
-                <button class="menu-item danger" onclick="logout()" data-i18n="menu_logout">⎋ התנתק</button>
-            </div>
-        </div>
 
-        <!-- Activity Drawer -->
-        <div id="activity-drawer" class="hamburger-menu activity-drawer">
-            <div class="menu-header">
-                <h3 data-i18n="activity_title">פעילות</h3>
-                <button class="close-menu-btn" onclick="closeActivityDrawer()">✕</button>
-            </div>
-            <div id="activity-list" class="activity-timeline" style="padding: 20px;">
-                <div class="loading-state" data-i18n="loading">טוען...</div>
-            </div>
-        </div>
 
         <!-- SCREENS -->
         <div class="screens-container">
@@ -62,7 +40,8 @@
             <div id="screen-lobby" class="screen active">
                 <div class="lobby-header">
                     <h2 data-i18n="lobby_my_trips">הטיולים שלי</h2>
-                    <button class="primary-btn sm" onclick="openCreateTripModal()" data-i18n="lobby_btn_create">+ צור טיול חדש</button>
+                    <button class="primary-btn sm" onclick="openCreateTripModal()" data-i18n="lobby_btn_create">+ צור
+                        טיול חדש</button>
                 </div>
                 <div id="trips-list" class="trips-grid">
                     <div class="loading-state" data-i18n="loading">טוען...</div>
@@ -81,7 +60,8 @@
                             </div>
                         </div>
                         <div style="display: flex; align-items: center; gap: 10px;">
-                            <button class="activity-bell-btn" onclick="openActivityDrawer()" title="Activity Feed" style="background: rgba(255,255,255,0.15); border: none; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: white; transition: background 0.2s;">🔔</button>
+                            <button class="activity-bell-btn" onclick="openActivityDrawer()" title="Activity Feed"
+                                style="background: rgba(255,255,255,0.15); border: none; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: white; transition: background 0.2s;">🔔</button>
                             <div class="trip-participants" id="trip-avatars"></div>
                         </div>
                     </div>
@@ -90,7 +70,7 @@
                 <!-- Swappable Budget Card -->
                 <div class="flip-card-container">
                     <div class="flip-card-inner" id="budget-flip-card">
-                        
+
                         <!-- Front: Budget summary -->
                         <div class="flip-card-front card budget-card">
                             <button class="flip-btn" onclick="toggleBudgetCard()" title="Show Categories">📊</button>
@@ -114,11 +94,12 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- Back: Category Chart -->
                         <div class="flip-card-back card budget-card">
                             <button class="flip-btn" onclick="toggleBudgetCard()" title="Show Budget">🔙</button>
-                            <h4 style="text-align:center; margin-bottom: 15px; color: var(--text-dark);" data-i18n="expenses_title">הוצאות לפי קטגוריה</h4>
+                            <h4 style="text-align:center; margin-bottom: 15px; color: var(--text-dark);"
+                                data-i18n="expenses_title">הוצאות לפי קטגוריה</h4>
                             <div class="category-chart-container" id="category-chart">
                                 <!-- Bars injected via JS -->
                             </div>
@@ -129,7 +110,8 @@
 
                 <div class="recent-expenses-header">
                     <h3 data-i18n="home_recent_expenses">הוצאות אחרונות</h3>
-                    <a href="#" class="view-all-link" onclick="switchTab('expenses'); return false;" data-i18n="home_view_all">הצג הכל</a>
+                    <a href="#" class="view-all-link" onclick="switchTab('expenses'); return false;"
+                        data-i18n="home_view_all">הצג הכל</a>
                 </div>
                 <div class="card expenses-list-card">
                     <div id="home-expenses-list">
@@ -142,7 +124,9 @@
             <div id="screen-expenses" class="screen">
                 <div class="card">
                     <h3 class="screen-title" data-i18n="expenses_title">כל ההוצאות</h3>
-                    <div id="expenses-list"><div class="loading-state" data-i18n="loading">טוען...</div></div>
+                    <div id="expenses-list">
+                        <div class="loading-state" data-i18n="loading">טוען...</div>
+                    </div>
                 </div>
             </div>
 
@@ -152,8 +136,10 @@
                     <h3 class="screen-title" data-i18n="expense_add_title">הוספת הוצאה</h3>
 
                     <!-- Receipt Scanner -->
-                    <button class="scan-receipt-btn" onclick="triggerReceiptScan()" data-i18n="scan_receipt">📷 סרוק קבלה</button>
-                    <input type="file" id="receipt-file-input" accept="image/*" style="display:none;" onchange="uploadReceipt(this.files[0])">
+                    <button class="scan-receipt-btn" onclick="triggerReceiptScan()" data-i18n="scan_receipt">📷 סרוק
+                        קבלה</button>
+                    <input type="file" id="receipt-file-input" accept="image/*" style="display:none;"
+                        onchange="uploadReceipt(this.files[0])">
                     <div id="scanned-items-container" class="scanned-items-container" style="display:none;"></div>
 
                     <label data-i18n="expense_what">על מה היה?</label>
@@ -205,7 +191,8 @@
                     <div id="custom-splits-container" class="custom-splits-container" style="display:none;"></div>
                     <div id="split-validation-msg" class="split-validation-msg" style="display:none;"></div>
 
-                    <button class="primary-btn full-width" style="margin-top:20px;" onclick="addExpense()" data-i18n="expense_btn_save">שמור הוצאה</button>
+                    <button class="primary-btn full-width" style="margin-top:20px;" onclick="addExpense()"
+                        data-i18n="expense_btn_save">שמור הוצאה</button>
                 </div>
             </div>
 
@@ -260,7 +247,8 @@
             <div class="form-group">
                 <label data-i18n="create_trip_invite">הזמן חברים (אימייל או טלפון)</label>
                 <div class="friend-add-row">
-                    <input type="text" id="friend-input" data-i18n="create_trip_invite_ph" placeholder="הכנס טלפון או אימייל">
+                    <input type="text" id="friend-input" data-i18n="create_trip_invite_ph"
+                        placeholder="הכנס טלפון או אימייל">
                     <button class="add-friend-btn" onclick="addFriend()">+</button>
                 </div>
                 <div id="friends-chips" class="friends-chips"></div>
@@ -294,7 +282,8 @@
             <div class="form-group">
                 <label data-i18n="modal_invite_new">הזמן חברים חדשים</label>
                 <div class="friend-add-row">
-                    <input type="text" id="edit-friend-input" data-i18n="create_trip_invite_ph" placeholder="הכנס טלפון או אימייל">
+                    <input type="text" id="edit-friend-input" data-i18n="create_trip_invite_ph"
+                        placeholder="הכנס טלפון או אימייל">
                     <button class="add-friend-btn" onclick="addEditFriend()">+</button>
                 </div>
                 <div id="edit-friends-chips" class="friends-chips"></div>
@@ -357,8 +346,8 @@
         </div>
     </div>
 
-    <script src="/static/js/translations.js"></script>
-    <script src="/static/js/main.js"></script>
+    <script src="{{ url_for('static', filename='js/translations.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 
     <!-- Scanning Overlay -->
     <div id="scan-overlay" class="scan-overlay" style="display:none;">
@@ -372,5 +361,32 @@
 
     <!-- Confetti Container -->
     <div id="confetti-container" class="confetti-container"></div>
+
+    <!-- Side Drawer (Hamburger Menu) — MUST be direct child of body -->
+    <div id="menu-overlay" class="menu-overlay" onclick="closeHamburgerMenu()"></div>
+    <div id="hamburger-menu" class="hamburger-menu">
+        <div class="menu-header">
+            <h3>MENU</h3>
+            <button class="close-menu-btn" onclick="closeHamburgerMenu()">✕</button>
+        </div>
+        <div class="menu-items">
+            <button class="menu-item" onclick="showLobby(); closeHamburgerMenu();">🌍 הטיולים שלי</button>
+            <button class="menu-item" onclick="switchTab('home'); closeHamburgerMenu();">📊 דשבורד</button>
+            <button class="menu-item" onclick="window.location.href='/profile';">👤 פרופיל</button>
+            <button class="menu-item logout" onclick="logout()">🚪 התנתק</button>
+        </div>
+    </div>
+
+    <!-- Activity Drawer — also at body level -->
+    <div id="activity-drawer" class="activity-drawer">
+        <div class="menu-header">
+            <h3 data-i18n="activity_title">פעילות</h3>
+            <button class="close-menu-btn" onclick="closeActivityDrawer()">✕</button>
+        </div>
+        <div id="activity-list" class="activity-timeline" style="padding: 20px;">
+            <div class="loading-state" data-i18n="loading">טוען...</div>
+        </div>
+    </div>
 </body>
+
 </html>

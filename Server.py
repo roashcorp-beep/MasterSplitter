@@ -74,7 +74,8 @@ def init_db_updates():
             verification_token TEXT,
             reset_token TEXT,
             reset_token_expiry TEXT,
-            language TEXT DEFAULT 'he'
+            language TEXT DEFAULT 'he',
+            avatar_url TEXT
         )
     """)
 
@@ -146,7 +147,7 @@ def init_db_updates():
         cursor.execute("PRAGMA table_info(Users)")
         cols = [c['name'] for c in cursor.fetchall()]
 
-        expected_cols = ['password_hash', 'email', 'phone', 'is_verified', 'verification_token', 'reset_token', 'reset_token_expiry', 'language']
+        expected_cols = ['password_hash', 'email', 'phone', 'is_verified', 'verification_token', 'reset_token', 'reset_token_expiry', 'language', 'avatar_url']
         needs_migration = any(c not in cols for c in expected_cols)
 
         if needs_migration:
@@ -161,12 +162,13 @@ def init_db_updates():
                     verification_token TEXT,
                     reset_token TEXT,
                     reset_token_expiry TEXT,
-                    language TEXT DEFAULT 'he'
+                    language TEXT DEFAULT 'he',
+                    avatar_url TEXT
                 )
             """)
 
             select_cols = []
-            for col in ['id', 'name', 'password_hash', 'email', 'phone', 'is_verified', 'verification_token', 'reset_token', 'reset_token_expiry', 'language']:
+            for col in ['id', 'name', 'password_hash', 'email', 'phone', 'is_verified', 'verification_token', 'reset_token', 'reset_token_expiry', 'language', 'avatar_url']:
                 if col in cols:
                     select_cols.append(col)
                 else:
@@ -516,10 +518,12 @@ def get_me():
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute("SELECT language FROM Users WHERE id = ?", (session['user_id'],))
+        cursor.execute("SELECT language, email, avatar_url FROM Users WHERE id = ?", (session['user_id'],))
         user = cursor.fetchone()
         lang = user['language'] if user else 'he'
-        return jsonify({"id": session['user_id'], "name": session['username'], "language": lang})
+        email = user['email'] if user and 'email' in user.keys() else ''
+        avatar_url = user['avatar_url'] if user and 'avatar_url' in user.keys() else None
+        return jsonify({"id": session['user_id'], "name": session['username'], "language": lang, "email": email, "avatar_url": avatar_url})
     finally:
         conn.close()
 
@@ -710,11 +714,66 @@ def get_profile():
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute("SELECT id, name, email, language FROM Users WHERE id = ?", (session['user_id'],))
+        cursor.execute("SELECT id, name, email, language, avatar_url FROM Users WHERE id = ?", (session['user_id'],))
         user = cursor.fetchone()
         if not user:
             return jsonify({"error": "User not found"}), 404
-        return jsonify({"id": user['id'], "name": user['name'], "email": user['email'], "language": user['language']})
+        return jsonify({"id": user['id'], "name": user['name'], "email": user['email'], "language": user['language'], "avatar_url": user['avatar_url']})
+    finally:
+        conn.close()
+
+# New Profile Endpoints
+
+UPLOAD_FOLDER = os.path.join(app.root_path, 'Static', 'avatars')
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+@app.route('/api/upload-avatar', methods=['POST'])
+@login_required
+def upload_avatar():
+    if 'avatar' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    file = request.files['avatar']
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+        
+    if file:
+        ext = file.filename.rsplit('.', 1)[-1].lower()
+        if ext not in ['jpg', 'jpeg', 'png', 'gif', 'webp']:
+            return jsonify({"error": "Invalid file type"}), 400
+            
+        filename = f"user_{session['user_id']}_{secrets.token_hex(4)}.{ext}"
+        filepath = os.path.join(UPLOAD_FOLDER, filename)
+        file.save(filepath)
+        
+        avatar_url = f"/static/avatars/{filename}"
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("UPDATE Users SET avatar_url = ? WHERE id = ?", (avatar_url, session['user_id']))
+            conn.commit()
+            return jsonify({"success": True, "avatar_url": avatar_url})
+        finally:
+            conn.close()
+
+@app.route('/api/verify-password', methods=['POST'])
+@login_required
+def verify_password():
+    data = request.json or {}
+    password = data.get('current_password', '')
+    
+    if not password:
+        return jsonify({"error": "No password provided"}), 400
+        
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT password_hash FROM Users WHERE id = ?", (session['user_id'],))
+        user = cursor.fetchone()
+        if user and check_password_hash(user['password_hash'], password):
+            return jsonify({"success": True})
+        else:
+            return jsonify({"error": "Incorrect password"}), 401
     finally:
         conn.close()
 

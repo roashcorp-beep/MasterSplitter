@@ -33,25 +33,25 @@ let friendsList = [];
 function toggleAuthMode() {
     authMode = authMode === 'login' ? 'signup' : 'login';
     const title = document.getElementById('welcome-title');
-    const sub   = document.getElementById('welcome-sub');
+    const sub = document.getElementById('welcome-sub');
     const submit = document.getElementById('submit-btn');
     const toggle = document.getElementById('toggle-auth-btn');
-    const err   = document.getElementById('error-msg');
+    const err = document.getElementById('error-msg');
     const success = document.getElementById('success-msg');
     const phoneGrp = document.getElementById('phone-group');
     const emailGrp = document.getElementById('email-group');
     const forgotLink = document.getElementById('forgot-link-wrapper');
     if (authMode === 'signup') {
-        if (title)  title.textContent  = i18n('signup_title');
-        if (sub)    sub.textContent    = i18n('signup_sub');
+        if (title) title.textContent = i18n('signup_title');
+        if (sub) sub.textContent = i18n('signup_sub');
         if (submit) submit.textContent = i18n('signup_btn_signup');
         if (toggle) toggle.textContent = i18n('signup_btn_login');
         if (phoneGrp) phoneGrp.style.display = 'block';
         if (emailGrp) emailGrp.style.display = 'block';
         if (forgotLink) forgotLink.style.display = 'none';
     } else {
-        if (title)  title.textContent  = i18n('login_welcome');
-        if (sub)    sub.textContent    = i18n('login_sub');
+        if (title) title.textContent = i18n('login_welcome');
+        if (sub) sub.textContent = i18n('login_sub');
         if (submit) submit.textContent = i18n('login_btn_login');
         if (toggle) toggle.textContent = i18n('login_btn_signup');
         if (phoneGrp) phoneGrp.style.display = 'none';
@@ -85,14 +85,14 @@ async function submitAuth() {
             return;
         }
     }
-    
+
     const endpoint = authMode === 'login' ? '/api/login' : '/api/signup';
     const payload = { username, password };
     if (authMode === 'signup') {
         payload.phone = phone;
         payload.email = email;
     }
-    
+
     try {
         const res = await fetch(endpoint, {
             method: 'POST',
@@ -177,16 +177,16 @@ async function submitForgotPassword() {
 // =====================
 //  APP INIT
 // =====================
-let currentTripId   = null;
+let currentTripId = null;
 let currentTripData = null;
-let allTrips        = [];
-let tripMembers     = [];
+let allTrips = [];
+let tripMembers = [];
 
 document.addEventListener('DOMContentLoaded', () => {
     // Login page: Enter key
     const pwd = document.getElementById('password');
     if (pwd) pwd.addEventListener('keypress', e => { if (e.key === 'Enter') submitAuth(); });
-    
+
     // Check for verification success
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('verified') === 'true') {
@@ -195,7 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // App page: init
-    if (document.getElementById('screen-lobby')) {
+    if (document.getElementById('screen-lobby') || document.querySelector('.profile-container')) {
         initApp();
     }
 
@@ -215,8 +215,13 @@ async function initApp() {
         currentUser = await res.json();
         const el = document.getElementById('user-name-display');
         if (el) el.textContent = currentUser.name;
-        await loadLobby();
-        fetchInvitations();
+        const emailEl = document.getElementById('profile-email-display');
+        if (emailEl) emailEl.textContent = currentUser.email || '';
+        
+        if (document.getElementById('screen-lobby')) {
+            await loadLobby();
+            fetchInvitations();
+        }
     } catch (e) {
         console.error('Init error:', e);
         window.location.href = '/';
@@ -237,7 +242,7 @@ async function fetchInvitations() {
             banner.innerHTML = '';
             return;
         }
-        
+
         banner.innerHTML = invs.map(inv => `
             <div class="invitation-card" id="invitation-${inv.id}">
                 <div class="invitation-text">
@@ -288,9 +293,9 @@ async function loadLobby() {
 function showView(view) {
     const screens = document.querySelectorAll('.screen');
     screens.forEach(s => s.classList.remove('active'));
-    
+
     const bottomNav = document.querySelector('.bottom-nav');
-    
+
     if (view === 'lobby') {
         const lobbyScreen = document.getElementById('screen-lobby');
         if (lobbyScreen) lobbyScreen.classList.add('active');
@@ -314,7 +319,7 @@ function renderTripsList() {
             </div>`;
         return;
     }
-    const icons = ['✈️','🏖️','🗺️','🏔️','🎡','🚂'];
+    const icons = ['✈️', '🏖️', '🗺️', '🏔️', '🎡', '🚂'];
     container.innerHTML = allTrips.map((t, i) => {
         const safeName = escapeHTML(t.name);
         const safeMeta = t.participants && t.participants.length
@@ -340,7 +345,7 @@ function renderTripsList() {
 }
 
 async function openTrip(tripId) {
-    currentTripId   = tripId;
+    currentTripId = tripId;
     currentTripData = allTrips.find(t => t.id === tripId) || null;
     if (currentTripData) {
         const nameLabel = document.getElementById('trip-name-label');
@@ -416,7 +421,7 @@ function renderFriendsChips() {
 }
 
 async function createTrip() {
-    const name   = document.getElementById('trip-name')?.value.trim();
+    const name = document.getElementById('trip-name')?.value.trim();
     const budget = parseFloat(document.getElementById('trip-budget')?.value) || 0;
     if (!name) { alert('יש לתת שם לטיול.'); return; }
     try {
@@ -525,14 +530,16 @@ async function saveEditTrip() {
 // =====================
 //  HAMBURGER MENU
 // =====================
-function openHamburgerMenu() {
-    document.getElementById('hamburger-menu')?.classList.add('open');
-    document.getElementById('menu-overlay')?.classList.add('open');
-}
-function closeHamburgerMenu() {
-    document.getElementById('hamburger-menu')?.classList.remove('open');
-    document.getElementById('menu-overlay')?.classList.remove('open');
-}
+window.openHamburgerMenu = function() {
+    console.log("Hamburger button clicked");
+    document.getElementById('hamburger-menu').classList.add('open');
+    document.getElementById('menu-overlay').classList.add('open');
+};
+
+window.closeHamburgerMenu = function() {
+    document.getElementById('hamburger-menu').classList.remove('open');
+    document.getElementById('menu-overlay').classList.remove('open');
+};
 
 // =====================
 //  DASHBOARD TABS
@@ -552,7 +559,7 @@ function switchTab(tabName) {
 }
 
 async function logout() {
-    try { await fetch('/api/logout', { method: 'POST' }); } catch(e) {}
+    try { await fetch('/api/logout', { method: 'POST' }); } catch (e) { }
     window.location.href = '/';
 }
 
@@ -576,16 +583,16 @@ async function fetchTripMembers() {
             tripMembers = await res.json();
             renderParticipantAvatars();
         }
-    } catch(e) { console.error('Fetch members error:', e); }
+    } catch (e) { console.error('Fetch members error:', e); }
 }
 
 function renderParticipantAvatars() {
     const container = document.getElementById('trip-avatars');
-    const sub       = document.getElementById('trip-participants-label');
+    const sub = document.getElementById('trip-participants-label');
     if (!container) return;
-    const colors = ['bg-yellow','bg-purple','bg-light'];
-    const shown  = tripMembers.slice(0, 3);
-    const extra  = tripMembers.length - 3;
+    const colors = ['bg-yellow', 'bg-purple', 'bg-light'];
+    const shown = tripMembers.slice(0, 3);
+    const extra = tripMembers.length - 3;
     container.innerHTML = shown.map((m, i) =>
         `<div class="avatar ${colors[i % colors.length]}">${escapeHTML(m.name.charAt(0))}</div>`
     ).join('');
@@ -627,7 +634,7 @@ function getSelectedParticipants() {
 //  EXPENSES
 // =====================
 function getCategoryIcon(cat) {
-    const icons = { 'אוכל':'🍕','לינה':'🛏️','תחבורה':'🚕','אטרקציות':'🎟️','כללי':'💡' };
+    const icons = { 'אוכל': '🍕', 'לינה': '🛏️', 'תחבורה': '🚕', 'אטרקציות': '🎟️', 'כללי': '💡' };
     return icons[cat] || '💳';
 }
 
@@ -643,11 +650,11 @@ async function fetchExpenses() {
             html = `<div class="loading-state">${typeof i18n === 'function' ? i18n('expenses_no_data') : 'אין הוצאות בינתיים'}</div>`;
         } else {
             expenses.forEach(exp => {
-                const safeDesc  = escapeHTML(exp.description);
+                const safeDesc = escapeHTML(exp.description);
                 const safePayer = escapeHTML(exp.payer);
-                const safeCat   = escapeHTML(exp.category || 'כללי');
-                const currSym   = getCurrencySymbol(exp.currency || 'ILS');
-                
+                const safeCat = escapeHTML(exp.category || 'כללי');
+                const currSym = getCurrencySymbol(exp.currency || 'ILS');
+
                 const canEdit = currentUser && exp.user_id === currentUser.id;
                 const editBtn = canEdit ? `<button class="edit-expense-btn" onclick="openEditExpenseModal(${exp.id}, ${exp.amount}, '${safeDesc}', '${safeCat}', '${exp.currency}')" title="ערוך הוצאה">✏️</button>` : '';
 
@@ -674,9 +681,9 @@ async function fetchExpenses() {
         const home = document.getElementById('home-expenses-list');
         if (full) full.innerHTML = html;
         if (home) home.innerHTML = html;
-        
+
         renderCategoryChart(expenses);
-    } catch(e) { console.error('Fetch expenses error:', e); }
+    } catch (e) { console.error('Fetch expenses error:', e); }
 }
 
 function openEditExpenseModal(id, amount, desc, category, currency) {
@@ -746,21 +753,21 @@ async function deleteExpense(expenseId) {
 
 async function addExpense() {
     const amountInput = document.getElementById('amount');
-    const descInput   = document.getElementById('desc');
-    const amountVal   = amountInput?.value;
-    const desc        = descInput?.value.trim();
-    const category    = document.getElementById('category')?.value;
-    const currency    = document.getElementById('currency')?.value || 'ILS';
-    const parts       = getSelectedParticipants();
+    const descInput = document.getElementById('desc');
+    const amountVal = amountInput?.value;
+    const desc = descInput?.value.trim();
+    const category = document.getElementById('category')?.value;
+    const currency = document.getElementById('currency')?.value || 'ILS';
+    const parts = getSelectedParticipants();
 
     const errAmount = typeof i18n === 'function' ? i18n('err_invalid_amount') : 'יש למלא סכום תקין.';
     const errDesc = typeof i18n === 'function' ? i18n('err_fill_all') : 'יש למלא תיאור.';
     const errParts = typeof i18n === 'function' ? i18n('err_no_participants') : 'בחר לפחות משתתף אחד.';
 
     if (!amountVal || parseFloat(amountVal) <= 0) { alert(errAmount); return; }
-    if (!desc)                                    { alert(errDesc); return; }
-    if (!parts.length)                            { alert(errParts); return; }
-    if (!currentTripId)                           { alert('לא נבחר טיול.'); return; }
+    if (!desc) { alert(errDesc); return; }
+    if (!parts.length) { alert(errParts); return; }
+    if (!currentTripId) { alert('לא נבחר טיול.'); return; }
 
     const amount = parseFloat(amountVal);
     let splits = null;
@@ -798,7 +805,7 @@ async function addExpense() {
         const data = await res.json();
         if (res.ok && data.success) {
             amountInput.value = '';
-            descInput.value   = '';
+            descInput.value = '';
             document.getElementById('split-mode-toggle').checked = false;
             toggleSplitMode();
             showToast('ההוצאה נוספה! 💸');
@@ -806,7 +813,7 @@ async function addExpense() {
         } else {
             alert(data.error || 'שגיאה בהוספת ההוצאה.');
         }
-    } catch(e) {
+    } catch (e) {
         console.error('Add expense error:', e);
         alert('שגיאת רשת.');
     }
@@ -863,22 +870,22 @@ function calculateSettlements(balances) {
 async function fetchBalances() {
     if (!currentTripId) return;
     try {
-        const res  = await fetch(`/api/balances/${currentTripId}`);
+        const res = await fetch(`/api/balances/${currentTripId}`);
         if (res.status === 401) { window.location.href = '/'; return; }
         const data = await res.json();
         const budget = currentTripData?.budget || 0;
-        const spent  = data.total || 0;
-        const left   = budget - spent;
-        const pct    = budget > 0 ? Math.min(100, Math.round(spent / budget * 100)) : 0;
+        const spent = data.total || 0;
+        const left = budget - spent;
+        const pct = budget > 0 ? Math.min(100, Math.round(spent / budget * 100)) : 0;
 
-        const elSpent  = document.getElementById('total-spent');
+        const elSpent = document.getElementById('total-spent');
         const elBudget = document.getElementById('total-budget');
-        const elLeft   = document.getElementById('budget-left');
-        const elPct    = document.getElementById('circle-percent');
-        if (elSpent)  elSpent.textContent  = `₪${spent.toFixed(0)}`;
+        const elLeft = document.getElementById('budget-left');
+        const elPct = document.getElementById('circle-percent');
+        if (elSpent) elSpent.textContent = `₪${spent.toFixed(0)}`;
         if (elBudget) elBudget.textContent = `₪${budget}`;
-        if (elLeft)   elLeft.textContent   = `₪${Math.max(0, left).toFixed(0)}`;
-        if (elPct)    elPct.textContent    = `${pct}%`;
+        if (elLeft) elLeft.textContent = `₪${Math.max(0, left).toFixed(0)}`;
+        if (elPct) elPct.textContent = `${pct}%`;
 
         const list = document.getElementById('balances-list');
         if (!list) return;
@@ -891,14 +898,14 @@ async function fetchBalances() {
             const isPos = b.balance > 0.01;
             const isNeg = b.balance < -0.01;
             const badgeCls = isPos ? 'positive' : isNeg ? 'negative' : 'neutral';
-            
+
             const txtReceive = typeof i18n === 'function' ? i18n('balance_receive') : 'צריך לקבל';
             const txtPay = typeof i18n === 'function' ? i18n('balance_pay') : 'צריך לשלם';
             const txtSettled = typeof i18n === 'function' ? i18n('balance_settled') : 'מאוזן';
             const badgeTxt = isPos ? txtReceive : isNeg ? txtPay : txtSettled;
-            
-            const amtCls   = isPos ? 'amount-pos' : isNeg ? 'amount-neg' : '';
-            const me       = currentUser && b.user_id === currentUser.id ? (typeof i18n === 'function' ? i18n('balance_you') : ' (את/ה)') : '';
+
+            const amtCls = isPos ? 'amount-pos' : isNeg ? 'amount-neg' : '';
+            const me = currentUser && b.user_id === currentUser.id ? (typeof i18n === 'function' ? i18n('balance_you') : ' (את/ה)') : '';
             const safeName = escapeHTML(b.name);
 
             // Find this person's settlements
@@ -908,10 +915,10 @@ async function fetchBalances() {
                 debtLines = personDebts.map(s => {
                     const safeFrom = escapeHTML(s.from);
                     const safeTo = escapeHTML(s.to);
-                    
+
                     const isDebtor = currentUser && currentUser.id === s.from_id;
                     const isCreditor = currentUser && currentUser.id === s.to_id;
-                    
+
                     let settleBtn = '';
                     if (isDebtor || isCreditor) {
                         const txtSettleUp = typeof i18n === 'function' ? i18n('settle_up') : 'סלק חוב 💸';
@@ -955,7 +962,7 @@ async function fetchBalances() {
                 </div>
             </div>`;
         }).join('');
-    } catch(e) { console.error('Fetch balances error:', e); }
+    } catch (e) { console.error('Fetch balances error:', e); }
 }
 
 async function triggerSettleUp(payerId, payeeId, amount) {
@@ -995,23 +1002,23 @@ function launchConfetti() {
 
     container.innerHTML = '';
     const colors = ['#facc15', '#a855f7', '#22d3ee', '#06d6a0', '#f43f5e', '#ff007f'];
-    
+
     for (let i = 0; i < 60; i++) {
         const piece = document.createElement('div');
         piece.className = 'confetti-piece';
-        
+
         const color = colors[Math.floor(Math.random() * colors.length)];
         const left = Math.random() * 100;
         const delay = Math.random() * 2;
         const size = Math.random() * 8 + 5;
-        
+
         piece.style.backgroundColor = color;
         piece.style.left = `${left}%`;
         piece.style.animationDelay = `${delay}s`;
         piece.style.width = `${size}px`;
         piece.style.height = `${size}px`;
         piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
-        
+
         container.appendChild(piece);
     }
 
@@ -1090,7 +1097,7 @@ function renderCategoryChart(expenses) {
         } else if (val === 0) {
             heightPct = 0; // hide empty bars or keep 5%
         }
-        
+
         if (val > 0) {
             html += `
             <div class="chart-bar-wrapper">
@@ -1150,16 +1157,16 @@ function renderScannedItems(items) {
     const html = `
         <div style="font-weight: 700; margin-bottom: 8px;" data-i18n="scan_items_found">פריטים שנמצאו:</div>
         ${items.map(item => {
-            total += item.price;
-            if (desc) desc += ', ';
-            desc += item.item;
-            return `
+        total += item.price;
+        if (desc) desc += ', ';
+        desc += item.item;
+        return `
                 <div class="scanned-item-row">
                     <span class="scanned-item-name">${escapeHTML(item.item)}</span>
                     <span class="scanned-item-price">₪${item.price.toFixed(2)}</span>
                 </div>
             `;
-        }).join('')}
+    }).join('')}
         <button class="primary-btn full-width" style="margin-top: 10px;" onclick="acceptScannedItems(${total}, '${escapeHTML(desc)}')">
             שייך סכום כולל (₪${total.toFixed(2)})
         </button>
@@ -1336,3 +1343,102 @@ function closeHamburgerMenu() {
     if (menu) menu.classList.remove('open');
     if (overlay) overlay.classList.remove('open');
 }
+
+// =====================
+//  CUSTOM DROPDOWNS
+// =====================
+function setupCustomDropdowns() {
+    const selects = document.querySelectorAll('select:not(.custom-dropdown-initialized)');
+    selects.forEach(select => {
+        select.classList.add('custom-dropdown-initialized');
+        select.style.display = 'none';
+        
+        const container = document.createElement('div');
+        container.className = 'custom-select-container';
+        select.parentNode.insertBefore(container, select.nextSibling);
+        
+        const trigger = document.createElement('div');
+        trigger.className = 'custom-select-trigger';
+        
+        const selectedText = document.createElement('span');
+        const defaultOption = select.options[select.selectedIndex];
+        selectedText.textContent = defaultOption ? defaultOption.textContent : '';
+        selectedText.dataset.i18n = defaultOption ? defaultOption.getAttribute('data-i18n') : '';
+        
+        const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        arrow.setAttribute('viewBox', '0 0 24 24');
+        arrow.setAttribute('class', 'custom-select-arrow');
+        const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+        polyline.setAttribute('points', '6 9 12 15 18 9');
+        arrow.appendChild(polyline);
+        
+        trigger.appendChild(selectedText);
+        trigger.appendChild(arrow);
+        container.appendChild(trigger);
+        
+        const optionsList = document.createElement('div');
+        optionsList.className = 'custom-select-options';
+        container.appendChild(optionsList);
+        
+        Array.from(select.options).forEach((option, index) => {
+            const optDiv = document.createElement('div');
+            optDiv.className = 'custom-select-option' + (index === select.selectedIndex ? ' selected' : '');
+            optDiv.textContent = option.textContent;
+            if (option.getAttribute('data-i18n')) {
+                optDiv.dataset.i18n = option.getAttribute('data-i18n');
+            }
+            optDiv.dataset.value = option.value;
+            
+            optDiv.addEventListener('click', (e) => {
+                e.stopPropagation();
+                select.value = option.value;
+                selectedText.textContent = option.textContent;
+                selectedText.dataset.i18n = option.getAttribute('data-i18n') || '';
+                
+                trigger.classList.remove('open');
+                optionsList.classList.remove('open');
+                
+                Array.from(optionsList.children).forEach(c => c.classList.remove('selected'));
+                optDiv.classList.add('selected');
+                
+                // Dispatch event so native listeners can catch it
+                select.dispatchEvent(new Event('change', { bubbles: true }));
+            });
+            optionsList.appendChild(optDiv);
+        });
+        
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = trigger.classList.contains('open');
+            document.querySelectorAll('.custom-select-trigger').forEach(t => t.classList.remove('open'));
+            document.querySelectorAll('.custom-select-options').forEach(o => o.classList.remove('open'));
+            
+            if (!isOpen) {
+                trigger.classList.add('open');
+                optionsList.classList.add('open');
+            }
+        });
+        
+        // Listen to native select changes to update UI (e.g. if updated programmatically)
+        select.addEventListener('change', () => {
+            const newIndex = select.selectedIndex;
+            if (newIndex >= 0) {
+                const opt = select.options[newIndex];
+                selectedText.textContent = opt.textContent;
+                selectedText.dataset.i18n = opt.getAttribute('data-i18n') || '';
+                
+                Array.from(optionsList.children).forEach((c, idx) => {
+                    if (idx === newIndex) c.classList.add('selected');
+                    else c.classList.remove('selected');
+                });
+            }
+        });
+    });
+}
+
+document.addEventListener('click', () => {
+    document.querySelectorAll('.custom-select-trigger').forEach(t => t.classList.remove('open'));
+    document.querySelectorAll('.custom-select-options').forEach(o => o.classList.remove('open'));
+});
+
+document.addEventListener('DOMContentLoaded', setupCustomDropdowns);

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <title>MasterSplitter - Profile</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        /* תיקון קטן לוודא שהפרופיל נראה טוב */
+        .profile-container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="profile-container">
+        <button onclick="window.location.href='/app'">← חזור</button>
+        <h2>הפרופיל שלי</h2>
+
+        <div id="profile-data">
+            <p><strong>שם:</strong> <span id="name-field">טוען...</span></p>
+            <p><strong>אימייל:</strong> <span id="email-field">טוען...</span></p>
+        </div>
+
+        <hr>
+        <button onclick="logout()">התנתק</button>
+    </div>
+
+    <script>
+        async function fetchProfile() {
+            try {
+                const response = await fetch('/api/me');
+                if (!response.ok) throw new Error('Not logged in');
+                const data = await response.json();
+
+                // עדכון ה-DOM בצורה בטוחה
+                document.getElementById('name-field').textContent = data.name || 'משתמש ללא שם';
+                document.getElementById('email-field').textContent = data.email || 'לא מוגדר אימייל';
+            } catch (error) {
+                console.error("Error:", error);
+                document.getElementById('name-field').textContent = 'שגיאה';
+                document.getElementById('email-field').textContent = 'שגיאה';
+            }
+        }
+
+        function logout() {
+            fetch('/api/logout', { method: 'POST' }).then(() => window.location.href = '/');
+        }
+
+        // טעינה ראשונית
+        fetchProfile();
+    </script>
+</body>
+
+</html>

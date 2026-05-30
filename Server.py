@@ -18,6 +18,7 @@ except ImportError:
 
 from flask import Flask, jsonify, request, render_template, session, redirect, url_for, abort
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 # ---------------------
 #   LOGGING SETUP
@@ -36,6 +37,7 @@ logger = logging.getLogger('MasterSplitter')
 #   APP CONFIG
 # ---------------------
 app = Flask(__name__, static_folder='Static', static_url_path='/static', template_folder='Templates')
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)  # Trust reverse-proxy headers (PythonAnywhere)
 app.secret_key = os.environ.get('SECRET_KEY', os.urandom(32))
 
 # Warn if no explicit secret key is set
@@ -670,6 +672,15 @@ def logout():
 #   GOOGLE OAUTH2 LOGIN
 # =====================
 
+def _build_oauth_redirect_uri():
+    """Build the Google OAuth redirect_uri, forcing https:// on production hosts."""
+    base = request.host_url.rstrip('/')
+    # Belt-and-suspenders: force https if not running on localhost
+    host = request.host.split(':')[0]
+    if host not in ('localhost', '127.0.0.1') and base.startswith('http://'):
+        base = 'https://' + base[len('http://'):]
+    return base + '/api/auth/google/callback'
+
 @app.route('/api/auth/google')
 def google_auth_redirect():
     """Step 1: Redirect the user to Google's OAuth2 consent screen."""
@@ -677,8 +688,8 @@ def google_auth_redirect():
         logger.error('Google OAuth attempted but GOOGLE_CLIENT_ID is not configured.')
         return redirect('/?error=google_not_configured')
 
-    # Build redirect_uri dynamically from the current request
-    redirect_uri = request.host_url.rstrip('/') + '/api/auth/google/callback'
+    # Build redirect_uri dynamically (https enforced on production)
+    redirect_uri = _build_oauth_redirect_uri()
 
     # Generate a CSRF-protection state token and store it in the session
     state = secrets.token_urlsafe(32)
@@ -720,7 +731,7 @@ def google_auth_callback():
         logger.warning('Google OAuth callback: no authorization code received.')
         return redirect('/?error=google_no_code')
 
-    redirect_uri = request.host_url.rstrip('/') + '/api/auth/google/callback'
+    redirect_uri = _build_oauth_redirect_uri()
 
     try:
         token_response = http_requests.post(GOOGLE_TOKEN_URL, data={

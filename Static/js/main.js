@@ -1517,3 +1517,18 @@ document.addEventListener('click', () => {
 });
 
 document.addEventListener('DOMContentLoaded', setupCustomDropdowns);
+
+// =====================
+//  PWA SERVICE WORKER REGISTRATION
+// =====================
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js', { scope: '/' })
+            .then((registration) => {
+                console.log('[PWA] Service Worker registered successfully. Scope:', registration.scope);
+            })
+            .catch((error) => {
+                console.error('[PWA] Service Worker registration failed:', error);
+            });
+    });
+}

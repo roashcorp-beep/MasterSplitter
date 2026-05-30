@@ -16,7 +16,7 @@ try:
 except ImportError:
     pass
 
-from flask import Flask, jsonify, request, render_template, session, redirect, url_for, abort
+from flask import Flask, jsonify, request, render_template, session, redirect, url_for, abort, send_from_directory
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -481,6 +481,14 @@ def send_reset_email(email_addr, token):
 # =====================
 #   PAGE ROUTES
 # =====================
+
+@app.route('/manifest.json')
+def serve_manifest():
+    return send_from_directory('Static', 'manifest.json', mimetype='application/manifest+json')
+
+@app.route('/sw.js')
+def serve_sw():
+    return send_from_directory('Static', 'sw.js', mimetype='application/javascript')
 
 @app.route('/')
 def serve_login():

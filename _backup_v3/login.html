@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="MasterSplitter — אפליקציה לחלוקת הוצאות בטיולים עם חברים. עקבו אחרי מי שילם, חשבו יתרות, וסגרו חשבונות בקלות.">
+    <title>MasterSplitter - Login</title>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="login-body">
+    <div class="login-page-wrapper">
+
+        <!-- Floating brand area -->
+        <div class="login-brand">
+            <h1 class="brand-title">
+                <span class="purple-text" data-i18n="brand_master">MASTER</span>
+                <span class="dark-text" data-i18n="brand_splitter">SPLITTER</span>
+            </h1>
+        </div>
+
+        <!-- Glass floating card -->
+        <div class="login-card">
+            <h2 class="welcome-text" id="welcome-title" data-i18n="login_welcome">ברוך הבא! 👋</h2>
+            <p class="welcome-sub" id="welcome-sub" data-i18n="login_sub">התחבר כדי לנהל את ההוצאות שלך</p>
+
+            <!-- LOGIN / SIGNUP FORM -->
+            <div id="auth-form">
+                <div class="form-group">
+                    <div class="floating-input-wrapper">
+                        <span class="input-icon">👤</span>
+                        <input type="text" id="username" placeholder=" " required autocomplete="username">
+                        <label for="username" data-i18n="login_username_email">שם משתמש או אימייל</label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div class="floating-input-wrapper">
+                        <span class="input-icon">🔒</span>
+                        <input type="password" id="password" placeholder=" " required autocomplete="current-password">
+                        <label for="password" data-i18n="login_password">סיסמה</label>
+                    </div>
+                </div>
+
+                <div class="form-group signup-only" style="display: none;" id="email-group">
+                    <div class="floating-input-wrapper">
+                        <span class="input-icon">✉️</span>
+                        <input type="email" id="email" placeholder=" ">
+                        <label for="email" data-i18n="login_email">אימייל</label>
+                    </div>
+                </div>
+
+                <div class="form-group signup-only" style="display: none;" id="phone-group">
+                    <div class="floating-input-wrapper">
+                        <span class="input-icon">📱</span>
+                        <input type="tel" id="phone" placeholder=" ">
+                        <label for="phone" data-i18n="login_phone">מספר טלפון</label>
+                    </div>
+                </div>
+
+                <button class="primary-btn full-width" id="submit-btn" onclick="submitAuth()" data-i18n="login_btn_login">התחבר</button>
+
+                <div class="forgot-link-wrapper" id="forgot-link-wrapper">
+                    <a href="#" class="forgot-pwd" onclick="showForgotForm(); return false;" data-i18n="login_forgot">שכחת סיסמה?</a>
+                </div>
+
+                <div class="divider" data-i18n="login_or">או</div>
+
+                <button class="secondary-btn full-width" id="toggle-auth-btn" onclick="toggleAuthMode()" data-i18n="login_btn_signup">צור חשבון חדש</button>
+            </div>
+
+            <!-- FORGOT PASSWORD FORM (hidden by default) -->
+            <div id="forgot-form" style="display: none;">
+                <div class="form-group">
+                    <div class="floating-input-wrapper">
+                        <span class="input-icon">✉️</span>
+                        <input type="email" id="forgot-email" placeholder=" " required>
+                        <label for="forgot-email" data-i18n="forgot_email">כתובת אימייל</label>
+                    </div>
+                </div>
+
+                <button class="primary-btn full-width" onclick="submitForgotPassword()" data-i18n="forgot_btn">שלח קישור לאיפוס</button>
+
+                <div style="text-align: center; margin-top: 16px;">
+                    <a href="#" class="forgot-pwd" onclick="hideForgotForm(); return false;" data-i18n="forgot_back">← חזור להתחברות</a>
+                </div>
+            </div>
+
+            <div class="error-message" id="error-msg"></div>
+            <div class="success-message" id="success-msg"></div>
+        </div>
+
+    </div>
+    
+    <script src="/static/js/translations.js"></script>
+    <script src="/static/js/main.js"></script>
+</body>
+</html>

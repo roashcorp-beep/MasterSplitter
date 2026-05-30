@@ -455,8 +455,6 @@ def send_reset_email(email_addr, token):
 
 @app.route('/')
 def serve_login():
-    if 'user_id' in session:
-        return redirect('/app')
     return render_template('login.html')
 
 @app.route('/app')
@@ -973,17 +971,10 @@ def create_trip():
             (trip_id, session['user_id'])
         )
         
-        # Add validated users directly to TripMembers AND create invitations
+        # Create invitations
         for contact in valid_users:
-            cursor.execute("SELECT id FROM Users WHERE email = ? OR phone = ?", (contact, contact))
-            found_user = cursor.fetchone()
-            if found_user:
-                cursor.execute(
-                    "INSERT OR IGNORE INTO TripMembers (trip_id, user_id) VALUES (?, ?)",
-                    (trip_id, found_user['id'])
-                )
             cursor.execute(
-                "INSERT INTO trip_invitations (trip_id, inviter_id, invitee_phone_or_email, status) VALUES (?, ?, ?, 'APPROVED')",
+                "INSERT INTO trip_invitations (trip_id, inviter_id, invitee_phone_or_email) VALUES (?, ?, ?)",
                 (trip_id, session['user_id'], contact)
             )
 
@@ -1050,16 +1041,11 @@ def update_trip(trip_id):
                     conn.close()
                     return jsonify({"error": f"User not found: {contact}. Invite them to register first."}), 400
                 
-                # Directly add to TripMembers
-                cursor.execute(
-                    "INSERT OR IGNORE INTO TripMembers (trip_id, user_id) VALUES (?, ?)",
-                    (trip_id, user['id'])
-                )
-                # Check if already invited
+                # Check if already invited or member
                 cursor.execute("SELECT 1 FROM trip_invitations WHERE trip_id = ? AND invitee_phone_or_email = ?", (trip_id, contact))
                 if not cursor.fetchone():
                     cursor.execute(
-                        "INSERT INTO trip_invitations (trip_id, inviter_id, invitee_phone_or_email, status) VALUES (?, ?, ?, 'APPROVED')",
+                        "INSERT INTO trip_invitations (trip_id, inviter_id, invitee_phone_or_email) VALUES (?, ?, ?)",
                         (trip_id, session['user_id'], contact)
                     )
 

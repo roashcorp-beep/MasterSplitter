@@ -280,22 +280,12 @@ async function respondInvitation(id, action) {
 // =====================
 //  LOBBY
 // =====================
-let hasAutoOpenedTrip = false;
-
 async function loadLobby() {
     showView('lobby');
     try {
         const res = await fetch('/api/trips');
         if (res.status === 401) { window.location.href = '/'; return; }
         allTrips = await res.json();
-
-        // Auto-open the most recent trip on first load
-        if (!hasAutoOpenedTrip && allTrips.length > 0) {
-            hasAutoOpenedTrip = true;
-            openTrip(allTrips[0].id);
-            return;
-        }
-
         renderTripsList();
     } catch (e) { console.error('Load lobby error:', e); }
 }

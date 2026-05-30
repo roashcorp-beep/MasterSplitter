@@ -86,7 +86,7 @@
 
                 <!-- Social Login Buttons -->
                 <div class="social-login-row">
-                    <button class="social-btn google-social-btn" onclick="console.log('OAuth pending - Google'); alert('Google OAuth coming soon!');" title="Google">
+                    <button class="social-btn google-social-btn" onclick="window.location.href='/api/auth/google';" title="Google">
                         <svg viewBox="0 0 24 24" width="22" height="22">
                             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
                             <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -146,6 +146,40 @@
                     sel.value = currentLang;
                 }
             }, 300);
+
+            // Show OAuth error messages from URL params
+            const params = new URLSearchParams(window.location.search);
+            const err = params.get('error');
+            if (err) {
+                const errorMap = {
+                    'google_not_configured': 'Google login is not configured on this server.',
+                    'google_access_denied': 'Google login was cancelled.',
+                    'google_state_mismatch': 'Security validation failed. Please try again.',
+                    'google_no_code': 'Google did not provide an authorization code.',
+                    'google_token_failed': 'Failed to authenticate with Google. Please try again.',
+                    'google_network_error': 'Network error while contacting Google. Please try again.',
+                    'google_profile_failed': 'Failed to fetch your Google profile.',
+                    'google_no_email': 'Your Google account does not have an email address.',
+                    'google_db_error': 'A server error occurred. Please try again later.',
+                };
+                const errMsg = document.getElementById('error-msg');
+                if (errMsg) {
+                    errMsg.textContent = errorMap[err] || 'An error occurred during Google login.';
+                    errMsg.classList.add('visible');
+                }
+                // Clean URL without reloading
+                window.history.replaceState({}, document.title, '/');
+            }
+
+            // Show success message for verified accounts
+            if (params.get('verified') === 'true') {
+                const successMsg = document.getElementById('success-msg');
+                if (successMsg) {
+                    successMsg.textContent = 'Email verified! You can now log in.';
+                    successMsg.classList.add('visible');
+                }
+                window.history.replaceState({}, document.title, '/');
+            }
         });
     </script>
 </body>

@@ -3,8 +3,12 @@ import logging
 import sqlite3
 import json
 import secrets
+import hashlib
+import urllib.parse
 from datetime import datetime, timezone, timedelta
 from functools import wraps
+
+import requests as http_requests  # renamed to avoid conflict with flask.request
 
 try:
     from dotenv import load_dotenv
@@ -44,6 +48,19 @@ ALLOWED_CURRENCIES = [
     'THB', 'HUF', 'PLN', 'CZK', 'TRY', 'SEK', 'NOK', 'DKK',
     'NZD', 'SGD', 'HKD', 'KRW', 'MXN', 'BRL', 'INR', 'ZAR',
 ]
+
+# ---------------------
+#   GOOGLE OAUTH CONFIG
+# ---------------------
+GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '')
+GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET', '')
+GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
+GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
+GOOGLE_USERINFO_URL = 'https://www.googleapis.com/oauth2/v2/userinfo'
+GOOGLE_SCOPES = 'openid email profile'
+
+if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+    logger.warning('GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET not set — Google OAuth will be disabled.')
 
 
 # ---------------------
@@ -184,6 +201,16 @@ def init_db_updates():
             logger.info("Migration: Performed table swap for Users schema update (added reset_token columns and language).")
     except sqlite3.Error as e:
         logger.error(f"Users migration error: {e}")
+
+    # --- Add google_id column for OAuth (safe to re-run) ---
+    try:
+        cursor.execute("PRAGMA table_info(Users)")
+        cols = [c['name'] for c in cursor.fetchall()]
+        if 'google_id' not in cols:
+            cursor.execute("ALTER TABLE Users ADD COLUMN google_id TEXT")
+            logger.info("Migration: added 'google_id' column to Users")
+    except sqlite3.Error as e:
+        logger.error(f"Users google_id migration error: {e}")
 
     # --- Create trip_invitations table ---
     cursor.execute("""
@@ -637,6 +664,176 @@ def logout():
     session.clear()
     logger.info(f"User logged out: {username}")
     return jsonify({"success": True})
+
+
+# =====================
+#   GOOGLE OAUTH2 LOGIN
+# =====================
+
+@app.route('/api/auth/google')
+def google_auth_redirect():
+    """Step 1: Redirect the user to Google's OAuth2 consent screen."""
+    if not GOOGLE_CLIENT_ID:
+        logger.error('Google OAuth attempted but GOOGLE_CLIENT_ID is not configured.')
+        return redirect('/?error=google_not_configured')
+
+    # Build redirect_uri dynamically from the current request
+    redirect_uri = request.host_url.rstrip('/') + '/api/auth/google/callback'
+
+    # Generate a CSRF-protection state token and store it in the session
+    state = secrets.token_urlsafe(32)
+    session['oauth_state'] = state
+
+    params = {
+        'client_id': GOOGLE_CLIENT_ID,
+        'redirect_uri': redirect_uri,
+        'response_type': 'code',
+        'scope': GOOGLE_SCOPES,
+        'access_type': 'offline',
+        'state': state,
+        'prompt': 'select_account',
+    }
+    auth_url = GOOGLE_AUTH_URL + '?' + urllib.parse.urlencode(params)
+    logger.info(f'Google OAuth: redirecting user to consent screen (redirect_uri={redirect_uri})')
+    return redirect(auth_url)
+
+
+@app.route('/api/auth/google/callback')
+def google_auth_callback():
+    """Step 2: Handle Google's callback — exchange code for token, fetch profile, log in or register."""
+    # --- Error from Google (e.g. user cancelled) ---
+    error = request.args.get('error')
+    if error:
+        logger.warning(f'Google OAuth callback received error: {error}')
+        return redirect(f'/?error=google_{error}')
+
+    # --- CSRF state validation ---
+    state_received = request.args.get('state', '')
+    state_expected = session.pop('oauth_state', None)
+    if not state_expected or state_received != state_expected:
+        logger.warning('Google OAuth: state mismatch — possible CSRF.')
+        return redirect('/?error=google_state_mismatch')
+
+    # --- Exchange authorization code for access token ---
+    code = request.args.get('code')
+    if not code:
+        logger.warning('Google OAuth callback: no authorization code received.')
+        return redirect('/?error=google_no_code')
+
+    redirect_uri = request.host_url.rstrip('/') + '/api/auth/google/callback'
+
+    try:
+        token_response = http_requests.post(GOOGLE_TOKEN_URL, data={
+            'code': code,
+            'client_id': GOOGLE_CLIENT_ID,
+            'client_secret': GOOGLE_CLIENT_SECRET,
+            'redirect_uri': redirect_uri,
+            'grant_type': 'authorization_code',
+        }, timeout=10)
+
+        if token_response.status_code != 200:
+            logger.error(f'Google token exchange failed ({token_response.status_code}): {token_response.text}')
+            return redirect('/?error=google_token_failed')
+
+        token_data = token_response.json()
+        access_token = token_data.get('access_token')
+        if not access_token:
+            logger.error('Google token response missing access_token.')
+            return redirect('/?error=google_token_failed')
+
+    except http_requests.RequestException as e:
+        logger.error(f'Google token exchange network error: {e}')
+        return redirect('/?error=google_network_error')
+
+    # --- Fetch user profile from Google ---
+    try:
+        userinfo_response = http_requests.get(
+            GOOGLE_USERINFO_URL,
+            headers={'Authorization': f'Bearer {access_token}'},
+            timeout=10,
+        )
+
+        if userinfo_response.status_code != 200:
+            logger.error(f'Google userinfo fetch failed ({userinfo_response.status_code}): {userinfo_response.text}')
+            return redirect('/?error=google_profile_failed')
+
+        profile = userinfo_response.json()
+
+    except http_requests.RequestException as e:
+        logger.error(f'Google userinfo network error: {e}')
+        return redirect('/?error=google_network_error')
+
+    # Extract profile fields
+    google_id = profile.get('id', '')
+    google_email = profile.get('email', '')
+    google_name = profile.get('name', google_email.split('@')[0] if google_email else 'Google User')
+    google_picture = profile.get('picture', '')
+
+    if not google_email:
+        logger.error('Google profile did not return an email.')
+        return redirect('/?error=google_no_email')
+
+    # --- Database: find or create user ---
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # First, try to find by google_id (most reliable)
+        cursor.execute('SELECT id, name FROM Users WHERE google_id = ?', (google_id,))
+        user = cursor.fetchone()
+
+        if not user:
+            # Fallback: find by email
+            cursor.execute('SELECT id, name, google_id FROM Users WHERE email = ?', (google_email,))
+            user = cursor.fetchone()
+
+            if user:
+                # Existing user found by email — link their Google ID if not already set
+                if not user['google_id']:
+                    cursor.execute('UPDATE Users SET google_id = ?, avatar_url = COALESCE(avatar_url, ?), is_verified = 1 WHERE id = ?',
+                                   (google_id, google_picture, user['id']))
+                    conn.commit()
+                    logger.info(f'Google OAuth: linked google_id to existing user {user["name"]} (id={user["id"]})')
+
+        if user:
+            # --- Existing user: log them in ---
+            session['user_id'] = user['id']
+            session['username'] = user['name']
+            logger.info(f'Google OAuth login: {user["name"]} (id={user["id"]})')
+            return redirect('/app')
+
+        # --- New user: create account ---
+        # Generate a unique username from the Google name
+        base_name = google_name.strip()
+        unique_name = base_name
+        suffix = 1
+        while True:
+            cursor.execute('SELECT id FROM Users WHERE name = ?', (unique_name,))
+            if not cursor.fetchone():
+                break
+            unique_name = f'{base_name}_{suffix}'
+            suffix += 1
+
+        # Random secure password hash (user will use Google login, not password)
+        random_pwd_hash = generate_password_hash(secrets.token_urlsafe(32))
+
+        cursor.execute(
+            '''INSERT INTO Users (name, password_hash, email, google_id, avatar_url, is_verified, language)
+               VALUES (?, ?, ?, ?, ?, 1, 'he')''',
+            (unique_name, random_pwd_hash, google_email, google_id, google_picture)
+        )
+        new_user_id = cursor.lastrowid
+        conn.commit()
+
+        session['user_id'] = new_user_id
+        session['username'] = unique_name
+        logger.info(f'Google OAuth: new user registered: {unique_name} (id={new_user_id}, email={google_email})')
+        return redirect('/app')
+
+    except sqlite3.Error as e:
+        logger.error(f'Google OAuth DB error: {e}')
+        return redirect('/?error=google_db_error')
+    finally:
+        conn.close()
 
 
 # =====================

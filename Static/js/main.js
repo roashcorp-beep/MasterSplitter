@@ -1532,3 +1532,33 @@ if ('serviceWorker' in navigator) {
             });
     });
 }
+
+// =====================
+//  PWA INSTALL PROMPT
+// =====================
+let deferredPrompt;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    // Show all install buttons
+    document.querySelectorAll('.pwa-install-btn').forEach(btn => btn.style.display = 'flex');
+    console.log('[PWA] Install prompt captured — install button shown.');
+});
+
+async function triggerPWAInstall() {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log(`[PWA] User response to install prompt: ${outcome}`);
+    deferredPrompt = null;
+    if (outcome === 'accepted') {
+        document.querySelectorAll('.pwa-install-btn').forEach(btn => btn.style.display = 'none');
+    }
+}
+
+window.addEventListener('appinstalled', () => {
+    console.log('[PWA] App was installed successfully.');
+    document.querySelectorAll('.pwa-install-btn').forEach(btn => btn.style.display = 'none');
+    deferredPrompt = null;
+});

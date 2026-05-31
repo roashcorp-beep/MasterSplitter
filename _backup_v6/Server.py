@@ -311,21 +311,8 @@ def init_db_updates():
         if 'is_public_expenses' not in trips_cols:
             cursor.execute("ALTER TABLE Trips ADD COLUMN is_public_expenses INTEGER DEFAULT 0")
             logger.info("Migration: added 'is_public_expenses' column to Trips")
-        if 'budget_type' not in trips_cols:
-            cursor.execute("ALTER TABLE Trips ADD COLUMN budget_type TEXT DEFAULT 'none'")
-            logger.info("Migration: added 'budget_type' column to Trips")
     except sqlite3.Error as e:
-        logger.error(f"Trips columns migration error: {e}")
-
-    # --- Add original_amount to Expenses ---
-    try:
-        cursor.execute("PRAGMA table_info(Expenses)")
-        exp_cols2 = [c['name'] for c in cursor.fetchall()]
-        if 'original_amount' not in exp_cols2:
-            cursor.execute("ALTER TABLE Expenses ADD COLUMN original_amount REAL")
-            logger.info("Migration: added 'original_amount' column to Expenses")
-    except sqlite3.Error as e:
-        logger.error(f"Expenses original_amount migration error: {e}")
+        logger.error(f"Trips is_public_expenses migration error: {e}")
 
     # --- Phase 4: ActivityLog table (audit trail) ---
     cursor.execute("""
@@ -347,46 +334,6 @@ def init_db_updates():
 
 
 init_db_updates()
-
-
-# ---------------------
-#   EXCHANGE RATE CACHE
-# ---------------------
-import time as _time
-
-_exchange_cache = {}  # { 'USD': ({'ILS': 3.65, ...}, timestamp), ... }
-EXCHANGE_CACHE_TTL = 3600  # 1 hour
-
-
-def get_exchange_rate(from_currency, to_currency='ILS'):
-    """Get exchange rate from from_currency to to_currency using open.er-api.com with caching."""
-    if from_currency == to_currency:
-        return 1.0
-
-    now = _time.time()
-    cached = _exchange_cache.get(from_currency)
-    if cached:
-        rates, ts = cached
-        if now - ts < EXCHANGE_CACHE_TTL and to_currency in rates:
-            return rates[to_currency]
-
-    try:
-        resp = http_requests.get(
-            f'https://open.er-api.com/v6/latest/{from_currency}',
-            timeout=8
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            rates = data.get('rates', {})
-            _exchange_cache[from_currency] = (rates, now)
-            rate = rates.get(to_currency)
-            if rate:
-                logger.info(f"Exchange rate: 1 {from_currency} = {rate} {to_currency}")
-                return float(rate)
-    except Exception as e:
-        logger.error(f"Exchange rate fetch error: {e}")
-
-    return None
 
 
 # ---------------------
@@ -1230,7 +1177,7 @@ def get_trips():
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT DISTINCT t.id, t.destination, t.budget, t.budget_type, t.owner_id, t.local_participants
+        SELECT DISTINCT t.id, t.destination, t.budget, t.owner_id, t.local_participants
         FROM Trips t
         LEFT JOIN TripMembers tm ON t.id = tm.trip_id
         WHERE t.owner_id = ? OR tm.user_id = ?
@@ -1249,7 +1196,6 @@ def get_trips():
             'id': t['id'],
             'name': t['destination'],
             'budget': t['budget'] or 0,
-            'budget_type': t['budget_type'] or 'none',
             'is_owner': t['owner_id'] == session['user_id'],
             'participants': participants
         })
@@ -1298,14 +1244,10 @@ def create_trip():
                     # Don't block — mark as unregistered (they can still be invited)
                     p['type'] = 'unregistered'
 
-        budget_type = (data.get('budget_type') or 'none').strip().lower()
-        if budget_type not in ('none', 'monthly', 'yearly'):
-            budget_type = 'none'
-
         participants_json = json.dumps([], ensure_ascii=False)
         cursor.execute(
-            "INSERT INTO Trips (destination, budget, budget_type, owner_id, local_participants) VALUES (?, ?, ?, ?, ?)",
-            (name, budget, budget_type, session['user_id'], participants_json)
+            "INSERT INTO Trips (destination, budget, owner_id, local_participants) VALUES (?, ?, ?, ?)",
+            (name, budget, session['user_id'], participants_json)
         )
         trip_id = cursor.lastrowid
 
@@ -1454,25 +1396,21 @@ def update_trip(trip_id):
 def get_trip_members(trip_id):
     conn = get_db_connection()
     cursor = conn.cursor()
-    # Registered users (include avatar_url)
+    # Registered users
     cursor.execute("""
-        SELECT u.id, u.name, u.avatar_url, COALESCE(tm.is_admin, 0) as is_admin
+        SELECT u.id, u.name, COALESCE(tm.is_admin, 0) as is_admin
         FROM Users u
         JOIN TripMembers tm ON u.id = tm.user_id
         WHERE tm.trip_id = ? AND tm.user_id IS NOT NULL
     """, (trip_id,))
-    registered = [{
-        'id': m['id'], 'name': m['name'], 'type': 'user',
-        'is_admin': bool(m['is_admin']),
-        'avatar_url': m['avatar_url'] or None
-    } for m in cursor.fetchall()]
+    registered = [{'id': m['id'], 'name': m['name'], 'type': 'user', 'is_admin': bool(m['is_admin'])} for m in cursor.fetchall()]
 
     # Guest (virtual) members
     cursor.execute("""
         SELECT guest_name FROM TripMembers
         WHERE trip_id = ? AND user_id IS NULL AND guest_name IS NOT NULL
     """, (trip_id,))
-    guests = [{'id': f'guest_{i}', 'name': g['guest_name'], 'type': 'guest', 'avatar_url': None} for i, g in enumerate(cursor.fetchall())]
+    guests = [{'id': f'guest_{i}', 'name': g['guest_name'], 'type': 'guest'} for i, g in enumerate(cursor.fetchall())]
 
     # Local participants (Legacy support)
     cursor.execute("SELECT local_participants FROM Trips WHERE id = ?", (trip_id,))
@@ -1482,7 +1420,7 @@ def get_trip_members(trip_id):
     if row and row['local_participants']:
         try:
             names = json.loads(row['local_participants'])
-            local = [{'id': f'local_{i}', 'name': n, 'type': 'local', 'avatar_url': None} for i, n in enumerate(names)]
+            local = [{'id': f'local_{i}', 'name': n, 'type': 'local'} for i, n in enumerate(names)]
         except (json.JSONDecodeError, TypeError):
             logger.warning(f"Invalid local_participants JSON for trip {trip_id}")
     return jsonify(registered + guests + local)
@@ -1556,68 +1494,6 @@ def promote_member(trip_id, member_id):
     conn.close()
     logger.info(f"User {session['user_id']} promoted {member_id} to admin in trip {trip_id}")
     return jsonify({"success": True})
-
-
-@app.route('/api/trips/<int:trip_id>/leave', methods=['POST'])
-@login_required
-@require_trip_access
-def leave_group(trip_id):
-    """Remove the current user from a group. Handle admin succession and group deletion."""
-    uid = session['user_id']
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    try:
-        # Check if user is a member
-        cursor.execute("SELECT id, COALESCE(is_admin, 0) as is_admin FROM TripMembers WHERE trip_id = ? AND user_id = ?",
-                       (trip_id, uid))
-        member = cursor.fetchone()
-        if not member:
-            conn.close()
-            return jsonify({"error": "You are not a member of this group."}), 404
-
-        was_admin = bool(member['is_admin'])
-
-        # Remove the user
-        cursor.execute("DELETE FROM TripMembers WHERE trip_id = ? AND user_id = ?", (trip_id, uid))
-
-        # Check remaining members
-        cursor.execute("SELECT id, user_id FROM TripMembers WHERE trip_id = ? AND user_id IS NOT NULL ORDER BY id ASC", (trip_id,))
-        remaining = cursor.fetchall()
-
-        if len(remaining) == 0:
-            # Last member left — delete the entire group cascade
-            cursor.execute("DELETE FROM ExpenseSplits WHERE expense_id IN (SELECT id FROM Expenses WHERE trip_id = ?)", (trip_id,))
-            cursor.execute("DELETE FROM Expenses WHERE trip_id = ?", (trip_id,))
-            cursor.execute("DELETE FROM Settlements WHERE trip_id = ?", (trip_id,))
-            cursor.execute("DELETE FROM ActivityLog WHERE trip_id = ?", (trip_id,))
-            cursor.execute("DELETE FROM trip_invitations WHERE trip_id = ?", (trip_id,))
-            cursor.execute("DELETE FROM TripMembers WHERE trip_id = ?", (trip_id,))  # guests too
-            cursor.execute("DELETE FROM Trips WHERE id = ?", (trip_id,))
-            conn.commit()
-            logger.info(f"User {uid} left trip {trip_id} — last member, group deleted.")
-            return jsonify({"success": True, "deleted": True})
-
-        # If leaver was admin, promote the oldest remaining member
-        if was_admin:
-            # Check if there's already another admin
-            cursor.execute("SELECT 1 FROM TripMembers WHERE trip_id = ? AND user_id IS NOT NULL AND is_admin = 1", (trip_id,))
-            if not cursor.fetchone():
-                # No other admin — promote oldest
-                new_admin_id = remaining[0]['user_id']
-                cursor.execute("UPDATE TripMembers SET is_admin = 1 WHERE trip_id = ? AND user_id = ?",
-                               (trip_id, new_admin_id))
-                logger.info(f"Auto-promoted user {new_admin_id} to admin in trip {trip_id}")
-
-        conn.commit()
-        logger.info(f"User {uid} left trip {trip_id}.")
-        return jsonify({"success": True, "deleted": False})
-
-    except sqlite3.Error as e:
-        logger.error(f"Leave group error: {e}")
-        return jsonify({"error": "Failed to leave group."}), 500
-    finally:
-        conn.close()
 
 
 # =====================
@@ -1716,8 +1592,7 @@ def get_expenses(trip_id):
     is_public = trip_row['is_public'] if trip_row else 0
 
     cursor.execute("""
-        SELECT e.id, u.name as payer, u.avatar_url as payer_avatar, e.user_id,
-               e.amount, e.original_amount, e.currency, e.description,
+        SELECT e.id, u.name as payer, e.user_id, e.amount, e.currency, e.description,
                e.category, e.created_at
         FROM Expenses e
         JOIN Users u ON e.user_id = u.id
@@ -1791,29 +1666,14 @@ def add_expense():
     if currency not in ALLOWED_CURRENCIES:
         currency = 'ILS'
 
-    # Currency conversion: convert to ILS if foreign currency
-    original_amount = None
-    if currency != 'ILS':
-        rate = get_exchange_rate(currency, 'ILS')
-        if rate:
-            original_amount = amount
-            amount = round(original_amount * rate, 2)
-        else:
-            # Could not get rate — store as-is with a warning
-            logger.warning(f"Could not get exchange rate for {currency}->ILS, storing raw amount")
-            original_amount = amount
-
-    # Personal expense flag
-    is_personal = 1 if data.get('is_personal') else 0
-
     # Parse optional splits
     splits = data.get('splits')  # [{user_id: int, amount: float}, ...]
 
     try:
         cursor.execute("""
-            INSERT INTO Expenses (trip_id, user_id, amount, original_amount, currency, description, category, is_personal, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (trip_id, session['user_id'], amount, original_amount, currency, description, category, is_personal,
+            INSERT INTO Expenses (trip_id, user_id, amount, currency, description, category, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (trip_id, session['user_id'], amount, currency, description, category,
               datetime.now(timezone.utc).isoformat()))
         expense_id = cursor.lastrowid
 

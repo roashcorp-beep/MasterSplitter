@@ -511,8 +511,7 @@ function renderFriendsChips() {
 async function createTrip() {
     const name = document.getElementById('trip-name')?.value.trim();
     const budget = parseFloat(document.getElementById('trip-budget')?.value) || 0;
-    const budgetType = document.getElementById('trip-budget-type')?.value || 'none';
-    if (!name) { showToast(i18n('err_fill_all'), 'error'); return; }
+    if (!name) { alert('\u05d9\u05e9 \u05dc\u05ea\u05ea \u05e9\u05dd \u05dc\u05d8\u05d9\u05d5\u05dc.'); return; }
 
     // Build participant objects
     const participants = friendsList.map(f => {
@@ -524,19 +523,19 @@ async function createTrip() {
         const res = await fetch('/api/trips', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, budget, budget_type: budgetType, participants })
+            body: JSON.stringify({ name, budget, participants })
         });
         const data = await res.json();
         if (res.ok && data.success) {
             closeCreateTripModal();
-            showToast(i18n('toast_trip_created'), 'success');
+            showToast('\u05d4\u05d8\u05d9\u05d5\u05dc \u05e0\u05d5\u05e6\u05e8 \u05d1\u05d4\u05e6\u05dc\u05d7\u05d4! \ud83c\udf89');
             await loadLobby();
         } else {
-            showToast(data.error || i18n('error_network'), 'error');
+            alert(data.error || '\u05e9\u05d2\u05d9\u05d0\u05d4 \u05d1\u05d9\u05e6\u05d9\u05e8\u05ea \u05d4\u05d8\u05d9\u05d5\u05dc.');
         }
     } catch (e) {
         console.error('Create trip error:', e);
-        showToast(i18n('error_network'), 'error');
+        alert('\u05e9\u05d2\u05d9\u05d0\u05ea \u05e8\u05e9\u05ea.');
     }
 }
 
@@ -742,12 +741,9 @@ function renderParticipantAvatars() {
     const colors = ['bg-yellow', 'bg-purple', 'bg-light'];
     const shown = tripMembers.slice(0, 3);
     const extra = tripMembers.length - 3;
-    container.innerHTML = shown.map((m, i) => {
-        if (m.avatar_url) {
-            return `<img class="avatar avatar-img" src="${escapeHTML(m.avatar_url)}" alt="${escapeHTML(m.name)}" referrerpolicy="no-referrer">`;
-        }
-        return `<div class="avatar ${colors[i % colors.length]}">${escapeHTML(m.name.charAt(0))}</div>`;
-    }).join('');
+    container.innerHTML = shown.map((m, i) =>
+        `<div class="avatar ${colors[i % colors.length]}">${escapeHTML(m.name.charAt(0))}</div>`
+    ).join('');
     if (extra > 0) container.innerHTML += `<div class="avatar bg-light">+${extra}</div>`;
     if (sub) sub.textContent = tripMembers.map(m => m.name).join(', ') || '';
 }
@@ -969,37 +965,25 @@ async function fetchExpenses() {
                 const currSym = getCurrencySymbol(exp.currency || 'ILS');
                 const isPersonal = exp.is_personal ? true : false;
 
-                // Payer avatar: Google image or initial
-                const payerAvatar = exp.payer_avatar
-                    ? `<img class="expense-avatar avatar-img" src="${escapeHTML(exp.payer_avatar)}" alt="${safePayer}" referrerpolicy="no-referrer">`
-                    : `<div class="expense-avatar avatar-initial">${escapeHTML(exp.payer.charAt(0))}</div>`;
-
-                // Dual currency display
-                let amountDisplay = `\u20aa${parseFloat(exp.amount).toFixed(2)}`;
-                if (exp.currency && exp.currency !== 'ILS' && exp.original_amount) {
-                    const origSym = getCurrencySymbol(exp.currency);
-                    amountDisplay += ` <span class="original-currency">(${origSym}${parseFloat(exp.original_amount).toFixed(2)})</span>`;
-                }
-
                 const canEdit = currentUser && exp.user_id === currentUser.id;
-                const editBtn = canEdit ? `<button class="edit-expense-btn" onclick="openEditExpenseModal(${exp.id}, ${exp.amount}, '${safeDesc}', '${safeCat}', '${exp.currency}')" title="Edit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>` : '';
-                const personalBadge = isPersonal ? `<span class="personal-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>` : '';
+                const editBtn = canEdit ? `<button class="edit-expense-btn" onclick="openEditExpenseModal(${exp.id}, ${exp.amount}, '${safeDesc}', '${safeCat}', '${exp.currency}')" title="ערוך הוצאה">✏️</button>` : '';
+                const personalBadge = isPersonal ? `<span class="personal-badge">🔒 <span data-i18n="expense_personal_label">אישי</span></span>` : '';
                 const personalClass = isPersonal ? ' personal-expense' : '';
 
                 html += `
                 <div class="list-item${personalClass}" id="expense-${exp.id}">
                     <div class="item-left">
-                        ${payerAvatar}
+                        <div class="item-icon-wrapper">${getCategoryIcon(exp.category)}</div>
                         <div class="item-details">
                             <h4>${safeDesc} ${personalBadge}</h4>
-                            <p>${safePayer} \u2022 ${translateCategory(exp.category || 'כללי')}</p>
+                            <p>${typeof i18n === 'function' ? i18n('expense_paid_by') : 'שילם: '} ${safePayer} • ${translateCategory(exp.category || 'כללי')}</p>
                         </div>
                     </div>
                     <div class="item-right">
-                        <div class="item-amount">${amountDisplay}</div>
+                        <div class="item-amount">${currSym}${parseFloat(exp.amount).toFixed(2)}</div>
                         <div class="expense-actions">
                             ${editBtn}
-                            <button class="delete-expense-btn" onclick="deleteExpense(${exp.id})" title="Delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+                            <button class="delete-expense-btn" onclick="deleteExpense(${exp.id})" title="מחק הוצאה">🗑️</button>
                         </div>
                     </div>
                 </div>`;
@@ -1205,28 +1189,17 @@ async function fetchBalances() {
         if (res.status === 401) { window.location.href = '/'; return; }
         const data = await res.json();
         const budget = currentTripData?.budget || 0;
-        const budgetType = currentTripData?.budget_type || 'none';
         const spent = data.total || 0;
         const left = budget - spent;
         const pct = budget > 0 ? Math.min(100, Math.round(spent / budget * 100)) : 0;
-
-        // Hide budget card if no budget
-        const flipContainer = document.querySelector('.flip-card-container');
-        if (flipContainer) {
-            if (budgetType === 'none' || budget <= 0) {
-                flipContainer.style.display = 'none';
-            } else {
-                flipContainer.style.display = '';
-            }
-        }
 
         const elSpent = document.getElementById('total-spent');
         const elBudget = document.getElementById('total-budget');
         const elLeft = document.getElementById('budget-left');
         const elPct = document.getElementById('circle-percent');
-        if (elSpent) elSpent.textContent = `\u20aa${spent.toFixed(0)}`;
-        if (elBudget) elBudget.textContent = `\u20aa${budget}`;
-        if (elLeft) elLeft.textContent = `\u20aa${Math.max(0, left).toFixed(0)}`;
+        if (elSpent) elSpent.textContent = `₪${spent.toFixed(0)}`;
+        if (elBudget) elBudget.textContent = `₪${budget}`;
+        if (elLeft) elLeft.textContent = `₪${Math.max(0, left).toFixed(0)}`;
         if (elPct) elPct.textContent = `${pct}%`;
 
         const list = document.getElementById('balances-list');
@@ -1423,11 +1396,11 @@ function renderCategoryChart(expenses) {
 
     // Categories
     const categoriesList = [
-        { name: 'אוכל', icon: 'F', color: 'var(--accent-yellow)' },
-        { name: 'לינה', icon: 'L', color: 'var(--primary)' },
-        { name: 'תחבורה', icon: 'T', color: 'var(--accent-cyan)' },
-        { name: 'אטרקציות', icon: 'A', color: 'var(--error)' },
-        { name: 'כללי', icon: 'G', color: 'var(--success)' }
+        { name: 'אוכל', icon: '🍕', color: 'var(--accent-yellow)' },
+        { name: 'לינה', icon: '🛏️', color: 'var(--primary)' },
+        { name: 'תחבורה', icon: '🚕', color: 'var(--accent-cyan)' },
+        { name: 'אטרקציות', icon: '🎟️', color: 'var(--error)' },
+        { name: 'כללי', icon: '💡', color: 'var(--success)' }
     ];
 
     let html = '';
@@ -1668,134 +1641,6 @@ async function fetchActivity() {
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();
 });
-
-// =====================
-//  GROUP INFO MODAL
-// =====================
-async function openGroupInfo() {
-    if (!currentTripId) return;
-    const modal = document.getElementById('group-info-modal');
-    if (!modal) return;
-
-    // Fetch settings
-    try {
-        const settingsRes = await fetch(`/api/trips/${currentTripId}/settings`);
-        const settings = settingsRes.ok ? await settingsRes.json() : { is_public_expenses: false, is_admin: false };
-
-        // Group name
-        const nameEl = document.getElementById('group-info-name');
-        if (nameEl) nameEl.textContent = currentTripData?.name || '';
-
-        // Toggle section (admin only)
-        const toggleSection = document.getElementById('group-info-toggle-section');
-        if (toggleSection) {
-            toggleSection.style.display = settings.is_admin ? '' : 'none';
-        }
-        const toggleBox = document.getElementById('group-public-toggle');
-        if (toggleBox) toggleBox.checked = settings.is_public_expenses;
-
-        // Members list
-        const membersContainer = document.getElementById('group-info-members-list');
-        if (membersContainer && tripMembers.length) {
-            membersContainer.innerHTML = tripMembers.map(m => {
-                const initial = escapeHTML(m.name.charAt(0));
-                const safeName = escapeHTML(m.name);
-                const avatarHtml = m.avatar_url
-                    ? `<img class="member-avatar avatar-img" src="${escapeHTML(m.avatar_url)}" alt="${safeName}" referrerpolicy="no-referrer">`
-                    : `<div class="member-avatar avatar-initial">${initial}</div>`;
-                const adminBadge = m.is_admin ? `<span class="admin-badge">${i18n('group_info_admin')}</span>` : '';
-                const promoteAttr = settings.is_admin && !m.is_admin && m.type === 'user'
-                    ? ` oncontextmenu="event.preventDefault(); promoteMemberFromInfo(${m.id})" ontouchstart="startPromoteTimer(${m.id})" ontouchend="clearPromoteTimer()"`
-                    : '';
-                return `<div class="member-row"${promoteAttr}>
-                    ${avatarHtml}
-                    <span class="member-name">${safeName}</span>
-                    ${adminBadge}
-                </div>`;
-            }).join('');
-        }
-
-        modal.style.display = 'flex';
-    } catch (e) {
-        console.error('Open group info error:', e);
-    }
-}
-
-function closeGroupInfo() {
-    const modal = document.getElementById('group-info-modal');
-    if (modal) modal.style.display = 'none';
-}
-
-async function toggleGroupPublic() {
-    if (!currentTripId) return;
-    const val = document.getElementById('group-public-toggle')?.checked || false;
-    try {
-        await fetch(`/api/trips/${currentTripId}/settings`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ is_public_expenses: val })
-        });
-    } catch (e) {
-        console.error('Toggle public error:', e);
-    }
-}
-
-async function leaveGroup() {
-    if (!currentTripId) return;
-    const confirmMsg = typeof i18n === 'function' ? i18n('group_info_leave_confirm') : 'Are you sure you want to leave?';
-    if (!confirm(confirmMsg)) return;
-
-    try {
-        const res = await fetch(`/api/trips/${currentTripId}/leave`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        });
-        const data = await res.json();
-        if (res.ok && data.success) {
-            closeGroupInfo();
-            showToast(i18n('toast_left_group'), 'info');
-            currentTripId = null;
-            currentTripData = null;
-            showLobby();
-            await loadLobby();
-        } else {
-            showToast(data.error || i18n('error_network'), 'error');
-        }
-    } catch (e) {
-        console.error('Leave group error:', e);
-        showToast(i18n('error_network'), 'error');
-    }
-}
-
-// Long-press promote from Group Info
-let _promoteTimer = null;
-function startPromoteTimer(memberId) {
-    _promoteTimer = setTimeout(() => promoteMemberFromInfo(memberId), 600);
-}
-function clearPromoteTimer() {
-    if (_promoteTimer) { clearTimeout(_promoteTimer); _promoteTimer = null; }
-}
-
-async function promoteMemberFromInfo(memberId) {
-    clearPromoteTimer();
-    const confirmMsg = typeof i18n === 'function' ? i18n('promote_question') : 'Make Admin?';
-    if (!confirm(confirmMsg)) return;
-    try {
-        const res = await fetch(`/api/trips/${currentTripId}/members/${memberId}/promote`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' }
-        });
-        if (res.ok) {
-            await fetchTripMembers();
-            openGroupInfo(); // refresh
-        } else {
-            const data = await res.json();
-            showToast(data.error || 'Error', 'error');
-        }
-    } catch (e) {
-        console.error('Promote error:', e);
-    }
-}
 
 // =====================
 //  HAMBURGER MENU

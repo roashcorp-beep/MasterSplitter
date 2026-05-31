@@ -63,6 +63,10 @@ body.light-theme {
 }
 
 
+html {
+    overflow-x: hidden;
+}
+
 * {
     box-sizing: border-box;
     margin: 0;
@@ -167,6 +171,7 @@ body {
     min-height: 100dvh;
     color: var(--text-main);
     position: relative;
+    overflow-x: hidden;
     overflow-y: auto;
 }
 
@@ -232,7 +237,9 @@ body.light-theme .app-container::before {
     flex-direction: column;
     position: relative;
     box-shadow: 0 0 80px rgba(168, 85, 247, 0.08);
+    overflow-x: hidden;
     overflow-y: auto;
+    padding-bottom: 90px;
     z-index: 1;
     transition: background 0.3s ease;
 }
@@ -2314,11 +2321,15 @@ body.light-theme .list-item:hover {
    BOTTOM NAV
    ============================================ */
 .bottom-nav {
-    position: absolute;
+    position: fixed;
     bottom: 0;
-    width: 100%;
+    left: 0;
+    right: 0;
+    max-width: 420px;
+    margin: 0 auto;
     background: var(--surface-card-solid);
     backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
     display: flex;
     justify-content: space-around;
     align-items: flex-end;
@@ -2326,7 +2337,7 @@ body.light-theme .list-item:hover {
     padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
     border-top: 1px solid var(--border);
     box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.3);
-    z-index: 20;
+    z-index: 1000;
     height: 78px;
 }
 

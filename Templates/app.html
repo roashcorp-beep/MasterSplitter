@@ -148,20 +148,7 @@
                         onchange="uploadReceipt(this.files[0])">
                     <div id="scanned-items-container" class="scanned-items-container" style="display:none;"></div>
 
-                    <!-- AI Smart Expense Parser -->
-                    <button class="ai-smart-btn" onclick="toggleAiInput()" id="ai-toggle-btn">
-                        <span class="ai-sparkle">✨</span>
-                        <span data-i18n="ai_smart_add">הוספה חכמה עם AI</span>
-                    </button>
-                    <div id="ai-input-wrapper" class="ai-input-wrapper" style="display:none;">
-                        <textarea id="ai-expense-text" class="ai-textarea" rows="2" data-i18n="ai_placeholder"
-                            placeholder="תאר את ההוצאה בשפה חופשית, למשל: שילמתי 150 על פיצה, דני חייב חצי ורועי חייב 30"></textarea>
-                        <button class="ai-analyze-btn" onclick="aiParseExpense()" id="ai-analyze-btn">
-                            <span class="ai-analyze-text" data-i18n="ai_analyze">נתח</span>
-                            <span class="ai-spinner" style="display:none;"></span>
-                        </button>
-                        <div id="ai-error-msg" class="ai-error-msg" style="display:none;"></div>
-                    </div>
+
 
                     <label data-i18n="expense_what">על מה היה?</label>
                     <input type="text" id="desc" data-i18n="expense_what_ph" placeholder="למשל: ארוחת ערב, מונית...">
@@ -244,6 +231,31 @@
             <button class="nav-item" onclick="window.location.href='/profile'" id="tab-profile">
                 <span class="nav-icon">👤</span><span data-i18n="tab_profile">פרופיל</span>
             </button>
+        </div>
+
+        <!-- AI Floating Action Button -->
+        <button class="ai-fab" id="ai-fab" onclick="openAiModal()" title="AI Smart Add">
+            <span class="ai-fab-icon">✨</span>
+        </button>
+    </div>
+
+    <!-- AI Magic Modal -->
+    <div id="ai-magic-modal" class="modal-overlay" style="display:none;">
+        <div class="modal ai-magic-modal">
+            <div class="modal-header">
+                <h3>✨ AI Smart Add</h3>
+                <button class="modal-close" onclick="closeAiModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="ai-modal-hint" data-i18n="ai_modal_hint">תאר את ההוצאה בשפה חופשית וה-AI ימלא את הטופס אוטומטית</p>
+                <textarea id="ai-expense-text" class="ai-textarea" rows="3" data-i18n="ai_placeholder"
+                    placeholder="למשל: שילמתי 150 על פיצה, דני חייב חצי ורועי חייב 30"></textarea>
+                <button class="ai-analyze-btn" onclick="aiParseExpense()" id="ai-analyze-btn">
+                    <span class="ai-analyze-text" data-i18n="ai_analyze">נתח</span>
+                    <span class="ai-spinner" style="display:none;"></span>
+                </button>
+                <div id="ai-error-msg" class="ai-error-msg" style="display:none;"></div>
+            </div>
         </div>
     </div>
 

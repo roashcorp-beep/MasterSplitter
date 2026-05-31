@@ -1997,9 +1997,12 @@ def ai_parse_expense():
         return jsonify({"error": "AI returned an unparseable response. Try rephrasing."}), 422
     except http_requests.exceptions.Timeout:
         return jsonify({"error": "AI service timed out. Try again."}), 504
+    except http_requests.exceptions.ConnectionError as e:
+        logger.error(f"AI connection error: {e}")
+        return jsonify({"error": f"Cannot reach AI service: {str(e)}"}), 502
     except Exception as e:
         logger.error(f"AI parse expense error: {e}")
-        return jsonify({"error": "Failed to connect to AI service."}), 500
+        return jsonify({"error": f"AI error: {str(e)}"}), 500
 
 
 # =====================

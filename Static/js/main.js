@@ -198,12 +198,17 @@ document.addEventListener('DOMContentLoaded', () => {
     window.showToast = function(message, type = 'info') {
         const toastEl = document.getElementById('toast');
         if (!toastEl) return;
+        // Clear any existing timeout
+        if (window._toastTimer) clearTimeout(window._toastTimer);
+        // Reset classes & set content
+        toastEl.className = 'toast';
         toastEl.textContent = message;
-        toastEl.className = `toast ${type}`;
-        toastEl.style.opacity = '1';
-        setTimeout(() => {
-            toastEl.style.opacity = '0';
-        }, 3000);
+        // Force reflow to restart animation
+        void toastEl.offsetWidth;
+        toastEl.classList.add(type, 'show');
+        window._toastTimer = setTimeout(() => {
+            toastEl.classList.remove('show');
+        }, 3200);
     };
 
     if (document.getElementById('screen-lobby') || document.querySelector('.profile-container')) {
@@ -802,17 +807,20 @@ function translateCategory(cat) {
 // =====================
 //  AI SMART EXPENSE PARSER
 // =====================
-function toggleAiInput() {
-    const wrapper = document.getElementById('ai-input-wrapper');
-    if (!wrapper) return;
-    const isVisible = wrapper.style.display !== 'none';
-    wrapper.style.display = isVisible ? 'none' : 'block';
-    if (!isVisible) {
+function openAiModal() {
+    const modal = document.getElementById('ai-magic-modal');
+    if (modal) {
+        modal.style.display = 'flex';
         const ta = document.getElementById('ai-expense-text');
         if (ta) { ta.value = ''; ta.focus(); }
         const errMsg = document.getElementById('ai-error-msg');
         if (errMsg) errMsg.style.display = 'none';
     }
+}
+
+function closeAiModal() {
+    const modal = document.getElementById('ai-magic-modal');
+    if (modal) modal.style.display = 'none';
 }
 
 async function aiParseExpense() {
@@ -920,9 +928,10 @@ async function aiParseExpense() {
             updateSplitSum();
         }
 
-        // Collapse AI input and show success
-        document.getElementById('ai-input-wrapper').style.display = 'none';
-        showToast(typeof i18n === 'function' ? i18n('ai_success') : 'AI מילא את הטופס בהצלחה! ✨');
+        // Close AI modal, switch to Add tab, show success
+        closeAiModal();
+        switchTab('add');
+        showToast(typeof i18n === 'function' ? i18n('ai_success') : 'AI filled the form successfully! ✨', 'success');
 
     } catch (e) {
         console.error('AI parse error:', e);

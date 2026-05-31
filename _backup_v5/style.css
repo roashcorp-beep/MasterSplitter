@@ -443,24 +443,6 @@ body.light-theme.login-body .divider::after {
     font-weight: 600;
 }
 
-.toast {
-    position: fixed;
-    bottom: 24px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(0,0,0,0.8);
-    color: #fff;
-    padding: 12px 20px;
-    border-radius: 6px;
-    font-family: var(--font-primary);
-    font-size: 0.9rem;
-    opacity: 0;
-    transition: opacity 0.4s ease;
-    z-index: 2000;
-}
-.toast.success { background: rgba(0,128,0,0.85); }
-.toast.error { background: rgba(200,0,0,0.85); }
-.toast.info { background: rgba(0,0,200,0.85); }
 /* Floating label inputs */
 .floating-input-wrapper {
     position: relative;

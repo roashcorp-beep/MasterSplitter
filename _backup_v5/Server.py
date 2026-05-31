@@ -285,33 +285,6 @@ def init_db_updates():
     except sqlite3.Error as e:
         logger.error(f"TripMembers migration error: {e}")
 
-    # --- Add is_admin to TripMembers ---
-    try:
-        cursor.execute("PRAGMA table_info(TripMembers)")
-        tm_cols2 = [c['name'] for c in cursor.fetchall()]
-        if 'is_admin' not in tm_cols2:
-            cursor.execute("ALTER TABLE TripMembers ADD COLUMN is_admin INTEGER DEFAULT 0")
-            # Mark existing trip owners as admins
-            cursor.execute("""
-                UPDATE TripMembers SET is_admin = 1
-                WHERE (trip_id, user_id) IN (
-                    SELECT id, owner_id FROM Trips WHERE owner_id IS NOT NULL
-                )
-            """)
-            logger.info("Migration: added 'is_admin' column to TripMembers")
-    except sqlite3.Error as e:
-        logger.error(f"TripMembers is_admin migration error: {e}")
-
-    # --- Add is_public_expenses to Trips ---
-    try:
-        cursor.execute("PRAGMA table_info(Trips)")
-        trips_cols = [c['name'] for c in cursor.fetchall()]
-        if 'is_public_expenses' not in trips_cols:
-            cursor.execute("ALTER TABLE Trips ADD COLUMN is_public_expenses INTEGER DEFAULT 0")
-            logger.info("Migration: added 'is_public_expenses' column to Trips")
-    except sqlite3.Error as e:
-        logger.error(f"Trips is_public_expenses migration error: {e}")
-
     # --- Phase 4: ActivityLog table (audit trail) ---
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS ActivityLog (
@@ -1249,9 +1222,9 @@ def create_trip():
         )
         trip_id = cursor.lastrowid
 
-        # Auto-add the creator as a TripMember AND admin
+        # Auto-add the creator as a TripMember
         cursor.execute(
-            "INSERT OR IGNORE INTO TripMembers (trip_id, user_id, is_admin) VALUES (?, ?, 1)",
+            "INSERT OR IGNORE INTO TripMembers (trip_id, user_id) VALUES (?, ?)",
             (trip_id, session['user_id'])
         )
 
@@ -1396,12 +1369,12 @@ def get_trip_members(trip_id):
     cursor = conn.cursor()
     # Registered users
     cursor.execute("""
-        SELECT u.id, u.name, COALESCE(tm.is_admin, 0) as is_admin
+        SELECT u.id, u.name
         FROM Users u
         JOIN TripMembers tm ON u.id = tm.user_id
         WHERE tm.trip_id = ? AND tm.user_id IS NOT NULL
     """, (trip_id,))
-    registered = [{'id': m['id'], 'name': m['name'], 'type': 'user', 'is_admin': bool(m['is_admin'])} for m in cursor.fetchall()]
+    registered = [{'id': m['id'], 'name': m['name'], 'type': 'user'} for m in cursor.fetchall()]
 
     # Guest (virtual) members
     cursor.execute("""
@@ -1422,76 +1395,6 @@ def get_trip_members(trip_id):
         except (json.JSONDecodeError, TypeError):
             logger.warning(f"Invalid local_participants JSON for trip {trip_id}")
     return jsonify(registered + guests + local)
-
-
-# =====================
-#   TRIP SETTINGS & ADMIN
-# =====================
-
-@app.route('/api/trips/<int:trip_id>/settings', methods=['GET'])
-@login_required
-@require_trip_access
-def get_trip_settings(trip_id):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT COALESCE(is_public_expenses, 0) as is_public_expenses FROM Trips WHERE id = ?", (trip_id,))
-    trip = cursor.fetchone()
-    cursor.execute("SELECT COALESCE(is_admin, 0) as is_admin FROM TripMembers WHERE trip_id = ? AND user_id = ?",
-                   (trip_id, session['user_id']))
-    member = cursor.fetchone()
-    conn.close()
-    return jsonify({
-        'is_public_expenses': bool(trip['is_public_expenses']) if trip else False,
-        'is_admin': bool(member['is_admin']) if member else False
-    })
-
-
-@app.route('/api/trips/<int:trip_id>/settings', methods=['PUT'])
-@login_required
-@require_trip_access
-def update_trip_settings(trip_id):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    # Check admin
-    cursor.execute("SELECT COALESCE(is_admin, 0) as is_admin FROM TripMembers WHERE trip_id = ? AND user_id = ?",
-                   (trip_id, session['user_id']))
-    member = cursor.fetchone()
-    if not member or not member['is_admin']:
-        conn.close()
-        return jsonify({"error": "Only admins can change trip settings."}), 403
-
-    data = request.json or {}
-    if 'is_public_expenses' in data:
-        val = 1 if data['is_public_expenses'] else 0
-        cursor.execute("UPDATE Trips SET is_public_expenses = ? WHERE id = ?", (val, trip_id))
-    conn.commit()
-    conn.close()
-    return jsonify({"success": True})
-
-
-@app.route('/api/trips/<int:trip_id>/members/<int:member_id>/promote', methods=['PUT'])
-@login_required
-@require_trip_access
-def promote_member(trip_id, member_id):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    # Check caller is admin
-    cursor.execute("SELECT COALESCE(is_admin, 0) as is_admin FROM TripMembers WHERE trip_id = ? AND user_id = ?",
-                   (trip_id, session['user_id']))
-    caller = cursor.fetchone()
-    if not caller or not caller['is_admin']:
-        conn.close()
-        return jsonify({"error": "Only admins can promote members."}), 403
-
-    cursor.execute("UPDATE TripMembers SET is_admin = 1 WHERE trip_id = ? AND user_id = ?",
-                   (trip_id, member_id))
-    if cursor.rowcount == 0:
-        conn.close()
-        return jsonify({"error": "Member not found."}), 404
-    conn.commit()
-    conn.close()
-    logger.info(f"User {session['user_id']} promoted {member_id} to admin in trip {trip_id}")
-    return jsonify({"success": True})
 
 
 # =====================
@@ -1582,43 +1485,25 @@ def respond_invitation(invitation_id):
 def get_expenses(trip_id):
     conn = get_db_connection()
     cursor = conn.cursor()
-    uid = session.get('user_id')
-
-    # Check if trip has public expenses
-    cursor.execute("SELECT COALESCE(is_public_expenses, 0) as is_public FROM Trips WHERE id = ?", (trip_id,))
-    trip_row = cursor.fetchone()
-    is_public = trip_row['is_public'] if trip_row else 0
-
     cursor.execute("""
         SELECT e.id, u.name as payer, e.user_id, e.amount, e.currency, e.description,
-               e.category, e.created_at
+               e.category, e.created_at, COALESCE(e.is_personal, 0) as is_personal
         FROM Expenses e
         JOIN Users u ON e.user_id = u.id
         WHERE e.trip_id = ?
         ORDER BY e.id DESC
     """, (trip_id,))
     expenses = cursor.fetchall()
+    conn.close()
 
-    if is_public:
-        # Public trip — everyone sees everything
-        conn.close()
-        return jsonify([dict(e) for e in expenses])
-
-    # Private mode: only show expenses where user is payer OR is in splits
+    # Filter: personal expenses are only visible to their owner
+    uid = session.get('user_id')
     result = []
     for e in expenses:
         row = dict(e)
-        if row['user_id'] == uid:
-            result.append(row)
-            continue
-        # Check if user is in ExpenseSplits for this expense
-        cursor.execute(
-            "SELECT 1 FROM ExpenseSplits WHERE expense_id = ? AND user_id = ?",
-            (row['id'], uid)
-        )
-        if cursor.fetchone():
-            result.append(row)
-    conn.close()
+        if row.get('is_personal') and row.get('user_id') != uid:
+            continue  # Hide other users' personal expenses
+        result.append(row)
     return jsonify(result)
 
 
@@ -1664,19 +1549,24 @@ def add_expense():
     if currency not in ALLOWED_CURRENCIES:
         currency = 'ILS'
 
+    # Parse is_personal flag
+    is_personal = 1 if data.get('is_personal') else 0
+
     # Parse optional splits
     splits = data.get('splits')  # [{user_id: int, amount: float}, ...]
 
     try:
         cursor.execute("""
-            INSERT INTO Expenses (trip_id, user_id, amount, currency, description, category, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO Expenses (trip_id, user_id, amount, currency, description, category, created_at, is_personal)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (trip_id, session['user_id'], amount, currency, description, category,
-              datetime.now(timezone.utc).isoformat()))
+              datetime.now(timezone.utc).isoformat(), is_personal))
         expense_id = cursor.lastrowid
 
-        # Handle splits
-        if splits and isinstance(splits, list) and len(splits) > 0:
+        # Handle splits (skip for personal expenses — they don't affect group balances)
+        if is_personal:
+            pass  # No splits for personal expenses
+        elif splits and isinstance(splits, list) and len(splits) > 0:
             # Validate split amounts sum to total
             split_total = sum(float(s.get('amount', 0)) for s in splits)
             if abs(split_total - amount) > 0.01:
@@ -1834,19 +1724,19 @@ def get_balances(trip_id):
     """, (trip_id,))
     users = cursor.fetchall()
 
-    # How much each user PAID (as the payer)
+    # How much each user PAID (as the payer) — EXCLUDE personal expenses
     cursor.execute(
-        "SELECT user_id, SUM(amount) as total FROM Expenses WHERE trip_id = ? GROUP BY user_id",
+        "SELECT user_id, SUM(amount) as total FROM Expenses WHERE trip_id = ? AND COALESCE(is_personal, 0) = 0 GROUP BY user_id",
         (trip_id,)
     )
     paid_data = {row['user_id']: row['total'] for row in cursor.fetchall()}
 
-    # How much each user OWES (from ExpenseSplits)
+    # How much each user OWES (from ExpenseSplits) — EXCLUDE personal expenses
     cursor.execute("""
         SELECT es.user_id, SUM(es.amount) as total_owed
         FROM ExpenseSplits es
         JOIN Expenses e ON es.expense_id = e.id
-        WHERE e.trip_id = ?
+        WHERE e.trip_id = ? AND COALESCE(e.is_personal, 0) = 0
         GROUP BY es.user_id
     """, (trip_id,))
     owed_data = {row['user_id']: row['total_owed'] for row in cursor.fetchall()}

@@ -190,22 +190,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Check for verification success
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('verified') === 'true') {
-        setTimeout(() => showToast('החשבון אומת בהצלחה! התחבר כדי להמשיך.', 'success'), 500);
+        setTimeout(() => alert('החשבון אומת בהצלחה! התחבר כדי להמשיך.'), 500);
         window.history.replaceState({}, document.title, "/");
     }
 
-    // Global toast utility
-    window.showToast = function(message, type = 'info') {
-        const toastEl = document.getElementById('toast');
-        if (!toastEl) return;
-        toastEl.textContent = message;
-        toastEl.className = `toast ${type}`;
-        toastEl.style.opacity = '1';
-        setTimeout(() => {
-            toastEl.style.opacity = '0';
-        }, 3000);
-    };
-
+    // App page: init
     if (document.getElementById('screen-lobby') || document.querySelector('.profile-container')) {
         initApp();
     }

@@ -194,6 +194,19 @@
                     <div id="custom-splits-container" class="custom-splits-container" style="display:none;"></div>
                     <div id="split-validation-msg" class="split-validation-msg" style="display:none;"></div>
 
+                    <!-- Personal Expense Toggle -->
+                    <div class="personal-expense-wrapper" style="margin-top:14px;">
+                        <label class="split-toggle-label">
+                            <input type="checkbox" id="personal-expense-toggle">
+                            <span class="split-toggle-slider personal-slider"></span>
+                            <span class="split-toggle-text" data-i18n="expense_personal">הוצאה אישית</span>
+                        </label>
+                        <span class="personal-info-icon" tabindex="0">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                            <span class="personal-tooltip" data-i18n="expense_personal_tip">הוצאה שתוצג רק עבורך ולא תחושב בפיצול הקבוצתי</span>
+                        </span>
+                    </div>
+
                     <button class="primary-btn full-width" style="margin-top:20px;" onclick="addExpense()"
                         data-i18n="expense_btn_save">שמור הוצאה</button>
                 </div>

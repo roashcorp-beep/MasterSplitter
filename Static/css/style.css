@@ -3600,3 +3600,140 @@ body.light-theme .add-guest-btn:hover {
     background: rgba(124, 58, 237, 0.1);
     border-color: rgba(124, 58, 237, 0.4);
 }
+
+/* ============================================
+   PERSONAL / PRIVATE EXPENSE STYLES
+   ============================================ */
+
+/* Muted expense row */
+.list-item.personal-expense {
+    opacity: 0.75;
+    border-right: 3px solid rgba(168, 85, 247, 0.5);
+    background: rgba(168, 85, 247, 0.04);
+}
+
+.list-item.personal-expense:hover {
+    opacity: 0.9;
+}
+
+/* Personal badge (🔒 אישי) */
+.personal-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: rgba(168, 85, 247, 0.12);
+    color: #c084fc;
+    margin-inline-start: 6px;
+    vertical-align: middle;
+    white-space: nowrap;
+    line-height: 1;
+}
+
+body.light-theme .personal-badge {
+    background: rgba(124, 58, 237, 0.1);
+    color: #7c3aed;
+}
+
+body.light-theme .list-item.personal-expense {
+    border-right-color: rgba(124, 58, 237, 0.4);
+    background: rgba(124, 58, 237, 0.03);
+}
+
+/* Personal expense toggle wrapper */
+.personal-expense-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.personal-expense-wrapper .split-toggle-label {
+    flex: 1;
+}
+
+/* Purple slider variant */
+.personal-slider::before {
+    /* Same base as split-toggle-slider, just different checked color */
+}
+
+input:checked + .personal-slider {
+    background: linear-gradient(135deg, #a855f7, #7c3aed) !important;
+}
+
+/* Info icon + tooltip */
+.personal-info-icon {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    cursor: help;
+    color: rgba(255, 255, 255, 0.35);
+    transition: color 0.2s ease;
+    flex-shrink: 0;
+}
+
+.personal-info-icon:hover,
+.personal-info-icon:focus {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+body.light-theme .personal-info-icon {
+    color: rgba(0, 0, 0, 0.3);
+}
+
+body.light-theme .personal-info-icon:hover,
+body.light-theme .personal-info-icon:focus {
+    color: rgba(0, 0, 0, 0.5);
+}
+
+.personal-tooltip {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(30, 30, 50, 0.95);
+    color: #d1d5db;
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.4;
+    padding: 8px 12px;
+    border-radius: 8px;
+    width: max-content;
+    max-width: 220px;
+    text-align: center;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    z-index: 100;
+    pointer-events: none;
+    white-space: normal;
+}
+
+.personal-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: rgba(30, 30, 50, 0.95);
+}
+
+.personal-info-icon:hover .personal-tooltip,
+.personal-info-icon:focus .personal-tooltip {
+    display: block;
+}
+
+body.light-theme .personal-tooltip {
+    background: rgba(255, 255, 255, 0.96);
+    color: #374151;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+body.light-theme .personal-tooltip::after {
+    border-top-color: rgba(255, 255, 255, 0.96);
+}

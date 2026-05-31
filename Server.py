@@ -158,6 +158,9 @@ def init_db_updates():
         if 'created_at' not in cols:
             cursor.execute("ALTER TABLE Expenses ADD COLUMN created_at TEXT DEFAULT CURRENT_TIMESTAMP")
             logger.info("Migration: added 'created_at' column to Expenses")
+        if 'is_personal' not in cols:
+            cursor.execute("ALTER TABLE Expenses ADD COLUMN is_personal INTEGER DEFAULT 0")
+            logger.info("Migration: added 'is_personal' column to Expenses")
     except sqlite3.Error as e:
         logger.error(f"Expenses migration error: {e}")
 
@@ -1483,7 +1486,8 @@ def get_expenses(trip_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT e.id, u.name as payer, e.user_id, e.amount, e.currency, e.description, e.category, e.created_at
+        SELECT e.id, u.name as payer, e.user_id, e.amount, e.currency, e.description,
+               e.category, e.created_at, COALESCE(e.is_personal, 0) as is_personal
         FROM Expenses e
         JOIN Users u ON e.user_id = u.id
         WHERE e.trip_id = ?
@@ -1491,7 +1495,16 @@ def get_expenses(trip_id):
     """, (trip_id,))
     expenses = cursor.fetchall()
     conn.close()
-    return jsonify([dict(e) for e in expenses])
+
+    # Filter: personal expenses are only visible to their owner
+    uid = session.get('user_id')
+    result = []
+    for e in expenses:
+        row = dict(e)
+        if row.get('is_personal') and row.get('user_id') != uid:
+            continue  # Hide other users' personal expenses
+        result.append(row)
+    return jsonify(result)
 
 
 @app.route('/api/expenses', methods=['POST'])
@@ -1536,19 +1549,24 @@ def add_expense():
     if currency not in ALLOWED_CURRENCIES:
         currency = 'ILS'
 
+    # Parse is_personal flag
+    is_personal = 1 if data.get('is_personal') else 0
+
     # Parse optional splits
     splits = data.get('splits')  # [{user_id: int, amount: float}, ...]
 
     try:
         cursor.execute("""
-            INSERT INTO Expenses (trip_id, user_id, amount, currency, description, category, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO Expenses (trip_id, user_id, amount, currency, description, category, created_at, is_personal)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (trip_id, session['user_id'], amount, currency, description, category,
-              datetime.now(timezone.utc).isoformat()))
+              datetime.now(timezone.utc).isoformat(), is_personal))
         expense_id = cursor.lastrowid
 
-        # Handle splits
-        if splits and isinstance(splits, list) and len(splits) > 0:
+        # Handle splits (skip for personal expenses — they don't affect group balances)
+        if is_personal:
+            pass  # No splits for personal expenses
+        elif splits and isinstance(splits, list) and len(splits) > 0:
             # Validate split amounts sum to total
             split_total = sum(float(s.get('amount', 0)) for s in splits)
             if abs(split_total - amount) > 0.01:
@@ -1566,7 +1584,7 @@ def add_expense():
                     )
         else:
             # Auto-generate equal splits for all trip members
-            cursor.execute("SELECT user_id FROM TripMembers WHERE trip_id = ?", (trip_id,))
+            cursor.execute("SELECT user_id FROM TripMembers WHERE trip_id = ? AND user_id IS NOT NULL", (trip_id,))
             members = cursor.fetchall()
             if members:
                 per_person = amount / len(members)
@@ -1706,19 +1724,19 @@ def get_balances(trip_id):
     """, (trip_id,))
     users = cursor.fetchall()
 
-    # How much each user PAID (as the payer)
+    # How much each user PAID (as the payer) — EXCLUDE personal expenses
     cursor.execute(
-        "SELECT user_id, SUM(amount) as total FROM Expenses WHERE trip_id = ? GROUP BY user_id",
+        "SELECT user_id, SUM(amount) as total FROM Expenses WHERE trip_id = ? AND COALESCE(is_personal, 0) = 0 GROUP BY user_id",
         (trip_id,)
     )
     paid_data = {row['user_id']: row['total'] for row in cursor.fetchall()}
 
-    # How much each user OWES (from ExpenseSplits)
+    # How much each user OWES (from ExpenseSplits) — EXCLUDE personal expenses
     cursor.execute("""
         SELECT es.user_id, SUM(es.amount) as total_owed
         FROM ExpenseSplits es
         JOIN Expenses e ON es.expense_id = e.id
-        WHERE e.trip_id = ?
+        WHERE e.trip_id = ? AND COALESCE(e.is_personal, 0) = 0
         GROUP BY es.user_id
     """, (trip_id,))
     owed_data = {row['user_id']: row['total_owed'] for row in cursor.fetchall()}

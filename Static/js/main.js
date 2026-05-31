@@ -804,16 +804,19 @@ async function fetchExpenses() {
                 const safePayer = escapeHTML(exp.payer);
                 const safeCat = escapeHTML(exp.category || 'כללי');
                 const currSym = getCurrencySymbol(exp.currency || 'ILS');
+                const isPersonal = exp.is_personal ? true : false;
 
                 const canEdit = currentUser && exp.user_id === currentUser.id;
                 const editBtn = canEdit ? `<button class="edit-expense-btn" onclick="openEditExpenseModal(${exp.id}, ${exp.amount}, '${safeDesc}', '${safeCat}', '${exp.currency}')" title="ערוך הוצאה">✏️</button>` : '';
+                const personalBadge = isPersonal ? `<span class="personal-badge">🔒 <span data-i18n="expense_personal_label">אישי</span></span>` : '';
+                const personalClass = isPersonal ? ' personal-expense' : '';
 
                 html += `
-                <div class="list-item" id="expense-${exp.id}">
+                <div class="list-item${personalClass}" id="expense-${exp.id}">
                     <div class="item-left">
                         <div class="item-icon-wrapper">${getCategoryIcon(exp.category)}</div>
                         <div class="item-details">
-                            <h4>${safeDesc}</h4>
+                            <h4>${safeDesc} ${personalBadge}</h4>
                             <p>${typeof i18n === 'function' ? i18n('expense_paid_by') : 'שילם: '} ${safePayer} • ${translateCategory(exp.category || 'כללי')}</p>
                         </div>
                     </div>
@@ -948,7 +951,8 @@ async function addExpense() {
                 description: desc,
                 category,
                 currency,
-                splits: splits
+                splits: splits,
+                is_personal: document.getElementById('personal-expense-toggle')?.checked || false
             })
         });
         if (res.status === 401) { window.location.href = '/'; return; }
@@ -957,6 +961,8 @@ async function addExpense() {
             amountInput.value = '';
             descInput.value = '';
             document.getElementById('split-mode-toggle').checked = false;
+            const personalToggle = document.getElementById('personal-expense-toggle');
+            if (personalToggle) personalToggle.checked = false;
             toggleSplitMode();
             showToast('ההוצאה נוספה! 💸');
             switchTab('expenses');

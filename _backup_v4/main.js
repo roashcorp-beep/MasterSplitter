@@ -405,12 +405,12 @@ function closeCreateTripModal() {
 
 async function addFriend() {
     const input = document.getElementById('friend-input');
-    const contact = input?.value.trim();
-    if (!contact) return;
+    const name = input?.value.trim();
+    if (!name) return;
     // Prevent duplicates
-    if (friendsList.some(f => (f.contact || f.name || f) === contact)) { input.value = ''; return; }
+    if (friendsList.some(f => (f.name || f) === name)) { input.value = ''; return; }
     // Add as checking first
-    friendsList.push({ contact: contact, name: contact, type: 'registered', status: 'checking' });
+    friendsList.push({ name: name, status: 'checking' });
     input.value = '';
     renderFriendsChips();
     // Check user existence
@@ -418,76 +418,39 @@ async function addFriend() {
         const res = await fetch('/api/users/check', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contact: contact })
+            body: JSON.stringify({ contact: name })
         });
         const data = await res.json();
-        const entry = friendsList.find(f => f.contact === contact);
+        const entry = friendsList.find(f => f.name === name);
         if (entry) {
-            if (data.exists) {
-                entry.status = 'valid';
-                entry.resolvedName = data.name;
-            } else {
-                entry.status = 'unregistered';
-                entry.type = 'unregistered';
-            }
+            entry.status = data.exists ? 'valid' : 'invalid';
         }
     } catch (e) {
-        const entry = friendsList.find(f => f.contact === contact);
-        if (entry) { entry.status = 'unregistered'; entry.type = 'unregistered'; }
+        const entry = friendsList.find(f => f.name === name);
+        if (entry) entry.status = 'invalid';
     }
     renderFriendsChips();
 }
 
-function addGuestFriend() {
-    const guestName = prompt('\u05e9\u05dd \u05d4\u05de\u05e9\u05ea\u05de\u05e9 \u05d4\u05d0\u05d5\u05e8\u05d7:');
-    if (!guestName || !guestName.trim()) return;
-    const name = guestName.trim();
-    if (friendsList.some(f => (f.name || f) === name)) return;
-    friendsList.push({ name: name, type: 'guest', status: 'guest' });
+function removeFriend(name) {
+    friendsList = friendsList.filter(f => (f.name || f) !== name);
     renderFriendsChips();
 }
-
-function removeFriend(idx) {
-    friendsList.splice(idx, 1);
-    renderFriendsChips();
-}
-
-function _buildWhatsAppUrl(phone) {
-    const cleanPhone = phone.replace(/[\s\-\(\)]/g, '').replace(/^0/, '972');
-    const appUrl = window.location.origin;
-    const msg = encodeURIComponent(`\u05d1\u05d5\u05d0 \u05e0\u05ea\u05d7\u05e9\u05d1\u05df \u05d1-MasterSplitter! \u05dc\u05d4\u05e6\u05d8\u05e8\u05e4\u05d5\u05ea: ${appUrl}`);
-    return `https://wa.me/${cleanPhone}?text=${msg}`;
-}
-
-const _whatsappSvg = `<svg viewBox="0 0 24 24" width="14" height="14" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>`;
 
 function renderFriendsChips() {
     const container = document.getElementById('friends-chips');
     if (!container) return;
-    container.innerHTML = friendsList.map((n, idx) => {
-        const displayName = escapeHTML(n.resolvedName || n.name || n.contact || n);
+    container.innerHTML = friendsList.map(n => {
+        const safeName = escapeHTML(n.name || n);
         const status = n.status || 'checking';
-        let statusIcon, extraHtml = '';
-
-        if (status === 'guest') {
-            statusIcon = '\ud83e\udd16';
-        } else if (status === 'valid') {
-            statusIcon = '\u2713';
-        } else if (status === 'unregistered') {
-            statusIcon = '\u2717';
-            const phone = n.contact || n.name || '';
-            extraHtml = `<button class="whatsapp-invite-btn" onclick="event.stopPropagation(); window.open('${_buildWhatsAppUrl(phone)}', '_blank')" title="\u05d4\u05d6\u05de\u05df \u05d1\u05d5\u05d5\u05d0\u05d8\u05e1\u05d0\u05e4">${_whatsappSvg}</button>`;
-        } else {
-            statusIcon = '...';
-        }
-
+        const statusIcon = status === 'valid' ? '\u2713' : status === 'invalid' ? '\u2717' : '...';
         const chipClass = `friend-chip ${status}`;
+        const nameForRemove = n.name || n;
         return `
         <div class="${chipClass}">
             <span class="chip-status">${statusIcon}</span>
-            <span>${displayName}</span>
-            ${extraHtml}
-            <span class="remove-chip" onclick="removeFriend(${idx})">&times;</span>
+            <span>${safeName}</span>
+            <span class="remove-chip" onclick="removeFriend('${escapeHTML(nameForRemove)}')">&times;</span>
         </div>`;
     }).join('');
 }
@@ -495,31 +458,24 @@ function renderFriendsChips() {
 async function createTrip() {
     const name = document.getElementById('trip-name')?.value.trim();
     const budget = parseFloat(document.getElementById('trip-budget')?.value) || 0;
-    if (!name) { alert('\u05d9\u05e9 \u05dc\u05ea\u05ea \u05e9\u05dd \u05dc\u05d8\u05d9\u05d5\u05dc.'); return; }
-
-    // Build participant objects
-    const participants = friendsList.map(f => {
-        if (f.type === 'guest') return { name: f.name, type: 'guest' };
-        return { contact: f.contact || f.name, type: f.type || 'registered' };
-    });
-
+    if (!name) { alert('יש לתת שם לטיול.'); return; }
     try {
         const res = await fetch('/api/trips', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, budget, participants })
+            body: JSON.stringify({ name, budget, participants: friendsList.map(f => f.name || f) })
         });
         const data = await res.json();
         if (res.ok && data.success) {
             closeCreateTripModal();
-            showToast('\u05d4\u05d8\u05d9\u05d5\u05dc \u05e0\u05d5\u05e6\u05e8 \u05d1\u05d4\u05e6\u05dc\u05d7\u05d4! \ud83c\udf89');
+            showToast('הטיול נוצר בהצלחה! 🎉');
             await loadLobby();
         } else {
-            alert(data.error || '\u05e9\u05d2\u05d9\u05d0\u05d4 \u05d1\u05d9\u05e6\u05d9\u05e8\u05ea \u05d4\u05d8\u05d9\u05d5\u05dc.');
+            alert(data.error || 'שגיאה ביצירת הטיול.');
         }
     } catch (e) {
         console.error('Create trip error:', e);
-        alert('\u05e9\u05d2\u05d9\u05d0\u05ea \u05e8\u05e9\u05ea.');
+        alert('שגיאת רשת.');
     }
 }
 
@@ -549,77 +505,49 @@ function closeEditTripModal() {
 
 async function addEditFriend() {
     const input = document.getElementById('edit-friend-input');
-    const contact = input?.value.trim();
-    if (!contact) return;
-    if (editFriendsList.some(f => (f.contact || f.name || f) === contact)) { input.value = ''; return; }
-    editFriendsList.push({ contact: contact, name: contact, type: 'registered', status: 'checking' });
+    const name = input?.value.trim();
+    if (!name) return;
+    if (editFriendsList.some(f => (f.name || f) === name)) { input.value = ''; return; }
+    editFriendsList.push({ name: name, status: 'checking' });
     input.value = '';
     renderEditFriendsChips();
     try {
         const res = await fetch('/api/users/check', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contact: contact })
+            body: JSON.stringify({ contact: name })
         });
         const data = await res.json();
-        const entry = editFriendsList.find(f => f.contact === contact);
+        const entry = editFriendsList.find(f => f.name === name);
         if (entry) {
-            if (data.exists) {
-                entry.status = 'valid';
-                entry.resolvedName = data.name;
-            } else {
-                entry.status = 'unregistered';
-                entry.type = 'unregistered';
-            }
+            entry.status = data.exists ? 'valid' : 'invalid';
         }
     } catch (e) {
-        const entry = editFriendsList.find(f => f.contact === contact);
-        if (entry) { entry.status = 'unregistered'; entry.type = 'unregistered'; }
+        const entry = editFriendsList.find(f => f.name === name);
+        if (entry) entry.status = 'invalid';
     }
     renderEditFriendsChips();
 }
 
-function addEditGuestFriend() {
-    const guestName = prompt('\u05e9\u05dd \u05d4\u05de\u05e9\u05ea\u05de\u05e9 \u05d4\u05d0\u05d5\u05e8\u05d7:');
-    if (!guestName || !guestName.trim()) return;
-    const name = guestName.trim();
-    if (editFriendsList.some(f => (f.name || f) === name)) return;
-    editFriendsList.push({ name: name, type: 'guest', status: 'guest' });
-    renderEditFriendsChips();
-}
-
-function removeEditFriend(idx) {
-    editFriendsList.splice(idx, 1);
+function removeEditFriend(name) {
+    editFriendsList = editFriendsList.filter(f => (f.name || f) !== name);
     renderEditFriendsChips();
 }
 
 function renderEditFriendsChips() {
     const container = document.getElementById('edit-friends-chips');
     if (!container) return;
-    container.innerHTML = editFriendsList.map((n, idx) => {
-        const displayName = escapeHTML(n.resolvedName || n.name || n.contact || n);
+    container.innerHTML = editFriendsList.map(n => {
+        const safeName = escapeHTML(n.name || n);
         const status = n.status || 'checking';
-        let statusIcon, extraHtml = '';
-
-        if (status === 'guest') {
-            statusIcon = '\ud83e\udd16';
-        } else if (status === 'valid') {
-            statusIcon = '\u2713';
-        } else if (status === 'unregistered') {
-            statusIcon = '\u2717';
-            const phone = n.contact || n.name || '';
-            extraHtml = `<button class="whatsapp-invite-btn" onclick="event.stopPropagation(); window.open('${_buildWhatsAppUrl(phone)}', '_blank')" title="\u05d4\u05d6\u05de\u05df \u05d1\u05d5\u05d5\u05d0\u05d8\u05e1\u05d0\u05e4">${_whatsappSvg}</button>`;
-        } else {
-            statusIcon = '...';
-        }
-
+        const statusIcon = status === 'valid' ? '\u2713' : status === 'invalid' ? '\u2717' : '...';
         const chipClass = `friend-chip ${status}`;
+        const nameForRemove = n.name || n;
         return `
         <div class="${chipClass}">
             <span class="chip-status">${statusIcon}</span>
-            <span>${displayName}</span>
-            ${extraHtml}
-            <span class="remove-chip" onclick="removeEditFriend(${idx})">&times;</span>
+            <span>${safeName}</span>
+            <span class="remove-chip" onclick="removeEditFriend('${escapeHTML(nameForRemove)}')">&times;</span>
         </div>`;
     }).join('');
 }
@@ -629,14 +557,11 @@ async function saveEditTrip() {
     const name = document.getElementById('edit-trip-name')?.value.trim();
     const budget = parseFloat(document.getElementById('edit-trip-budget')?.value) || 0;
 
-    if (!name) { alert('\u05d9\u05e9 \u05dc\u05ea\u05ea \u05e9\u05dd \u05dc\u05d8\u05d9\u05d5\u05dc.'); return; }
+    if (!name) { alert('יש לתת שם לטיול.'); return; }
 
     const payload = { name, budget };
     if (editFriendsList.length > 0) {
-        payload.participants = editFriendsList.map(f => {
-            if (f.type === 'guest') return { name: f.name, type: 'guest' };
-            return { contact: f.contact || f.name, type: f.type || 'registered' };
-        });
+        payload.participants = editFriendsList.map(f => f.name || f);
     }
 
     try {
@@ -648,14 +573,14 @@ async function saveEditTrip() {
         const data = await res.json();
         if (res.ok && data.success) {
             closeEditTripModal();
-            showToast('\u05d4\u05d8\u05d9\u05d5\u05dc \u05e2\u05d5\u05d3\u05db\u05df \u05d1\u05d4\u05e6\u05dc\u05d7\u05d4! \u2705');
+            showToast('הטיול עודכן בהצלחה! ✅');
             await loadLobby();
         } else {
-            alert(data.error || '\u05e9\u05d2\u05d9\u05d0\u05d4 \u05d1\u05e2\u05d3\u05db\u05d5\u05df \u05d4\u05d8\u05d9\u05d5\u05dc.');
+            alert(data.error || 'שגיאה בעדכון הטיול.');
         }
     } catch (e) {
         console.error('Save edit trip error:', e);
-        alert('\u05e9\u05d2\u05d9\u05d0\u05ea \u05e8\u05e9\u05ea.');
+        alert('שגיאת רשת.');
     }
 }
 
@@ -1592,77 +1517,6 @@ document.addEventListener('click', () => {
 });
 
 document.addEventListener('DOMContentLoaded', setupCustomDropdowns);
-
-// =====================
-//  CONTACT PICKER API
-// =====================
-async function pickContact() {
-    if (!('contacts' in navigator && 'ContactsManager' in window)) {
-        alert('Contact Picker is not supported in this browser.');
-        return;
-    }
-    try {
-        const contacts = await navigator.contacts.select(['name', 'tel'], { multiple: false });
-        if (contacts && contacts.length > 0) {
-            const contact = contacts[0];
-            let phone = '';
-            if (contact.tel && contact.tel.length > 0) {
-                phone = contact.tel[0].replace(/[\s\-\(\)]/g, '');
-            }
-            if (phone) {
-                const input = document.getElementById('friend-input');
-                if (input) { input.value = phone; }
-                addFriend();
-            } else if (contact.name && contact.name.length > 0) {
-                // No phone — add as guest
-                const name = contact.name[0];
-                if (name && !friendsList.some(f => (f.name || f) === name)) {
-                    friendsList.push({ name: name, type: 'guest', status: 'guest' });
-                    renderFriendsChips();
-                }
-            }
-        }
-    } catch (e) {
-        console.error('Contact picker error:', e);
-    }
-}
-
-async function pickEditContact() {
-    if (!('contacts' in navigator && 'ContactsManager' in window)) {
-        alert('Contact Picker is not supported in this browser.');
-        return;
-    }
-    try {
-        const contacts = await navigator.contacts.select(['name', 'tel'], { multiple: false });
-        if (contacts && contacts.length > 0) {
-            const contact = contacts[0];
-            let phone = '';
-            if (contact.tel && contact.tel.length > 0) {
-                phone = contact.tel[0].replace(/[\s\-\(\)]/g, '');
-            }
-            if (phone) {
-                const input = document.getElementById('edit-friend-input');
-                if (input) { input.value = phone; }
-                addEditFriend();
-            } else if (contact.name && contact.name.length > 0) {
-                const name = contact.name[0];
-                if (name && !editFriendsList.some(f => (f.name || f) === name)) {
-                    editFriendsList.push({ name: name, type: 'guest', status: 'guest' });
-                    renderEditFriendsChips();
-                }
-            }
-        }
-    } catch (e) {
-        console.error('Contact picker error:', e);
-    }
-}
-
-// Show contact picker buttons if supported
-document.addEventListener('DOMContentLoaded', () => {
-    if ('contacts' in navigator && 'ContactsManager' in window) {
-        document.querySelectorAll('.contact-picker-btn').forEach(btn => btn.style.display = 'flex');
-    }
-});
 
 // =====================
 //  PWA SERVICE WORKER REGISTRATION

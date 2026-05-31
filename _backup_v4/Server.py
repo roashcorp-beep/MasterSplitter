@@ -255,33 +255,6 @@ def init_db_updates():
         )
     """)
 
-    # --- TripMembers migration: add guest_name, make user_id nullable ---
-    try:
-        cursor.execute("PRAGMA table_info(TripMembers)")
-        tm_cols = [c['name'] for c in cursor.fetchall()]
-        if 'guest_name' not in tm_cols:
-            # Need to recreate table — SQLite can't ALTER to change NOT NULL
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS TripMembers_new (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    trip_id INTEGER NOT NULL,
-                    user_id INTEGER,
-                    guest_name TEXT,
-                    FOREIGN KEY(trip_id) REFERENCES Trips(id),
-                    FOREIGN KEY(user_id) REFERENCES Users(id)
-                )
-            """)
-            # Migrate existing data
-            cursor.execute("INSERT INTO TripMembers_new (trip_id, user_id) SELECT trip_id, user_id FROM TripMembers")
-            cursor.execute("DROP TABLE TripMembers")
-            cursor.execute("ALTER TABLE TripMembers_new RENAME TO TripMembers")
-            # Create unique index to prevent duplicates
-            cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_tm_user ON TripMembers(trip_id, user_id) WHERE user_id IS NOT NULL")
-            cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_tm_guest ON TripMembers(trip_id, guest_name) WHERE guest_name IS NOT NULL")
-            logger.info("Migration: TripMembers table upgraded with guest_name column and nullable user_id.")
-    except sqlite3.Error as e:
-        logger.error(f"TripMembers migration error: {e}")
-
     # --- Phase 4: ActivityLog table (audit trail) ---
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS ActivityLog (
@@ -1184,74 +1157,51 @@ def create_trip():
     except (TypeError, ValueError):
         budget = 0
 
-    raw_participants = data.get('participants', [])
-    if not isinstance(raw_participants, list):
-        raw_participants = []
-    if len(raw_participants) > 50:
+    invitees = data.get('participants', [])  # list of phones/emails
+    if not isinstance(invitees, list):
+        invitees = []
+    invitees = [str(p).strip() for p in invitees if str(p).strip()]
+    if len(invitees) > 50:
         return jsonify({"error": "Too many participants."}), 400
-
-    # Normalize: accept both plain strings (backward compat) and objects
-    participants = []
-    for p in raw_participants:
-        if isinstance(p, dict):
-            participants.append(p)
-        elif isinstance(p, str) and p.strip():
-            participants.append({'contact': p.strip(), 'type': 'registered'})
 
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        # Validate registered participants exist
-        for p in participants:
-            if p.get('type') == 'registered':
-                contact = str(p.get('contact', '')).strip()
-                if not contact:
-                    continue
-                cursor.execute("SELECT id FROM Users WHERE email = ? OR phone = ?", (contact, contact))
-                if not cursor.fetchone():
-                    # Don't block — mark as unregistered (they can still be invited)
-                    p['type'] = 'unregistered'
+        # Check if all invited users exist
+        valid_users = []
+        for contact in invitees:
+            cursor.execute("SELECT id FROM Users WHERE email = ? OR phone = ?", (contact, contact))
+            user = cursor.fetchone()
+            if not user:
+                return jsonify({"error": f"User not found: {contact}. Invite them to register first."}), 400
+            valid_users.append(contact)
 
+        # Empty local_participants since we use real accounts now
         participants_json = json.dumps([], ensure_ascii=False)
         cursor.execute(
             "INSERT INTO Trips (destination, budget, owner_id, local_participants) VALUES (?, ?, ?, ?)",
             (name, budget, session['user_id'], participants_json)
         )
         trip_id = cursor.lastrowid
-
         # Auto-add the creator as a TripMember
         cursor.execute(
             "INSERT OR IGNORE INTO TripMembers (trip_id, user_id) VALUES (?, ?)",
             (trip_id, session['user_id'])
         )
-
-        # Process each participant
-        for p in participants:
-            ptype = p.get('type', 'registered')
-
-            if ptype == 'guest':
-                guest_name = str(p.get('name', '')).strip()
-                if guest_name:
-                    cursor.execute(
-                        "INSERT OR IGNORE INTO TripMembers (trip_id, user_id, guest_name) VALUES (?, NULL, ?)",
-                        (trip_id, guest_name)
-                    )
-            elif ptype == 'registered':
-                contact = str(p.get('contact', '')).strip()
-                if not contact:
-                    continue
-                cursor.execute("SELECT id FROM Users WHERE email = ? OR phone = ?", (contact, contact))
-                found_user = cursor.fetchone()
-                if found_user:
-                    cursor.execute(
-                        "INSERT OR IGNORE INTO TripMembers (trip_id, user_id) VALUES (?, ?)",
-                        (trip_id, found_user['id'])
-                    )
-                    cursor.execute(
-                        "INSERT INTO trip_invitations (trip_id, inviter_id, invitee_phone_or_email, status) VALUES (?, ?, ?, 'APPROVED')",
-                        (trip_id, session['user_id'], contact)
-                    )
-            # 'unregistered' type — not added to DB (just shown in UI for WhatsApp invite)
+        
+        # Add validated users directly to TripMembers AND create invitations
+        for contact in valid_users:
+            cursor.execute("SELECT id FROM Users WHERE email = ? OR phone = ?", (contact, contact))
+            found_user = cursor.fetchone()
+            if found_user:
+                cursor.execute(
+                    "INSERT OR IGNORE INTO TripMembers (trip_id, user_id) VALUES (?, ?)",
+                    (trip_id, found_user['id'])
+                )
+            cursor.execute(
+                "INSERT INTO trip_invitations (trip_id, inviter_id, invitee_phone_or_email, status) VALUES (?, ?, ?, 'APPROVED')",
+                (trip_id, session['user_id'], contact)
+            )
 
         conn.commit()
         logger.info(f"Trip created: '{name}' (id={trip_id}) by user {session['user_id']}")
@@ -1300,49 +1250,34 @@ def update_trip(trip_id):
             params.append(budget)
 
         if 'participants' in data:
-            raw_participants = data['participants']
-            if not isinstance(raw_participants, list):
-                raw_participants = []
-            if len(raw_participants) > 50:
+            invitees = data['participants']
+            if not isinstance(invitees, list):
+                invitees = []
+            invitees = [str(p).strip() for p in invitees if str(p).strip()]
+            if len(invitees) > 50:
                 conn.close()
                 return jsonify({"error": "Too many participants."}), 400
-
-            # Normalize
-            participants = []
-            for p in raw_participants:
-                if isinstance(p, dict):
-                    participants.append(p)
-                elif isinstance(p, str) and p.strip():
-                    participants.append({'contact': p.strip(), 'type': 'registered'})
-
-            for p in participants:
-                ptype = p.get('type', 'registered')
-
-                if ptype == 'guest':
-                    guest_name = str(p.get('name', '')).strip()
-                    if guest_name:
-                        cursor.execute(
-                            "INSERT OR IGNORE INTO TripMembers (trip_id, user_id, guest_name) VALUES (?, NULL, ?)",
-                            (trip_id, guest_name)
-                        )
-                elif ptype == 'registered':
-                    contact = str(p.get('contact', '')).strip()
-                    if not contact:
-                        continue
-                    cursor.execute("SELECT id FROM Users WHERE email = ? OR phone = ?", (contact, contact))
-                    user = cursor.fetchone()
-                    if not user:
-                        continue  # Skip unregistered — don't block
+                
+            # Verify and invite users instead of updating local_participants
+            for contact in invitees:
+                cursor.execute("SELECT id FROM Users WHERE email = ? OR phone = ?", (contact, contact))
+                user = cursor.fetchone()
+                if not user:
+                    conn.close()
+                    return jsonify({"error": f"User not found: {contact}. Invite them to register first."}), 400
+                
+                # Directly add to TripMembers
+                cursor.execute(
+                    "INSERT OR IGNORE INTO TripMembers (trip_id, user_id) VALUES (?, ?)",
+                    (trip_id, user['id'])
+                )
+                # Check if already invited
+                cursor.execute("SELECT 1 FROM trip_invitations WHERE trip_id = ? AND invitee_phone_or_email = ?", (trip_id, contact))
+                if not cursor.fetchone():
                     cursor.execute(
-                        "INSERT OR IGNORE INTO TripMembers (trip_id, user_id) VALUES (?, ?)",
-                        (trip_id, user['id'])
+                        "INSERT INTO trip_invitations (trip_id, inviter_id, invitee_phone_or_email, status) VALUES (?, ?, ?, 'APPROVED')",
+                        (trip_id, session['user_id'], contact)
                     )
-                    cursor.execute("SELECT 1 FROM trip_invitations WHERE trip_id = ? AND invitee_phone_or_email = ?", (trip_id, contact))
-                    if not cursor.fetchone():
-                        cursor.execute(
-                            "INSERT INTO trip_invitations (trip_id, inviter_id, invitee_phone_or_email, status) VALUES (?, ?, ?, 'APPROVED')",
-                            (trip_id, session['user_id'], contact)
-                        )
 
         if updates:
             params.append(trip_id)
@@ -1369,17 +1304,9 @@ def get_trip_members(trip_id):
         SELECT u.id, u.name
         FROM Users u
         JOIN TripMembers tm ON u.id = tm.user_id
-        WHERE tm.trip_id = ? AND tm.user_id IS NOT NULL
+        WHERE tm.trip_id = ?
     """, (trip_id,))
     registered = [{'id': m['id'], 'name': m['name'], 'type': 'user'} for m in cursor.fetchall()]
-
-    # Guest (virtual) members
-    cursor.execute("""
-        SELECT guest_name FROM TripMembers
-        WHERE trip_id = ? AND user_id IS NULL AND guest_name IS NOT NULL
-    """, (trip_id,))
-    guests = [{'id': f'guest_{i}', 'name': g['guest_name'], 'type': 'guest'} for i, g in enumerate(cursor.fetchall())]
-
     # Local participants (Legacy support)
     cursor.execute("SELECT local_participants FROM Trips WHERE id = ?", (trip_id,))
     row = cursor.fetchone()
@@ -1391,7 +1318,7 @@ def get_trip_members(trip_id):
             local = [{'id': f'local_{i}', 'name': n, 'type': 'local'} for i, n in enumerate(names)]
         except (json.JSONDecodeError, TypeError):
             logger.warning(f"Invalid local_participants JSON for trip {trip_id}")
-    return jsonify(registered + guests + local)
+    return jsonify(registered + local)
 
 
 # =====================

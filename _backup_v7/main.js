@@ -22,10 +22,6 @@ const CURRENCY_SYMBOLS = {
 function getCurrencySymbol(code) {
     return CURRENCY_SYMBOLS[code] || code;
 }
-function getUserCurrencySymbol() {
-    const code = currentUser?.default_currency || 'ILS';
-    return CURRENCY_SYMBOLS[code] || code;
-}
 
 // =====================
 //  AUTH (Login Page)
@@ -33,7 +29,6 @@ function getUserCurrencySymbol() {
 let authMode = 'login';
 let currentUser = null;
 let friendsList = [];
-let _groupSettings = { is_admin: false, allow_member_delete: true };
 
 function toggleAuthMode() {
     authMode = authMode === 'login' ? 'signup' : 'login';
@@ -367,7 +362,7 @@ function renderTripsList() {
                 </div>
             </div>
             <div class="trip-card-right">
-                <span class="trip-card-budget">${getUserCurrencySymbol()}${(t.budget || 0).toLocaleString()}</span>
+                <span class="trip-card-budget">₪${(t.budget || 0).toLocaleString()}</span>
                 ${editBtn}
                 <span class="trip-card-arrow">›</span>
             </div>
@@ -390,15 +385,8 @@ async function openTrip(tripId) {
     showView('dashboard');
     switchTab('home');
     await fetchTripMembers();
-    await fetchGroupSettings();
     fetchExpenses();
     fetchBalances();
-
-    // Show Activity & Stats hamburger items when inside a group
-    const actBtn = document.getElementById('menu-activity-btn');
-    const stBtn = document.getElementById('menu-stats-btn');
-    if (actBtn) actBtn.style.display = '';
-    if (stBtn) stBtn.style.display = '';
 }
 
 function goToLobby() {
@@ -407,11 +395,6 @@ function goToLobby() {
 }
 
 function showLobby() {
-    // Hide group-specific hamburger items
-    const actBtn = document.getElementById('menu-activity-btn');
-    const stBtn = document.getElementById('menu-stats-btn');
-    if (actBtn) actBtn.style.display = 'none';
-    if (stBtn) stBtn.style.display = 'none';
     loadLobby();
 }
 
@@ -991,21 +974,15 @@ async function fetchExpenses() {
                     ? `<img class="expense-avatar avatar-img" src="${escapeHTML(exp.payer_avatar)}" alt="${safePayer}" referrerpolicy="no-referrer">`
                     : `<div class="expense-avatar avatar-initial">${escapeHTML(exp.payer.charAt(0))}</div>`;
 
-                // Dual currency display using user's default currency
-                const userSym = getUserCurrencySymbol();
-                let amountDisplay = `${userSym}${parseFloat(exp.amount).toFixed(2)}`;
-                if (exp.currency && exp.currency !== (currentUser?.default_currency || 'ILS') && exp.original_amount) {
+                // Dual currency display
+                let amountDisplay = `\u20aa${parseFloat(exp.amount).toFixed(2)}`;
+                if (exp.currency && exp.currency !== 'ILS' && exp.original_amount) {
                     const origSym = getCurrencySymbol(exp.currency);
                     amountDisplay += ` <span class="original-currency">(${origSym}${parseFloat(exp.original_amount).toFixed(2)})</span>`;
                 }
 
                 const canEdit = currentUser && exp.user_id === currentUser.id;
                 const editBtn = canEdit ? `<button class="edit-expense-btn" onclick="openEditExpenseModal(${exp.id}, ${exp.amount}, '${safeDesc}', '${safeCat}', '${exp.currency}')" title="Edit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>` : '';
-
-                // Delete button visibility: hide if allow_member_delete is off and user is not admin
-                const canDelete = _groupSettings.is_admin || _groupSettings.allow_member_delete;
-                const deleteBtn = canDelete ? `<button class="delete-expense-btn" onclick="deleteExpense(${exp.id})" title="Delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>` : '';
-
                 const personalBadge = isPersonal ? `<span class="personal-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>` : '';
                 const personalClass = isPersonal ? ' personal-expense' : '';
 
@@ -1022,7 +999,7 @@ async function fetchExpenses() {
                         <div class="item-amount">${amountDisplay}</div>
                         <div class="expense-actions">
                             ${editBtn}
-                            ${deleteBtn}
+                            <button class="delete-expense-btn" onclick="deleteExpense(${exp.id})" title="Delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
                         </div>
                     </div>
                 </div>`;
@@ -1247,10 +1224,9 @@ async function fetchBalances() {
         const elBudget = document.getElementById('total-budget');
         const elLeft = document.getElementById('budget-left');
         const elPct = document.getElementById('circle-percent');
-        const uSym = getUserCurrencySymbol();
-        if (elSpent) elSpent.textContent = `${uSym}${spent.toFixed(0)}`;
-        if (elBudget) elBudget.textContent = `${uSym}${budget}`;
-        if (elLeft) elLeft.textContent = `${uSym}${Math.max(0, left).toFixed(0)}`;
+        if (elSpent) elSpent.textContent = `\u20aa${spent.toFixed(0)}`;
+        if (elBudget) elBudget.textContent = `\u20aa${budget}`;
+        if (elLeft) elLeft.textContent = `\u20aa${Math.max(0, left).toFixed(0)}`;
         if (elPct) elPct.textContent = `${pct}%`;
 
         const list = document.getElementById('balances-list');
@@ -1259,7 +1235,6 @@ async function fetchBalances() {
 
         // Calculate settlements for the accordion
         const settlements = calculateSettlements(data.balances);
-        const uSym = getUserCurrencySymbol();
 
         list.innerHTML = data.balances.map(b => {
             const isPos = b.balance > 0.01;
@@ -1297,7 +1272,7 @@ async function fetchBalances() {
                             <span>${safeFrom}</span>
                             <span class="debt-arrow">←</span>
                             <span>${safeTo}</span>
-                            <span class="debt-amount">${uSym}${s.amount.toFixed(0)}</span>
+                            <span class="debt-amount">₪${s.amount.toFixed(0)}</span>
                         </div>
                         ${settleBtn}
                     </div>`;
@@ -1315,12 +1290,12 @@ async function fetchBalances() {
                         <div class="avatar bg-purple" style="width:40px;height:40px;font-size:1.2rem;">${escapeHTML(b.name.charAt(0))}</div>
                         <div class="item-details">
                             <h4>${safeName}${me}</h4>
-                            <p>${paidTxt}${uSym}${b.paid.toFixed(0)}</p>
+                            <p>${paidTxt}₪${b.paid.toFixed(0)}</p>
                         </div>
                     </div>
                     <div class="item-right">
                         <span class="balance-badge ${badgeCls}">${badgeTxt}</span>
-                        <div class="item-amount ${amtCls}">${uSym}${Math.abs(b.balance).toFixed(0)}</div>
+                        <div class="item-amount ${amtCls}">₪${Math.abs(b.balance).toFixed(0)}</div>
                         <span class="accordion-arrow">▼</span>
                     </div>
                 </div>
@@ -1334,7 +1309,7 @@ async function fetchBalances() {
 
 async function triggerSettleUp(payerId, payeeId, amount) {
     const msg = typeof i18n === 'function' ? i18n('settle_confirm') : 'לסלק חוב?';
-    if (!confirm(`${msg} (${getUserCurrencySymbol()}${amount.toFixed(0)})`)) return;
+    if (!confirm(`${msg} (₪${amount.toFixed(0)})`)) return;
 
     try {
         const res = await fetch('/api/settlements', {
@@ -1468,7 +1443,7 @@ function renderCategoryChart(expenses) {
         if (val > 0) {
             html += `
             <div class="chart-bar-wrapper">
-                <div class="chart-bar" style="height: ${heightPct}%; background: ${c.color};" data-tooltip="${translateCategory(c.name)}: ${getUserCurrencySymbol()}${val.toFixed(0)}"></div>
+                <div class="chart-bar" style="height: ${heightPct}%; background: ${c.color};" data-tooltip="${translateCategory(c.name)}: ₪${val.toFixed(0)}"></div>
                 <div class="chart-icon">${c.icon}</div>
             </div>`;
         }
@@ -1639,44 +1614,6 @@ document.getElementById('amount')?.addEventListener('input', () => {
 });
 
 // ============================================
-//   FETCH GROUP SETTINGS (admin, delete perms)
-// ============================================
-async function fetchGroupSettings() {
-    if (!currentTripId) return;
-    try {
-        const res = await fetch(`/api/trips/${currentTripId}/settings`);
-        if (res.ok) {
-            const data = await res.json();
-            _groupSettings.is_admin = data.is_admin || false;
-            _groupSettings.allow_member_delete = data.allow_member_delete !== false;
-        }
-    } catch (e) {
-        console.error('Fetch group settings error:', e);
-    }
-}
-
-// ============================================
-//   STATS VIEW (Category chart fullscreen)
-// ============================================
-function showStatsView() {
-    // Switch to home tab first
-    switchTab('home');
-    // Make category chart visible even without budget
-    const flipContainer = document.querySelector('.flip-card-container');
-    if (flipContainer) {
-        flipContainer.style.display = '';
-        // Flip to chart side
-        const inner = flipContainer.querySelector('.flip-card-inner');
-        if (inner) inner.classList.add('flipped');
-    }
-    // Scroll into view
-    setTimeout(() => {
-        const chart = document.getElementById('category-chart');
-        if (chart) chart.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 200);
-}
-
-// ============================================
 //   PHASE 4: ACTIVITY DRAWER LOGIC
 // ============================================
 
@@ -1757,14 +1694,6 @@ async function openGroupInfo() {
         const toggleBox = document.getElementById('group-public-toggle');
         if (toggleBox) toggleBox.checked = settings.is_public_expenses;
 
-        // Delete toggle (admin only)
-        const deleteSection = document.getElementById('group-info-delete-section');
-        if (deleteSection) {
-            deleteSection.style.display = settings.is_admin ? '' : 'none';
-        }
-        const deleteBox = document.getElementById('group-delete-toggle');
-        if (deleteBox) deleteBox.checked = settings.allow_member_delete;
-
         // Members list
         const membersContainer = document.getElementById('group-info-members-list');
         if (membersContainer && tripMembers.length) {
@@ -1808,23 +1737,6 @@ async function toggleGroupPublic() {
         });
     } catch (e) {
         console.error('Toggle public error:', e);
-    }
-}
-
-async function toggleAllowDelete() {
-    if (!currentTripId) return;
-    const val = document.getElementById('group-delete-toggle')?.checked || false;
-    try {
-        await fetch(`/api/trips/${currentTripId}/settings`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ allow_member_delete: val })
-        });
-        _groupSettings.allow_member_delete = val;
-        // Re-render expenses to update delete buttons
-        fetchExpenses();
-    } catch (e) {
-        console.error('Toggle delete error:', e);
     }
 }
 

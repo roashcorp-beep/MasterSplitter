@@ -433,8 +433,6 @@
                 <span data-i18n="tab_home">בית</span>
             </button>
             <button class="menu-item" onclick="window.location.href='/profile';" data-i18n="menu_profile">פרופיל</button>
-            <button class="menu-item" id="menu-activity-btn" onclick="openActivityDrawer(); closeHamburgerMenu();" data-i18n="menu_activity" style="display:none;">יומן פעולות</button>
-            <button class="menu-item" id="menu-stats-btn" onclick="showStatsView(); closeHamburgerMenu();" data-i18n="menu_stats" style="display:none;">סטטיסטיקה</button>
             <button class="pwa-install-btn" style="display: none;" onclick="triggerPWAInstall()">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 <span>התקן אפליקציה</span>
@@ -470,14 +468,6 @@
                         <span class="toggle-slider"></span>
                     </label>
                     <p class="toggle-hint" data-i18n="group_info_public_hint">כשכבוי, חברים רואים רק הוצאות ששילמו או שהם חלק מהן.</p>
-                </div>
-                <div class="group-info-toggle" id="group-info-delete-section" style="display:none;">
-                    <label class="toggle-row">
-                        <span data-i18n="group_info_allow_delete">אפשר לחברים למחוק הוצאות</span>
-                        <input type="checkbox" id="group-delete-toggle" checked onchange="toggleAllowDelete()">
-                        <span class="toggle-slider"></span>
-                    </label>
-                    <p class="toggle-hint" data-i18n="group_info_allow_delete_hint">כשכבוי, רק מנהלים יכולו למחוק הוצאות.</p>
                 </div>
                 <h4 class="settings-section-title" data-i18n="group_info_members">חברי קבוצה</h4>
                 <div id="group-info-members-list" class="settings-members-list"></div>

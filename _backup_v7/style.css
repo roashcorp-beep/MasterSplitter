@@ -4117,38 +4117,14 @@ body.light-theme .ai-fab {
 /* =============================
    GROUP INFO MODAL
    ============================= */
-#group-info-modal {
-    position: fixed;
-    inset: 0;
-    z-index: 10000;
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(6px);
-    display: none;
-    align-items: center;
-    justify-content: center;
-}
 .group-info-modal {
     width: 92%;
     max-width: 400px;
     max-height: 85vh;
     overflow-y: auto;
     border-radius: 18px;
-    background: var(--surface-card-solid, #1a1a2e);
-    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-    border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
-    animation: modalSlideUp 0.3s ease;
-}
-.group-info-modal .modal-header {
-    padding: 18px 22px 12px;
-    border-bottom: 1px solid var(--border);
-}
-.group-info-modal .modal-body {
-    padding: 16px 22px 22px;
-}
-.light-theme .group-info-modal {
-    background: #ffffff;
-    border-color: #e2e8f0;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+    background: var(--card-bg);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.22);
 }
 .group-info-name {
     font-size: 1.2rem;

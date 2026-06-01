@@ -127,7 +127,13 @@ const translations = {
         "group_info_leave_confirm": "בטוח שברצונך לצאת מהקבוצה?",
         "group_info_public_expenses": "הצג הוצאות לכולם",
         "group_info_public_hint": "כשכבוי, חברים רואים רק הוצאות ששילמו או שהם חלק מהן.",
+        "group_info_allow_delete": "אפשר לחברים למחוק הוצאות",
+        "group_info_allow_delete_hint": "כשכבוי, רק מנהלים יכולו למחוק הוצאות.",
         "promote_question": "להפוך למנהל?",
+        "menu_activity": "יומן פעולות",
+        "menu_stats": "סטטיסטיקה",
+        "profile_change_currency": "מטבע ברירת מחדל",
+        "profile_save_currency_btn": "שמור מטבע",
         
         // Alerts & Toasts
         "toast_trip_created": "הקבוצה נוצרה בהצלחה!",
@@ -332,7 +338,13 @@ const translations = {
         "group_info_leave_confirm": "Are you sure you want to leave this group?",
         "group_info_public_expenses": "Show all expenses to everyone",
         "group_info_public_hint": "When off, members only see expenses they paid or are split with.",
+        "group_info_allow_delete": "Allow members to delete expenses",
+        "group_info_allow_delete_hint": "When off, only admins can delete expenses.",
         "promote_question": "Make Admin?",
+        "menu_activity": "Activity Log",
+        "menu_stats": "Statistics",
+        "profile_change_currency": "Default Currency",
+        "profile_save_currency_btn": "Save Currency",
         
         // Alerts & Toasts
         "toast_trip_created": "Group created successfully!",

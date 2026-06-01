@@ -355,30 +355,6 @@
         </div>
 
         <div class="accordion-item">
-            <div class="accordion-header" onclick="toggleAccordion('currencyAcc')">
-                <span data-i18n="profile_change_currency">מטבע ברירת מחדל</span>
-                <span class="chevron">▼</span>
-            </div>
-            <div class="accordion-content" id="currencyAcc">
-                <div class="input-group" style="margin-top: 10px;">
-                    <select id="currencySelect">
-                        <option value="ILS">₪ ILS - שקל חדש</option>
-                        <option value="USD">$ USD - US Dollar</option>
-                        <option value="EUR">€ EUR - Euro</option>
-                        <option value="GBP">£ GBP - British Pound</option>
-                        <option value="THB">฿ THB - Thai Baht</option>
-                        <option value="JPY">¥ JPY - Japanese Yen</option>
-                        <option value="CAD">$ CAD - Canadian Dollar</option>
-                        <option value="AUD">$ AUD - Australian Dollar</option>
-                        <option value="CHF">CHF - Swiss Franc</option>
-                    </select>
-                </div>
-                <button class="action-btn" onclick="saveCurrency()" style="margin-top: 10px;" data-i18n="profile_save_currency_btn">שמור מטבע</button>
-                <div id="currencyFeedback" class="feedback"></div>
-            </div>
-        </div>
-
-        <div class="accordion-item">
             <div class="accordion-header" onclick="toggleAccordion('passwordAcc')">
                 <span data-i18n="profile_change_pwd">שינוי סיסמה</span>
                 <span class="chevron">▼</span>
@@ -456,8 +432,6 @@
             document.getElementById('usernameInput').value = profileUserData.name || '';
             const langSelect = document.getElementById('languageSelect');
             if (langSelect) langSelect.value = profileUserData.language || 'he';
-            const currSelect = document.getElementById('currencySelect');
-            if (currSelect) currSelect.value = profileUserData.default_currency || 'ILS';
 
             const initials = document.getElementById('avatarInitials');
             const img = document.getElementById('avatarImg');
@@ -587,31 +561,6 @@
                     setTimeout(() => {
                         window.location.reload();
                     }, 1000);
-                } else {
-                    feedback.textContent = data.error || 'שגיאה בעדכון';
-                    feedback.className = 'feedback error';
-                }
-            } catch (err) {
-                feedback.textContent = 'שגיאה בחיבור לשרת';
-                feedback.className = 'feedback error';
-            }
-        }
-
-        async function saveCurrency() {
-            const currency = document.getElementById('currencySelect').value;
-            const feedback = document.getElementById('currencyFeedback');
-            feedback.textContent = '';
-
-            try {
-                const res = await fetch('/api/profile', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ default_currency: currency })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    feedback.textContent = 'המטבע עודכן בהצלחה';
-                    feedback.className = 'feedback success';
                 } else {
                     feedback.textContent = data.error || 'שגיאה בעדכון';
                     feedback.className = 'feedback error';

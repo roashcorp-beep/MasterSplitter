@@ -327,26 +327,6 @@ def init_db_updates():
     except sqlite3.Error as e:
         logger.error(f"Expenses original_amount migration error: {e}")
 
-    # --- Add default_currency to Users ---
-    try:
-        cursor.execute("PRAGMA table_info(Users)")
-        user_cols_dc = [c['name'] for c in cursor.fetchall()]
-        if 'default_currency' not in user_cols_dc:
-            cursor.execute("ALTER TABLE Users ADD COLUMN default_currency TEXT DEFAULT 'ILS'")
-            logger.info("Migration: added 'default_currency' column to Users")
-    except sqlite3.Error as e:
-        logger.error(f"Users default_currency migration error: {e}")
-
-    # --- Add allow_member_delete to Trips ---
-    try:
-        cursor.execute("PRAGMA table_info(Trips)")
-        trips_cols_amd = [c['name'] for c in cursor.fetchall()]
-        if 'allow_member_delete' not in trips_cols_amd:
-            cursor.execute("ALTER TABLE Trips ADD COLUMN allow_member_delete INTEGER DEFAULT 1")
-            logger.info("Migration: added 'allow_member_delete' column to Trips")
-    except sqlite3.Error as e:
-        logger.error(f"Trips allow_member_delete migration error: {e}")
-
     # --- Phase 4: ActivityLog table (audit trail) ---
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS ActivityLog (
@@ -689,14 +669,13 @@ def get_me():
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute("SELECT language, email, phone, avatar_url, default_currency FROM Users WHERE id = ?", (session['user_id'],))
+        cursor.execute("SELECT language, email, phone, avatar_url FROM Users WHERE id = ?", (session['user_id'],))
         user = cursor.fetchone()
         lang = user['language'] if user else 'he'
         email = user['email'] if user and 'email' in user.keys() else ''
         phone = user['phone'] if user and 'phone' in user.keys() else ''
         avatar_url = user['avatar_url'] if user and 'avatar_url' in user.keys() else None
-        default_currency = user['default_currency'] if user and 'default_currency' in user.keys() else 'ILS'
-        return jsonify({"id": session['user_id'], "name": session['username'], "language": lang, "email": email, "phone": phone, "avatar_url": avatar_url, "default_currency": default_currency})
+        return jsonify({"id": session['user_id'], "name": session['username'], "language": lang, "email": email, "phone": phone, "avatar_url": avatar_url})
     finally:
         conn.close()
 
@@ -1152,12 +1131,6 @@ def update_profile():
         updates.append("language = ?")
         params.append(language)
 
-    default_currency = data.get('default_currency', '').strip().upper()
-    valid_currencies = ['ILS', 'USD', 'EUR', 'GBP', 'THB', 'JPY', 'CAD', 'AUD', 'CHF']
-    if default_currency and default_currency in valid_currencies:
-        updates.append("default_currency = ?")
-        params.append(default_currency)
-
     if not updates:
         return jsonify({"success": True})
 
@@ -1525,7 +1498,7 @@ def get_trip_members(trip_id):
 def get_trip_settings(trip_id):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT COALESCE(is_public_expenses, 0) as is_public_expenses, COALESCE(allow_member_delete, 1) as allow_member_delete FROM Trips WHERE id = ?", (trip_id,))
+    cursor.execute("SELECT COALESCE(is_public_expenses, 0) as is_public_expenses FROM Trips WHERE id = ?", (trip_id,))
     trip = cursor.fetchone()
     cursor.execute("SELECT COALESCE(is_admin, 0) as is_admin FROM TripMembers WHERE trip_id = ? AND user_id = ?",
                    (trip_id, session['user_id']))
@@ -1533,7 +1506,6 @@ def get_trip_settings(trip_id):
     conn.close()
     return jsonify({
         'is_public_expenses': bool(trip['is_public_expenses']) if trip else False,
-        'allow_member_delete': bool(trip['allow_member_delete']) if trip else True,
         'is_admin': bool(member['is_admin']) if member else False
     })
 
@@ -1556,9 +1528,6 @@ def update_trip_settings(trip_id):
     if 'is_public_expenses' in data:
         val = 1 if data['is_public_expenses'] else 0
         cursor.execute("UPDATE Trips SET is_public_expenses = ? WHERE id = ?", (val, trip_id))
-    if 'allow_member_delete' in data:
-        val = 1 if data['allow_member_delete'] else 0
-        cursor.execute("UPDATE Trips SET allow_member_delete = ? WHERE id = ?", (val, trip_id))
     conn.commit()
     conn.close()
     return jsonify({"success": True})
@@ -1971,22 +1940,8 @@ def delete_expense(expense_id):
         if not expense:
             return jsonify({"error": "הוצאה לא נמצאה."}), 404
 
-        # Check allow_member_delete setting
-        cursor.execute("SELECT COALESCE(allow_member_delete, 1) as allow_member_delete FROM Trips WHERE id = ?", (expense['trip_id'],))
-        trip_settings = cursor.fetchone()
-
-        # Check if user is admin
-        cursor.execute("SELECT COALESCE(is_admin, 0) as is_admin FROM TripMembers WHERE trip_id = ? AND user_id = ?",
-                       (expense['trip_id'], session['user_id']))
-        member_row = cursor.fetchone()
-        is_admin = bool(member_row['is_admin']) if member_row else False
-
-        # If allow_member_delete is disabled and user is not admin, block deletion
-        if trip_settings and not trip_settings['allow_member_delete'] and not is_admin:
-            return jsonify({"error": "רק מנהל יכול למחוק הוצאות."}), 403
-
-        # Allow deletion by expense creator, trip owner, or admin
-        if expense['user_id'] != session['user_id'] and expense['owner_id'] != session['user_id'] and not is_admin:
+        # Allow deletion by expense creator or trip owner
+        if expense['user_id'] != session['user_id'] and expense['owner_id'] != session['user_id']:
             return jsonify({"error": "אין הרשאה למחוק הוצאה זו."}), 403
 
         # Delete related splits first

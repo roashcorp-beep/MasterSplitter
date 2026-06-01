@@ -1259,7 +1259,6 @@ async function fetchBalances() {
 
         // Calculate settlements for the accordion
         const settlements = calculateSettlements(data.balances);
-        const uSym = getUserCurrencySymbol();
 
         list.innerHTML = data.balances.map(b => {
             const isPos = b.balance > 0.01;

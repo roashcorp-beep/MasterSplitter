@@ -4028,28 +4028,6 @@ body.light-theme .ai-textarea::placeholder {
 }
 
 body.light-theme .ai-error-msg {
-    background: rgba(239, 68, 68, 0.06);
-    border-color: rgba(239, 68, 68, 0.15);
-    color: #dc2626;
-}
-
-/* ============================================
-   AI FLOATING ACTION BUTTON (FAB)
-   ============================================ */
-.ai-fab {
-    position: fixed;
-    bottom: 90px;
-    right: 20px;
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    border: none;
-    background: linear-gradient(135deg, #a855f7, #06d6a0);
-    color: #fff;
-    font-size: 1.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     cursor: pointer;
     box-shadow:
         0 4px 20px rgba(168, 85, 247, 0.4),
@@ -4567,4 +4545,134 @@ body.light-theme .stats-modal-content {
 body.light-theme .stats-summary-card {
     background: #f8fafc;
     border-color: #e2e8f0;
+}
+
+/* ============================================
+   PHASE 4: OCR & PREMIUM BUTTON
+   ============================================ */
+.premium-scan-btn {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 16px;
+    color: var(--text-main);
+    font-size: 1.1rem;
+    font-weight: 800;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.premium-scan-btn:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255,255,255,0.4);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+    background: linear-gradient(135deg, rgba(255,255,255,0.15), rgba(255,255,255,0.08));
+}
+
+.premium-scan-btn:active {
+    transform: translateY(1px);
+}
+
+.scan-icon {
+    font-size: 1.4rem;
+}
+
+.scan-glare {
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(to bottom right, rgba(255,255,255,0) 40%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0) 60%);
+    transform: rotate(45deg);
+    animation: glare 3s infinite linear;
+    pointer-events: none;
+}
+
+@keyframes glare {
+    0% { transform: rotate(45deg) translateY(-100%); }
+    100% { transform: rotate(45deg) translateY(100%); }
+}
+
+body.light-theme .premium-scan-btn {
+    background: linear-gradient(135deg, rgba(0,0,0,0.03), rgba(0,0,0,0.01));
+    border: 1px solid rgba(0,0,0,0.1);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+}
+
+body.light-theme .premium-scan-btn:hover {
+    background: linear-gradient(135deg, rgba(0,0,0,0.05), rgba(0,0,0,0.02));
+    border-color: rgba(0,0,0,0.2);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+}
+
+body.light-theme .scan-glare {
+    background: linear-gradient(to bottom right, rgba(255,255,255,0) 40%, rgba(255,255,255,0.6) 50%, rgba(255,255,255,0) 60%);
+}
+
+/* Assign Items Modal */
+.assign-item-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+body.light-theme .assign-item-card {
+    background: rgba(0,0,0,0.02);
+}
+
+.assign-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 700;
+}
+
+.assign-item-price {
+    color: var(--accent-yellow);
+    font-size: 1.1rem;
+}
+
+.assign-item-users {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.assign-user-chip {
+    padding: 6px 12px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+}
+
+body.light-theme .assign-user-chip {
+    background: rgba(0,0,0,0.03);
+}
+
+.assign-user-chip.selected {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px var(--primary-glow);
 }

@@ -2507,7 +2507,7 @@ def scan_receipt():
             mime = f"image/{ext}" if ext != 'jpg' else 'image/jpeg'
 
             response = model.generate_content([
-                "Extract all line items from this receipt. Return ONLY a valid JSON array of objects, each with 'item' (string) and 'price' (float number). Example: [{\"item\": \"Coffee\", \"price\": 15.0}]. No markdown, no explanation, just the JSON array.",
+                "Extract all line items from this receipt. Return ONLY a valid JSON array of objects, each with 'name' (string), 'price' (float number, total price for the row), and 'quantity' (integer). Example: [{\"name\": \"Hamburger\", \"price\": 50.0, \"quantity\": 1}]. No markdown, no explanation, just the JSON array.",
                 {"mime_type": mime, "data": b64}
             ])
 
@@ -2529,11 +2529,11 @@ def scan_receipt():
 
     # Mock fallback — realistic receipt items
     mock_items = [
-        {"item": "Cappuccino", "price": 18.0},
-        {"item": "Caesar Salad", "price": 52.0},
-        {"item": "Grilled Salmon", "price": 89.0},
-        {"item": "Sparkling Water", "price": 12.0},
-        {"item": "Tiramisu", "price": 38.0}
+        {"name": "Cappuccino", "price": 18.0, "quantity": 1},
+        {"name": "Caesar Salad", "price": 52.0, "quantity": 1},
+        {"name": "Grilled Salmon", "price": 89.0, "quantity": 1},
+        {"name": "Sparkling Water", "price": 12.0, "quantity": 2},
+        {"name": "Tiramisu", "price": 38.0, "quantity": 1}
     ]
     logger.info("Receipt scan: using mock fallback (no GEMINI_API_KEY)")
     return jsonify({"success": True, "items": mock_items, "source": "mock"})

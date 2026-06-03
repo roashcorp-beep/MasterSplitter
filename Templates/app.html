@@ -143,10 +143,12 @@
                     <h3 class="screen-title" data-i18n="expense_add_title">הוספת הוצאה</h3>
 
                     <!-- Receipt Scanner -->
-                    <button class="scan-receipt-btn" onclick="triggerReceiptScan()" data-i18n="scan_receipt">📷 סרוק
-                        קבלה</button>
-                    <input type="file" id="receipt-file-input" accept="image/*" style="display:none;"
-                        onchange="uploadReceipt(this.files[0])">
+                    <button class="premium-scan-btn" onclick="triggerReceiptScan()" title="Scan Receipt">
+                        <span class="scan-icon">📸</span>
+                        <span class="scan-text">סרוק / העלה קבלה</span>
+                        <div class="scan-glare"></div>
+                    </button>
+                    <input type="file" id="receipt-file-input" accept="image/*" style="display:none;" onchange="uploadReceipt(this.files[0])">
                     <div id="scanned-items-container" class="scanned-items-container" style="display:none;"></div>
 
 
@@ -535,6 +537,32 @@
             </div>
             <div id="stats-chart-area" class="stats-chart-area"></div>
             <div id="stats-summary" class="stats-summary-grid"></div>
+        </div>
+    </div>
+
+    <!-- ================ ASSIGN ITEMS MODAL ================ -->
+    <div id="assign-items-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-card" style="max-height:90vh; display:flex; flex-direction:column;">
+            <div class="modal-header">
+                <h3>🧾 שיוך פריטים</h3>
+                <button class="modal-close-x" onclick="closeAssignItemsModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+            </div>
+            
+            <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:16px; flex-shrink:0;">
+                בחר מי משתתף בכל פריט. (ההפרש יתחלק יחסית למשתתפים)
+            </p>
+
+            <div id="assign-items-list" class="assign-items-list" style="overflow-y:auto; flex-grow:1; display:flex; flex-direction:column; gap:12px;">
+                <!-- Items injected here via JS -->
+            </div>
+
+            <div class="assign-items-footer" style="margin-top:16px; padding-top:16px; border-top:1px solid rgba(255,255,255,0.1); flex-shrink:0;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:16px; font-weight:bold;">
+                    <span>סה"כ זוהה:</span>
+                    <span id="assign-items-total" style="color:var(--accent-yellow);">₪0.00</span>
+                </div>
+                <button class="primary-btn full-width" onclick="submitAssignItems()">סיים ושייך סכומים</button>
+            </div>
         </div>
     </div>
 

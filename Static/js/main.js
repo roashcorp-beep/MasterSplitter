@@ -1625,48 +1625,153 @@ async function uploadReceipt(file) {
     }
 }
 
-function renderScannedItems(items) {
-    const container = document.getElementById('scanned-items-container');
-    if (!container) return;
+let currentScannedItems = [];
+let scanTotalAmount = 0;
 
-    let total = 0;
-    let desc = '';
-
-    const html = `
-        <div style="font-weight: 700; margin-bottom: 8px;" data-i18n="scan_items_found">פריטים שנמצאו:</div>
-        ${items.map(item => {
-        total += item.price;
-        if (desc) desc += ', ';
-        desc += item.item;
-        return `
-                <div class="scanned-item-row">
-                    <span class="scanned-item-name">${escapeHTML(item.item)}</span>
-                    <span class="scanned-item-price">₪${item.price.toFixed(2)}</span>
-                </div>
-            `;
-    }).join('')}
-        <button class="primary-btn full-width" style="margin-top: 10px;" onclick="acceptScannedItems(${total}, '${escapeHTML(desc)}')">
-            שייך סכום כולל (₪${total.toFixed(2)})
-        </button>
-    `;
-
-    container.innerHTML = html;
-    container.style.display = 'block';
+function closeAssignItemsModal() {
+    const modal = document.getElementById('assign-items-modal');
+    if (modal) modal.style.display = 'none';
 }
 
-function acceptScannedItems(total, description) {
+function renderScannedItems(items) {
+    const availableUsers = getSelectedParticipants();
+    if (availableUsers.length === 0) {
+        alert(typeof i18n === 'function' ? i18n('err_no_participants') : "אנא בחר משתתפים להוצאה (עבור מי?) לפני סריקת הקבלה.");
+        return;
+    }
+
+    currentScannedItems = items.map(item => ({
+        name: item.name || item.item || 'Item',
+        price: item.price || 0,
+        quantity: item.quantity || 1,
+        taggedUsers: [] // Start empty, user must tap
+    }));
+    
+    updateAssignItemsDOM();
+    
+    const modal = document.getElementById('assign-items-modal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function updateAssignItemsDOM() {
+    const availableUsers = getSelectedParticipants();
+    scanTotalAmount = currentScannedItems.reduce((sum, item) => sum + item.price, 0);
+    document.getElementById('assign-items-total').textContent = `₪${scanTotalAmount.toFixed(2)}`;
+    
+    const list = document.getElementById('assign-items-list');
+    let html = '';
+    
+    currentScannedItems.forEach((item, index) => {
+        const itemTotal = item.price;
+        const qtyText = item.quantity > 1 ? `<span style="font-size:0.8rem; color:var(--text-muted); padding-inline-start:4px;">(${item.quantity}x)</span>` : '';
+        
+        let chipsHtml = '';
+        availableUsers.forEach(uid => {
+            const member = tripMembers.find(m => String(m.id) === String(uid));
+            const name = member ? member.name : `User ${uid}`;
+            const isSelected = item.taggedUsers.includes(String(uid));
+            const chipClass = isSelected ? 'assign-user-chip selected' : 'assign-user-chip';
+            chipsHtml += `<div class="${chipClass}" onclick="toggleAssignUser(${index}, '${uid}')">${escapeHTML(name)}</div>`;
+        });
+
+        html += `
+            <div class="assign-item-card">
+                <div class="assign-item-header">
+                    <div>${escapeHTML(item.name)} ${qtyText}</div>
+                    <div class="assign-item-price">₪${itemTotal.toFixed(2)}</div>
+                </div>
+                <div class="assign-item-users">
+                    ${chipsHtml}
+                </div>
+            </div>
+        `;
+    });
+    
+    list.innerHTML = html;
+}
+
+function toggleAssignUser(itemIndex, userId) {
+    const item = currentScannedItems[itemIndex];
+    if (!item) return;
+    
+    const userIndex = item.taggedUsers.indexOf(String(userId));
+    if (userIndex === -1) {
+        item.taggedUsers.push(String(userId));
+    } else {
+        item.taggedUsers.splice(userIndex, 1);
+    }
+    
+    updateAssignItemsDOM();
+}
+
+function submitAssignItems() {
+    const availableUsers = getSelectedParticipants();
+    
+    let userTotals = {};
+    availableUsers.forEach(uid => userTotals[uid] = 0);
+    
+    let taggedTotal = 0;
+    
+    currentScannedItems.forEach(item => {
+        const itemTotal = item.price;
+        if (item.taggedUsers.length > 0) {
+            const splitAmount = itemTotal / item.taggedUsers.length;
+            item.taggedUsers.forEach(uid => {
+                if (userTotals[uid] !== undefined) {
+                    userTotals[uid] += splitAmount;
+                }
+            });
+            taggedTotal += itemTotal;
+        }
+    });
+    
+    let grandTotal = scanTotalAmount;
+    
+    const formAmountStr = document.getElementById('amount')?.value;
+    const formAmount = parseFloat(formAmountStr);
+    if (!isNaN(formAmount) && formAmount > scanTotalAmount) {
+        grandTotal = formAmount;
+    }
+    
+    const leftover = grandTotal - taggedTotal;
+    
+    if (leftover > 0 && taggedTotal > 0) {
+        // Proportional split
+        availableUsers.forEach(uid => {
+            const userShare = userTotals[uid] / taggedTotal;
+            userTotals[uid] += (leftover * userShare);
+        });
+    } else if (leftover > 0) {
+        // Even split if no one tagged anything
+        const evenSplit = leftover / availableUsers.length;
+        availableUsers.forEach(uid => userTotals[uid] += evenSplit);
+    }
+    
     const amountEl = document.getElementById('amount');
     const descEl = document.getElementById('desc');
-    if (amountEl) amountEl.value = total.toFixed(2);
-    if (descEl) descEl.value = description;
-
-    // Hide scanned container after accepting
-    document.getElementById('scanned-items-container').style.display = 'none';
-
-    // If split mode is currently active, recalculate split values
-    if (document.getElementById('split-mode-toggle')?.checked) {
-        renderCustomSplits();
+    
+    if (amountEl) amountEl.value = grandTotal.toFixed(2);
+    if (descEl && !descEl.value) {
+        const names = currentScannedItems.map(i => i.name).slice(0, 3).join(', ');
+        descEl.value = names + (currentScannedItems.length > 3 ? ' ועוד...' : '');
     }
+    
+    const toggle = document.getElementById('split-mode-toggle');
+    if (toggle && !toggle.checked) {
+        toggle.checked = true;
+        toggleSplitMode();
+    }
+    setSplitType('amount');
+    
+    availableUsers.forEach(uid => {
+        const input = document.getElementById(`split-user-${uid}`);
+        if (input) {
+            input.value = userTotals[uid].toFixed(2);
+        }
+    });
+    
+    updateSplitSum();
+    closeAssignItemsModal();
 }
 
 // ============================================

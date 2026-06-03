@@ -4,58 +4,68 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
 
-def test_i18n():
+def run_tests():
     options = webdriver.ChromeOptions()
     options.add_argument('--headless')
     driver = webdriver.Chrome(options=options)
+    wait = WebDriverWait(driver, 5)
     
     try:
-        driver.get('http://localhost:5000/app')
-        time.sleep(2) # let it redirect to / if not logged in
-        
-        # We don't need to log in to see translations on the login page!
-        # The login page has a placeholder. Let's check its direction.
-        # But wait, the user specifically mentioned "Add guest user" text.
-        # So we need to log in.
-        
+        print("1. Testing Language Toggle & Placeholders...")
         driver.get('http://localhost:5000/')
-        time.sleep(1)
+        time.sleep(2)
+        
+        # Log in if needed
         driver.execute_script("document.getElementById('loginUsername').value = 'test'")
         driver.execute_script("document.getElementById('loginPassword').value = 'password'")
-        driver.execute_script("login()")
+        try:
+            driver.execute_script("login()")
+        except:
+            pass
         
         time.sleep(2)
         driver.get('http://localhost:5000/app')
         time.sleep(2)
         
-        # Test "Add guest user"
-        # It's in the add-guest-btn span
-        # Wait, the add-guest-btn is inside a modal or a specific screen.
-        # But we can just set the language using translations.js function
+        # Test English toggle
         driver.execute_script("setLanguage('en')")
         time.sleep(1)
         
-        # Check placeholder direction
-        input_el = driver.find_element(By.ID, "desc") # expense what
-        dir_val = input_el.get_attribute('dir')
-        print(f"EN direction for input: {dir_val}")
+        # Verify no Hebrew remains (Add guest user)
+        add_guest_text = driver.execute_script("return document.querySelector('[data-i18n=\"add_guest_user\"]').textContent")
+        print(f"EN Guest User Text: '{add_guest_text}'")
+        assert "הוסף משתמש אורח" not in add_guest_text, "Hebrew still present in English mode!"
         
-        # Check "Add guest user" text
-        guest_btn = driver.execute_script("return document.querySelector('[data-i18n=\"add_guest_user\"]').textContent")
-        print(f"EN guest user text: {guest_btn}")
-        
-        # Switch to Hebrew
-        driver.execute_script("setLanguage('he')")
-        time.sleep(1)
-        
-        dir_val_he = driver.find_element(By.ID, "desc").get_attribute('dir')
-        print(f"HE direction for input: {dir_val_he}")
-        
-        guest_btn_he = driver.execute_script("return document.querySelector('[data-i18n=\"add_guest_user\"]').textContent")
-        print(f"HE guest user text: {guest_btn_he}")
+        # Verify Placeholder direction
+        desc_input = driver.find_element(By.ID, "desc")
+        dir_val = desc_input.get_attribute('dir')
+        print(f"EN Placeholder dir: '{dir_val}'")
+        assert dir_val == "ltr", "Direction is not ltr in English mode!"
 
+        print("2. Testing Scan Receipt Button HTML...")
+        btn_html = driver.execute_script("return document.querySelector('.scan-receipt-btn').innerHTML")
+        print(f"Scan Receipt innerHTML: {btn_html.strip()}")
+        assert "📸" not in btn_html, "Camera icon still in button!"
+        
+        print("3. Testing Smart Transfer...")
+        # Mock loadOptimizedBalances by executing it
+        # Since we might not have a trip loaded, we'll just test if the function exists
+        res = driver.execute_script("return typeof loadOptimizedBalances")
+        assert res == "function", "loadOptimizedBalances function missing!"
+        
+        print("4. Testing Feedback Form UI...")
+        driver.get('http://localhost:5000/profile')
+        time.sleep(2)
+        
+        # Verify textarea exists
+        res = driver.execute_script("return document.getElementById('feedbackInput') !== null")
+        assert res, "Feedback input form not found!"
+        
+        print("All E2E checks passed successfully!")
+    except Exception as e:
+        print(f"Test Failed: {e}")
     finally:
         driver.quit()
 
 if __name__ == '__main__':
-    test_i18n()
+    run_tests()

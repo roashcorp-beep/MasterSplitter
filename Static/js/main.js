@@ -730,14 +730,7 @@ async function logout() {
     window.location.href = '/';
 }
 
-function showToast(msg) {
-    const toast = document.getElementById('toast');
-    if (toast) {
-        toast.textContent = msg;
-        toast.classList.add('show');
-        setTimeout(() => toast.classList.remove('show'), 3000);
-    }
-}
+// Global showToast is defined in DOMContentLoaded
 
 // =====================
 //  TRIP MEMBERS

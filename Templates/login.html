@@ -6,7 +6,7 @@
     <meta name="description" content="MasterSplitter — אפליקציה לחלוקת הוצאות בטיולים עם חברים. עקבו אחרי מי שילם, חשבו יתרות, וסגרו חשבונות בקלות.">
     <title>MasterSplitter - Login</title>
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2.2">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#0a0a1a">
     <link rel="apple-touch-icon" href="/static/icons/icon-192x192.png">
@@ -137,8 +137,8 @@
 
     </div>
     
-    <script src="/static/js/translations.js"></script>
-    <script src="/static/js/main.js"></script>
+    <script src="{{ url_for('static', filename='js/translations.js') }}?v=2.2"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=2.2"></script>
     <script>
         // Login page language pill toggle
         function toggleLangPill() {

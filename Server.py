@@ -2286,8 +2286,45 @@ def submit_feedback():
     if not content:
         return jsonify({'error': 'Feedback content is required'}), 400
     
-    # In a real app, send via SMTP here
-    print(f"Feedback received from user {session['user_id']}: {content}")
+    user_id = session.get('user_id')
+    user_email = "Unknown"
+    user_name = "Unknown"
+    
+    try:
+        conn = get_db_connection()
+        user = conn.execute("SELECT email, name FROM Users WHERE id = ?", (user_id,)).fetchone()
+        if user:
+            user_email = user['email'] or 'No Email'
+            user_name = user['name'] or 'Unknown'
+        conn.close()
+    except Exception as e:
+        logger.error(f"DB Error getting user for feedback: {e}")
+
+    smtp_server = os.environ.get('SMTP_SERVER')
+    smtp_port = os.environ.get('SMTP_PORT', 587)
+    smtp_username = os.environ.get('SMTP_USERNAME')
+    smtp_password = os.environ.get('SMTP_PASSWORD')
+
+    if smtp_server and smtp_username and smtp_password:
+        try:
+            import smtplib
+            from email.mime.text import MIMEText
+            msg = MIMEText(f"Feedback from {user_name} (ID: {user_id}, Email: {user_email}):\n\n{content}")
+            msg['Subject'] = f"MasterSplitter Feedback from {user_name}"
+            msg['From'] = f"MasterSplitter <{smtp_username}>"
+            msg['To'] = "support@mastersplitter.com"
+
+            server = smtplib.SMTP(smtp_server, int(smtp_port))
+            server.starttls()
+            server.login(smtp_username, smtp_password)
+            server.send_message(msg)
+            server.quit()
+            logger.info(f"Feedback email sent for user {user_id}")
+        except Exception as e:
+            logger.error(f"Failed to send feedback email: {e}")
+            return jsonify({'error': 'Failed to send feedback email'}), 500
+    else:
+        logger.warning(f"SMTP not configured. Feedback from user {user_id}: {content}")
     
     return jsonify({'success': True})
 

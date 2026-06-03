@@ -160,7 +160,7 @@ const translations = {
         "err_no_participants": "בחר לפחות משתתף אחד.",
 
         // Receipt Scanning
-        "scan_receipt": "סרוק קבלה",
+        "scan_receipt": "📸 סרוק / העלה קבלה",
         "scan_scanning": "סורק...",
         "scan_items_found": "פריטים שנמצאו",
         "scan_add_items": "הוסף פריטים",
@@ -394,7 +394,7 @@ const translations = {
         "err_no_participants": "Select at least one participant.",
 
         // Receipt Scanning
-        "scan_receipt": "Scan Receipt",
+        "scan_receipt": "📸 Scan / Upload Receipt",
         "scan_scanning": "Scanning...",
         "scan_items_found": "Items Found",
         "scan_add_items": "Add Items",

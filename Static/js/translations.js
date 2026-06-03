@@ -526,7 +526,7 @@ function applyTranslations() {
 
     document.querySelectorAll('input, textarea').forEach(el => {
         if(el.type !== 'hidden' && el.type !== 'checkbox' && el.type !== 'radio' && el.type !== 'file') {
-            el.setAttribute('dir', 'auto');
+            el.setAttribute('dir', currentLang === 'he' ? 'rtl' : 'ltr');
         }
     });
 }

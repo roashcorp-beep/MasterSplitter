@@ -339,7 +339,7 @@
         <div class="accordion-item">
             
             <!-- Feedback -->
-            <div class="accordion-header" onclick="window.location.href='mailto:support@mastersplitter.com'">
+            <div class="accordion-header" onclick="sendFeedback()">
                 <span data-i18n="profile_feedback">שלח משוב</span>
             </div>
             <div class="accordion-header" onclick="toggleAccordion('languageAcc')">
@@ -438,7 +438,31 @@
     <script src="/static/js/translations.js"></script>
     <script src="/static/js/main.js"></script>
 
+    <!-- Global Toast for Profile -->
+    <div id="toast" class="toast"></div>
+
     <script>
+        async function sendFeedback() {
+            const msg = typeof i18n === 'function' ? (currentLang === 'he' ? 'הזן את המשוב שלך:' : 'Enter your feedback:') : 'Enter your feedback:';
+            const text = prompt(msg);
+            if (!text) return;
+            try {
+                const res = await fetch('/api/feedback', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({content: text})
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(typeof i18n === 'function' ? (currentLang === 'he' ? 'המשוב נשלח בהצלחה!' : 'Feedback sent!') : 'Feedback sent!', 'success');
+                } else {
+                    showToast(data.error || 'Error sending feedback', 'error');
+                }
+            } catch(e) {
+                showToast('Network error', 'error');
+            }
+        }
+
         // שינינו את השם של המשתנה כדי שלא יתנגש עם main.js!
         let profileUserData = null;
 

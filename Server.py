@@ -2278,6 +2278,19 @@ def get_balances(trip_id):
         'balances': balances
     })
 
+@app.route('/api/feedback', methods=['POST'])
+@login_required
+def submit_feedback():
+    data = request.json or {}
+    content = data.get('content', '')
+    if not content:
+        return jsonify({'error': 'Feedback content is required'}), 400
+    
+    # In a real app, send via SMTP here
+    print(f"Feedback received from user {session['user_id']}: {content}")
+    
+    return jsonify({'success': True})
+
 @app.route('/api/trips/<int:trip_id>/optimized-balances', methods=['GET'])
 @login_required
 @require_trip_access
@@ -2338,7 +2351,7 @@ def get_optimized_balances(trip_id):
     credits.sort(key=lambda x: x['amount'], reverse=True)
 
     settlements = []
-    di, ci = 0
+    di, ci = 0, 0
 
     while di < len(debts) and ci < len(credits):
         transfer = min(debts[di]['amount'], credits[ci]['amount'])

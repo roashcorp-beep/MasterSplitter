@@ -144,11 +144,10 @@
 
                     <!-- Receipt Scanner -->
                     <button class="scan-receipt-btn" onclick="triggerReceiptScan()" title="Scan Receipt">
-                        <span class="scan-icon">📸</span>
-                        <span class="scan-text" data-i18n="scan_receipt">סרוק קבלה</span>
+                        <span class="scan-text" data-i18n="scan_receipt" style="text-align: center; width: 100%;">סרוק קבלה</span>
                         <div class="scan-glare"></div>
                     </button>
-                    <input type="file" id="receipt-file-input" accept="image/*" style="display:none;" onchange="uploadReceipt(this.files[0])">
+                    <input type="file" id="receipt-file-input" accept="image/*" capture="environment" style="display:none;" onchange="uploadReceipt(this.files[0])">
                     <div id="scanned-items-container" class="scanned-items-container" style="display:none;"></div>
 
 
@@ -357,7 +356,7 @@
                 </div>
                 <button class="add-guest-btn" onclick="addEditGuestFriend()">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
-                    <span data-i18n="btn_add_guest">הוסף משתמש אורח</span>
+                    <span data-i18n="add_guest_user">הוסף משתמש אורח</span>
                 </button>
                 <div id="edit-friends-chips" class="friends-chips"></div>
             </div>

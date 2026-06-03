@@ -354,9 +354,9 @@ function renderTripsList() {
     const icons = ['✈️', '🏖️', '🗺️', '🏔️', '🎡', '🚂'];
     container.innerHTML = allTrips.map((t, i) => {
         const safeName = escapeHTML(t.name);
-        const safeMeta = t.participants && t.participants.length
+        const safeMeta = t.participants && t.participants.length > 1
             ? escapeHTML(t.participants.join(', '))
-            : 'אני בלבד';
+            : (typeof i18n === 'function' ? i18n('only_me') : 'אני בלבד');
         const editBtn = t.is_owner ? `<button class="trip-edit-btn" onclick="event.stopPropagation(); openEditTripModal(${t.id})" title="ערוך טיול">✏️</button>` : '';
         return `
         <div class="trip-card" onclick="openTrip(${t.id})">
@@ -1412,6 +1412,7 @@ async function loadOptimizedBalances() {
         const data = await res.json();
         
         if (!data.optimized_settlements || data.optimized_settlements.length === 0) {
+            showToast('כולם מאופסים! אין חובות. 🎉', 'success');
             container.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-muted);">כולם מאופסים! אין חובות. 🎉<br><br><button class="secondary-btn" onclick="fetchBalances()">🔙 חזור</button></div>`;
             return;
         }
@@ -2034,7 +2035,12 @@ async function fetchActivity() {
         container.innerHTML = data.map(item => {
             const dateStr = new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             const actionText = typeof i18n === 'function' ? (i18n(`activity_${item.action}`) || item.action) : item.action;
-            const detailText = item.detail ? ` (${escapeHTML(item.detail)})` : '';
+            let detailText = item.detail ? escapeHTML(item.detail) : '';
+            if (detailText) {
+                const sym = getUserCurrencySymbol();
+                detailText = detailText.replace(/₪|\$/g, sym);
+                detailText = ` (${detailText})`;
+            }
             return `
                 <div class="activity-item">
                     <div class="activity-icon-dot"></div>
@@ -2103,14 +2109,22 @@ async function openGroupInfo() {
                 const promoteAttr = settings.is_admin && !m.is_admin && m.type === 'user'
                     ? ` oncontextmenu="event.preventDefault(); promoteMemberFromInfo(${m.id})" ontouchstart="startPromoteTimer(${m.id})" ontouchend="clearPromoteTimer()"`
                     : '';
-                // Demote: show button for admin members (but not for the last admin)
+                // Demote: show button for admin members
                 const demoteBtn = settings.is_admin && m.is_admin && m.type === 'user'
                     ? `<button class="admin-badge" style="cursor:pointer;opacity:0.7;font-size:0.6rem;background:var(--error);border:none;margin-inline-start:4px;" onclick="event.stopPropagation(); demoteMemberFromInfo(${m.id})" title="${typeof i18n === 'function' ? i18n('demote_question') : 'Remove Admin?'}">✕</button>`
                     : '';
+                
+                let waBtn = '';
+                if (settings.is_admin && m.type === 'guest') {
+                    waBtn = `<button class="whatsapp-invite-btn" style="margin-inline-start:auto; background:none; border:none; cursor:pointer;" onclick="event.stopPropagation(); generateInviteAndShareWA()" title="Invite via WhatsApp">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                    </button>`;
+                }
+                
                 return `<div class="member-row"${promoteAttr}>
                     ${avatarHtml}
                     <span class="member-name">${safeName}</span>
-                    ${adminBadge}${demoteBtn}
+                    ${adminBadge}${demoteBtn}${waBtn}
                 </div>`;
             }).join('');
         }
@@ -2498,6 +2512,25 @@ async function generateInviteLink() {
     }
 }
 
+async function generateInviteAndShareWA() {
+    if (!currentTripId) return;
+    try {
+        const res = await fetch(`/api/trips/${currentTripId}/invite-link`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await res.json();
+        if (data.success && data.invite_token) {
+            const link = `${window.location.origin}/join/${data.invite_token}`;
+            const msg = encodeURIComponent(`Join my trip on MasterSplitter! ${link}`);
+            const waUrl = `https://wa.me/?text=${msg}`;
+            window.open(waUrl, '_blank');
+        } else {
+            showToast(data.error || 'Error', 'error');
+        }
+    } catch (e) { console.error('WA invite error:', e); }
+}
+
 // Auto-join from invite link on page load
 document.addEventListener('DOMContentLoaded', () => {
     const params = new URLSearchParams(window.location.search);
@@ -2505,22 +2538,41 @@ document.addEventListener('DOMContentLoaded', () => {
     if (inviteToken) {
         // Clean URL
         window.history.replaceState({}, document.title, window.location.pathname);
-        fetch(`/api/join/${inviteToken}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                showToast(typeof i18n === 'function' ? i18n('invite_joined') : 'Joined group!', 'success');
-                if (data.trip_id) {
-                    currentTripId = data.trip_id;
-                    loadLobby();
-                }
-            } else {
-                showToast(data.error || 'Invalid invite link', 'error');
-            }
-        })
-        .catch(e => console.error('Auto-join error:', e));
+        
+        // Show join modal
+        const joinModal = document.getElementById('join-confirm-modal');
+        if (joinModal) {
+            joinModal.style.display = 'flex';
+            const confirmBtn = document.getElementById('confirm-join-btn');
+            confirmBtn.onclick = () => {
+                confirmBtn.disabled = true;
+                fetch(`/api/join/${inviteToken}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast(typeof i18n === 'function' ? i18n('invite_joined') : 'Joined group!', 'success');
+                        if (data.trip_id) {
+                            currentTripId = data.trip_id;
+                            loadLobby();
+                        }
+                    } else {
+                        showToast(data.error || 'Invalid invite link', 'error');
+                    }
+                })
+                .catch(e => console.error('Auto-join error:', e))
+                .finally(() => {
+                    joinModal.style.display = 'none';
+                    confirmBtn.disabled = false;
+                });
+            };
+        }
     }
 });
+
+function closeJoinConfirmModal() {
+    const modal = document.getElementById('join-confirm-modal');
+    if (modal) modal.style.display = 'none';
+}

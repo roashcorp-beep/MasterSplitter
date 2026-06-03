@@ -4027,7 +4027,14 @@ body.light-theme .ai-textarea::placeholder {
     animation: aiSlideIn 0.2s ease-out;
 }
 
-body.light-theme .ai-error-msg {
+.ai-fab {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #a855f7, #ec4899);
     cursor: pointer;
     box-shadow:
         0 4px 20px rgba(168, 85, 247, 0.4),

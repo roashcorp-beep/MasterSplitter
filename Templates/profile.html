@@ -333,11 +333,15 @@
                     <input type="text" id="usernameInput" data-i18n="profile_new_name_ph" placeholder="שם משתמש חדש">
                 </div>
                 <button class="action-btn" onclick="saveUsername()" data-i18n="profile_save_name_btn">שמור</button>
-                <div id="usernameFeedback" class="feedback"></div>
             </div>
         </div>
 
         <div class="accordion-item">
+            
+            <!-- Feedback -->
+            <div class="accordion-header" onclick="window.location.href='mailto:support@mastersplitter.com'">
+                <span data-i18n="profile_feedback">שלח משוב</span>
+            </div>
             <div class="accordion-header" onclick="toggleAccordion('languageAcc')">
                 <span data-i18n="profile_change_language">שינוי שפה</span>
                 <span class="chevron">▼</span>
@@ -350,7 +354,6 @@
                     </select>
                 </div>
                 <button class="action-btn" onclick="saveLanguage()" style="margin-top: 10px;" data-i18n="profile_save_lang_btn">שמור שפה</button>
-                <div id="languageFeedback" class="feedback"></div>
             </div>
         </div>
 
@@ -374,7 +377,6 @@
                     </select>
                 </div>
                 <button class="action-btn" onclick="saveCurrency()" style="margin-top: 10px;" data-i18n="profile_save_currency_btn">שמור מטבע</button>
-                <div id="currencyFeedback" class="feedback"></div>
             </div>
         </div>
 
@@ -389,7 +391,6 @@
                         <input type="password" id="currentPassword" data-i18n="profile_current_pwd_ph" placeholder="סיסמה נוכחית">
                     </div>
                     <button class="action-btn" onclick="verifyPassword()" data-i18n="profile_verify_btn">בדיקה</button>
-                    <div id="verifyFeedback" class="feedback"></div>
                 </div>
 
                 <div id="step2Password" class="hidden" style="margin-top: 10px;">
@@ -400,7 +401,6 @@
                         <input type="password" id="confirmNewPassword" data-i18n="profile_confirm_pwd_ph" placeholder="אימות סיסמה חדשה">
                     </div>
                     <button class="action-btn" onclick="changePassword()" data-i18n="profile_save_pwd">אישור</button>
-                    <div id="changePasswordFeedback" class="feedback"></div>
                 </div>
             </div>
         </div>
@@ -415,7 +415,6 @@
                     <input type="tel" id="phoneInput" data-i18n="profile_phone_ph" placeholder="מספר טלפון חדש" style="direction:ltr; unicode-bidi:embed;">
                 </div>
                 <button class="action-btn" onclick="savePhone()" style="margin-top: 10px;" data-i18n="profile_save_phone_btn">שמור טלפון</button>
-                <div id="phoneFeedback" class="feedback"></div>
             </div>
         </div>
 
@@ -568,12 +567,9 @@
 
         async function saveUsername() {
             const newName = document.getElementById('usernameInput').value.trim();
-            const feedback = document.getElementById('usernameFeedback');
-            feedback.textContent = '';
 
             if (!newName) {
-                feedback.textContent = 'יש להזין שם משתמש';
-                feedback.className = 'feedback error';
+                showToast('יש להזין שם משתמש', "error");
                 return;
             }
 
@@ -585,28 +581,22 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    feedback.textContent = 'שם המשתמש עודכן בהצלחה';
-                    feedback.className = 'feedback success';
+                    showToast('שם המשתמש עודכן בהצלחה', "success");
                     profileUserData.name = newName;
                     renderUserData();
                 } else {
-                    feedback.textContent = data.error || 'שגיאה בעדכון';
-                    feedback.className = 'feedback error';
+                    showToast(data.error || 'שגיאה בעדכון', "error");
                 }
             } catch (err) {
-                feedback.textContent = 'שגיאה בחיבור לשרת';
-                feedback.className = 'feedback error';
+                showToast('שגיאה בחיבור לשרת', "error");
             }
         }
 
         async function savePhone() {
             const phone = document.getElementById('phoneInput').value.trim();
-            const feedback = document.getElementById('phoneFeedback');
-            feedback.textContent = '';
 
             if (!phone) {
-                feedback.textContent = typeof i18n === 'function' ? i18n('profile_phone_required') : 'יש להזין מספר טלפון';
-                feedback.className = 'feedback error';
+                showToast(typeof i18n === 'function' ? i18n('profile_phone_required') : 'יש להזין מספר טלפון', "error");
                 return;
             }
 
@@ -618,24 +608,19 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    feedback.textContent = typeof i18n === 'function' ? i18n('profile_phone_saved') : 'הטלפון עודכן בהצלחה';
-                    feedback.className = 'feedback success';
+                    showToast(typeof i18n === 'function' ? i18n('profile_phone_saved') : 'הטלפון עודכן בהצלחה', "success");
                     profileUserData.phone = phone;
                     renderUserData();
                 } else {
-                    feedback.textContent = data.error || 'שגיאה בעדכון';
-                    feedback.className = 'feedback error';
+                    showToast(data.error || 'שגיאה בעדכון', "error");
                 }
             } catch (err) {
-                feedback.textContent = 'שגיאה בחיבור לשרת';
-                feedback.className = 'feedback error';
+                showToast('שגיאה בחיבור לשרת', "error");
             }
         }
 
         async function saveLanguage() {
             const lang = document.getElementById('languageSelect').value;
-            const feedback = document.getElementById('languageFeedback');
-            feedback.textContent = '';
 
             try {
                 const res = await fetch('/api/profile', {
@@ -645,25 +630,20 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    feedback.textContent = 'השפה עודכנה בהצלחה, מרענן...';
-                    feedback.className = 'feedback success';
+                    showToast('השפה עודכנה בהצלחה, מרענן...', "success");
                     setTimeout(() => {
                         window.location.reload();
                     }, 1000);
                 } else {
-                    feedback.textContent = data.error || 'שגיאה בעדכון';
-                    feedback.className = 'feedback error';
+                    showToast(data.error || 'שגיאה בעדכון', "error");
                 }
             } catch (err) {
-                feedback.textContent = 'שגיאה בחיבור לשרת';
-                feedback.className = 'feedback error';
+                showToast('שגיאה בחיבור לשרת', "error");
             }
         }
 
         async function saveCurrency() {
             const currency = document.getElementById('currencySelect').value;
-            const feedback = document.getElementById('currencyFeedback');
-            feedback.textContent = '';
 
             try {
                 const res = await fetch('/api/profile', {
@@ -673,26 +653,20 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    feedback.textContent = 'המטבע עודכן בהצלחה';
-                    feedback.className = 'feedback success';
+                    showToast('המטבע עודכן בהצלחה', "success");
                 } else {
-                    feedback.textContent = data.error || 'שגיאה בעדכון';
-                    feedback.className = 'feedback error';
+                    showToast(data.error || 'שגיאה בעדכון', "error");
                 }
             } catch (err) {
-                feedback.textContent = 'שגיאה בחיבור לשרת';
-                feedback.className = 'feedback error';
+                showToast('שגיאה בחיבור לשרת', "error");
             }
         }
 
         async function verifyPassword() {
             const currentPassword = document.getElementById('currentPassword').value;
-            const feedback = document.getElementById('verifyFeedback');
-            feedback.textContent = '';
 
             if (!currentPassword) {
-                feedback.textContent = 'יש להזין סיסמה נוכחית';
-                feedback.className = 'feedback error';
+                showToast('יש להזין סיסמה נוכחית', "error");
                 return;
             }
 
@@ -704,16 +678,14 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    feedback.textContent = '';
+                    
                     document.getElementById('step1Password').classList.add('hidden');
                     document.getElementById('step2Password').classList.remove('hidden');
                 } else {
-                    feedback.textContent = data.error || 'סיסמה שגויה';
-                    feedback.className = 'feedback error';
+                    showToast(data.error || 'סיסמה שגויה', "error");
                 }
             } catch (err) {
-                feedback.textContent = 'שגיאה בחיבור לשרת';
-                feedback.className = 'feedback error';
+                showToast('שגיאה בחיבור לשרת', "error");
             }
         }
 
@@ -721,18 +693,14 @@
             const currentPassword = document.getElementById('currentPassword').value;
             const newPassword = document.getElementById('newPassword').value;
             const confirmPass = document.getElementById('confirmNewPassword').value;
-            const feedback = document.getElementById('changePasswordFeedback');
-            feedback.textContent = '';
 
             if (!newPassword || !confirmPass) {
-                feedback.textContent = 'יש למלא את כל השדות';
-                feedback.className = 'feedback error';
+                showToast('יש למלא את כל השדות', "error");
                 return;
             }
 
             if (newPassword !== confirmPass) {
-                feedback.textContent = 'הסיסמאות אינן תואמות';
-                feedback.className = 'feedback error';
+                showToast('הסיסמאות אינן תואמות', "error");
                 return;
             }
 
@@ -744,8 +712,7 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    feedback.textContent = 'הסיסמה שונתה בהצלחה';
-                    feedback.className = 'feedback success';
+                    showToast('הסיסמה שונתה בהצלחה', "success");
 
                     setTimeout(() => {
                         document.getElementById('currentPassword').value = '';
@@ -753,16 +720,14 @@
                         document.getElementById('confirmNewPassword').value = '';
                         document.getElementById('step2Password').classList.add('hidden');
                         document.getElementById('step1Password').classList.remove('hidden');
-                        feedback.textContent = '';
+                        
                         toggleAccordion('passwordAcc');
                     }, 2000);
                 } else {
-                    feedback.textContent = data.error || 'שגיאה בעדכון הסיסמה';
-                    feedback.className = 'feedback error';
+                    showToast(data.error || 'שגיאה בעדכון הסיסמה', "error");
                 }
             } catch (err) {
-                feedback.textContent = 'שגיאה בחיבור לשרת';
-                feedback.className = 'feedback error';
+                showToast('שגיאה בחיבור לשרת', "error");
             }
         }
     </script>

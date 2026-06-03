@@ -1330,7 +1330,11 @@ def get_trips():
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT DISTINCT t.id, t.destination, t.budget, t.budget_type, t.owner_id, t.local_participants
+        SELECT DISTINCT t.id, t.destination, t.budget, t.budget_type, t.owner_id,
+            (SELECT GROUP_CONCAT(COALESCE(u.name, tm2.guest_name))
+             FROM TripMembers tm2 
+             LEFT JOIN Users u ON tm2.user_id = u.id 
+             WHERE tm2.trip_id = t.id) as members
         FROM Trips t
         LEFT JOIN TripMembers tm ON t.id = tm.trip_id
         WHERE t.owner_id = ? OR tm.user_id = ?
@@ -1340,11 +1344,7 @@ def get_trips():
     conn.close()
     result = []
     for t in trips:
-        participants = []
-        try:
-            participants = json.loads(t['local_participants'] or '[]')
-        except (json.JSONDecodeError, TypeError):
-            logger.warning(f"Invalid local_participants JSON for trip {t['id']}")
+        participants = t['members'].split(',') if t['members'] else []
         result.append({
             'id': t['id'],
             'name': t['destination'],

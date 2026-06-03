@@ -6,6 +6,14 @@ const translations = {
         "btn_save": "שמור",
         "btn_cancel": "ביטול",
         "btn_close": "סגור",
+        "only_me": "אני בלבד",
+        "add_guest_user": "הוסף משתמש אורח",
+        "split_amounts": "סכומים",
+        "split_items": "יחס/פריטים",
+        "profile_feedback": "שלח משוב",
+        "modal_join_title": "הצטרפות לקבוצה",
+        "modal_join_prompt": "האם אתה בטוח שברצונך להצטרף לקבוצה זו?",
+        "btn_join": "הצטרף",
         "loading": "טוען...",
         "error_network": "שגיאת רשת.",
         
@@ -232,6 +240,14 @@ const translations = {
         "btn_save": "Save",
         "btn_cancel": "Cancel",
         "btn_close": "Close",
+        "only_me": "Only me",
+        "add_guest_user": "Add Guest User",
+        "split_amounts": "Amounts",
+        "split_items": "Items/Ratio",
+        "profile_feedback": "Send Feedback",
+        "modal_join_title": "Join Group",
+        "modal_join_prompt": "Are you sure you want to join this group?",
+        "btn_join": "Join",
         "loading": "Loading...",
         "error_network": "Network error.",
         
@@ -481,6 +497,7 @@ function setLanguage(lang) {
     document.documentElement.dir = (lang === 'he') ? 'rtl' : 'ltr';
     document.body.style.direction = (lang === 'he') ? 'rtl' : 'ltr';
     applyTranslations();
+    if (typeof window.updateUI === 'function') window.updateUI();
 }
 
 function i18n(key) {
@@ -504,6 +521,12 @@ function applyTranslations() {
         const key = el.getAttribute('data-i18n-html');
         if (translations[currentLang][key]) {
             el.innerHTML = translations[currentLang][key];
+        }
+    });
+
+    document.querySelectorAll('input, textarea').forEach(el => {
+        if(el.type !== 'hidden' && el.type !== 'checkbox' && el.type !== 'radio' && el.type !== 'file') {
+            el.setAttribute('dir', 'auto');
         }
     });
 }

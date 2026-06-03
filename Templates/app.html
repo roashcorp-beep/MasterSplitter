@@ -190,12 +190,16 @@
                     <div class="participants-pills" id="participants-container"></div>
 
                     <!-- Split Mode Toggle -->
-                    <div class="split-toggle-wrapper" style="margin-top:14px;">
+                    <div class="split-toggle-wrapper" style="margin-top:14px; display:flex; align-items:center;">
                         <label class="split-toggle-label">
                             <input type="checkbox" id="split-mode-toggle" onchange="toggleSplitMode()">
                             <span class="split-toggle-slider"></span>
                             <span class="split-toggle-text" data-i18n="split_custom">סכומים מותאמים</span>
                         </label>
+                        <div id="split-type-toggle-container" style="display:none; margin-inline-start: auto; background:rgba(255,255,255,0.05); padding:2px; border-radius:8px;">
+                            <button id="split-type-amount" class="split-type-btn active" onclick="setSplitType('amount')" style="background:var(--primary); color:#fff; border:none; padding:4px 10px; border-radius:6px; cursor:pointer; font-size:0.8rem;">סכומים</button>
+                            <button id="split-type-item" class="split-type-btn" onclick="setSplitType('item')" style="background:transparent; color:var(--text-muted); border:none; padding:4px 10px; border-radius:6px; cursor:pointer; font-size:0.8rem;">יחס/פריטים</button>
+                        </div>
                     </div>
                     <div id="custom-splits-container" class="custom-splits-container" style="display:none;"></div>
                     <div id="split-validation-msg" class="split-validation-msg" style="display:none;"></div>
@@ -208,7 +212,12 @@
             <!-- BALANCES SCREEN -->
             <div id="screen-balances" class="screen">
                 <div class="card">
-                    <h3 class="screen-title" data-i18n="balances_title">סיכומים ויתרות</h3>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                        <h3 class="screen-title" style="margin:0;" data-i18n="balances_title">סיכומים ויתרות</h3>
+                        <button class="smart-transfer-btn" onclick="loadOptimizedBalances()" style="background:linear-gradient(135deg, var(--accent-yellow), #f59e0b); color:#000; font-weight:bold; border:none; padding:6px 12px; border-radius:20px; cursor:pointer; font-size:0.85rem; display:flex; align-items:center; gap:4px; box-shadow:0 4px 12px rgba(250, 204, 21, 0.3); transition:transform 0.2s;">
+                            <span>Smart Transfer</span> ⚡
+                        </button>
+                    </div>
                     <div id="balances-list"></div>
                 </div>
             </div>
@@ -249,9 +258,14 @@
             </div>
             <div class="modal-body">
                 <p class="ai-modal-hint" data-i18n="ai_modal_hint">תאר את ההוצאה בשפה חופשית וה-AI ימלא את הטופס אוטומטית</p>
-                <textarea id="ai-expense-text" class="ai-textarea" rows="3" data-i18n="ai_placeholder"
-                    placeholder="למשל: שילמתי 150 על פיצה, דני חייב חצי ורועי חייב 30"></textarea>
-                <button class="ai-analyze-btn" onclick="aiParseExpense()" id="ai-analyze-btn">
+                <div class="ai-input-row" style="display:flex; gap:8px;">
+                    <button id="voiceAddBtn" class="voice-add-btn" onclick="startVoiceRecognition()" title="Voice Add" style="background:var(--card-bg); border:1px solid rgba(255,255,255,0.1); border-radius:12px; width:48px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:#a855f7;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+                    </button>
+                    <textarea id="ai-expense-text" class="ai-textarea" rows="3" data-i18n="ai_placeholder" placeholder="למשל: שילמתי 150 על פיצה, דני חייב חצי ורועי חייב 30" style="flex:1;"></textarea>
+                </div>
+                <div id="voice-indicator" style="display:none; color:var(--accent-yellow); font-size:0.85rem; margin-top:8px; text-align:center;">מקשיב... 🎙️</div>
+                <button class="ai-analyze-btn" onclick="aiParseExpense()" id="ai-analyze-btn" style="margin-top:12px;">
                     <span class="ai-analyze-text" data-i18n="ai_analyze">נתח</span>
                     <span class="ai-spinner" style="display:none;"></span>
                 </button>

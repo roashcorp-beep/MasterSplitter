@@ -845,6 +845,49 @@ function closeAiModal() {
     if (modal) modal.style.display = 'none';
 }
 
+function startVoiceRecognition() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        alert(typeof i18n === 'function' ? i18n('voice_not_supported') : 'זיהוי קול לא נתמך בדפדפן זה.');
+        return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = document.documentElement.lang === 'he' ? 'he-IL' : 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    const btn = document.getElementById('voiceAddBtn');
+    const indicator = document.getElementById('voice-indicator');
+    const textArea = document.getElementById('ai-expense-text');
+
+    recognition.onstart = () => {
+        if (btn) btn.style.background = 'rgba(168, 85, 247, 0.2)';
+        if (indicator) indicator.style.display = 'block';
+    };
+
+    recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        if (textArea) {
+            textArea.value = transcript;
+            aiParseExpense();
+        }
+    };
+
+    recognition.onerror = (event) => {
+        console.error('Speech recognition error', event.error);
+        if (indicator) indicator.style.display = 'none';
+        if (btn) btn.style.background = 'var(--card-bg)';
+    };
+
+    recognition.onend = () => {
+        if (indicator) indicator.style.display = 'none';
+        if (btn) btn.style.background = 'var(--card-bg)';
+    };
+
+    recognition.start();
+}
+
 async function aiParseExpense() {
     const textArea = document.getElementById('ai-expense-text');
     const text = textArea?.value.trim();
@@ -1132,16 +1175,35 @@ async function addExpense() {
     if (document.getElementById('split-mode-toggle')?.checked) {
         splits = [];
         let splitSum = 0;
-        for (const pid of parts) {
-            const inputVal = parseFloat(document.getElementById(`split-user-${pid}`)?.value || 0);
-            splits.push({ user_id: parseInt(pid), amount: inputVal });
-            splitSum += inputVal;
-        }
+        
+        if (typeof currentSplitType !== 'undefined' && currentSplitType === 'item') {
+            let totalItems = 0;
+            const itemCounts = {};
+            for (const pid of parts) {
+                const count = parseFloat(document.getElementById(`split-user-${pid}`)?.value || 0);
+                itemCounts[pid] = count;
+                totalItems += count;
+            }
+            if (totalItems <= 0) {
+                alert("סך הפריטים/היחס חייב להיות גדול מ-0");
+                return;
+            }
+            for (const pid of parts) {
+                const userAmount = (itemCounts[pid] / totalItems) * amount;
+                splits.push({ user_id: parseInt(pid), amount: userAmount });
+            }
+        } else {
+            for (const pid of parts) {
+                const inputVal = parseFloat(document.getElementById(`split-user-${pid}`)?.value || 0);
+                splits.push({ user_id: parseInt(pid), amount: inputVal });
+                splitSum += inputVal;
+            }
 
-        if (Math.abs(splitSum - amount) > 0.01) {
-            const sumErr = typeof i18n === 'function' ? i18n('split_sum_error') : 'הסכומים לא תואמים לסכום הכולל';
-            alert(sumErr);
-            return;
+            if (Math.abs(splitSum - amount) > 0.01) {
+                const sumErr = typeof i18n === 'function' ? i18n('split_sum_error') : 'הסכומים לא תואמים לסכום הכולל';
+                alert(sumErr);
+                return;
+            }
         }
     }
 
@@ -1335,6 +1397,50 @@ async function fetchBalances() {
             </div>`;
         }).join('');
     } catch (e) { console.error('Fetch balances error:', e); }
+}
+
+async function loadOptimizedBalances() {
+    if (!currentTripId) return;
+    const container = document.getElementById('balances-list');
+    if (!container) return;
+
+    container.innerHTML = `<div class="loading-state">טוען חישוב חכם... ⚡</div>`;
+
+    try {
+        const res = await fetch(`/api/trips/${currentTripId}/optimized-balances`);
+        if (!res.ok) throw new Error('שגיאה בחישוב');
+        const data = await res.json();
+        
+        if (!data.optimized_settlements || data.optimized_settlements.length === 0) {
+            container.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-muted);">כולם מאופסים! אין חובות. 🎉<br><br><button class="secondary-btn" onclick="fetchBalances()">🔙 חזור</button></div>`;
+            return;
+        }
+
+        let html = '<div class="optimized-settlements-list">';
+        data.optimized_settlements.forEach(s => {
+            html += `
+                <div class="settlement-card" style="background:var(--card-bg); padding:16px; border-radius:12px; margin-bottom:12px; border-left:4px solid var(--accent-yellow); box-shadow:0 2px 8px rgba(0,0,0,0.2);">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div style="display:flex; flex-direction:column; gap:4px;">
+                            <span style="color:var(--text-muted); font-size:0.85rem;">${escapeHTML(s.from)} מעביר ל-</span>
+                            <strong style="font-size:1.1rem; color:var(--text-light);">${escapeHTML(s.to)}</strong>
+                        </div>
+                        <div style="font-size:1.4rem; font-weight:bold; color:var(--accent-yellow);">
+                            ₪${s.amount.toFixed(2)}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        html += `<button class="secondary-btn full-width" style="margin-top:16px;" onclick="fetchBalances()">🔙 חזור ליתרות רגילות</button>`;
+
+        container.innerHTML = html;
+
+    } catch (e) {
+        console.error(e);
+        container.innerHTML = `<div class="error-state">שגיאה בטעינת העברות חכמות.<br><br><button class="secondary-btn" onclick="fetchBalances()">🔙 חזור</button></div>`;
+    }
 }
 
 async function triggerSettleUp(payerId, payeeId, amount) {
@@ -1574,11 +1680,31 @@ function toggleSplitMode() {
     if (isChecked) {
         container.style.display = 'flex';
         msg.style.display = 'block';
+        const typeContainer = document.getElementById('split-type-toggle-container');
+        if (typeContainer) typeContainer.style.display = 'flex';
         renderCustomSplits();
     } else {
         container.style.display = 'none';
         msg.style.display = 'none';
+        const typeContainer = document.getElementById('split-type-toggle-container');
+        if (typeContainer) typeContainer.style.display = 'none';
     }
+}
+
+let currentSplitType = 'amount';
+
+function setSplitType(type) {
+    currentSplitType = type;
+    const btnAmount = document.getElementById('split-type-amount');
+    const btnItem = document.getElementById('split-type-item');
+    if (type === 'amount') {
+        if (btnAmount) { btnAmount.classList.add('active'); btnAmount.style.background = 'var(--primary)'; btnAmount.style.color = '#fff'; }
+        if (btnItem) { btnItem.classList.remove('active'); btnItem.style.background = 'transparent'; btnItem.style.color = 'var(--text-muted)'; }
+    } else {
+        if (btnItem) { btnItem.classList.add('active'); btnItem.style.background = 'var(--primary)'; btnItem.style.color = '#fff'; }
+        if (btnAmount) { btnAmount.classList.remove('active'); btnAmount.style.background = 'transparent'; btnAmount.style.color = 'var(--text-muted)'; }
+    }
+    renderCustomSplits();
 }
 
 function renderCustomSplits() {
@@ -1598,11 +1724,19 @@ function renderCustomSplits() {
     container.innerHTML = parts.map(pid => {
         const member = tripMembers.find(m => String(m.id) === String(pid));
         const name = member ? member.name : `משתתף ${pid}`;
+        
+        let step = "0.01";
+        let val = equalShare.toFixed(2);
+        if (currentSplitType === 'item') {
+            step = "1";
+            val = "1";
+        }
+        
         return `
             <div class="split-input-row">
-                <span class="split-input-name">${escapeHTML(name)}</span>
+                <span class="split-input-name">${escapeHTML(name)} <span id="split-calc-${pid}" style="font-size:0.8rem;color:var(--text-muted);display:${currentSplitType==='item'?'inline':'none'}"></span></span>
                 <input type="number" id="split-user-${pid}" class="split-input-field" 
-                       value="${equalShare.toFixed(2)}" min="0" step="0.01" oninput="updateSplitSum()">
+                       value="${val}" min="0" step="${step}" oninput="updateSplitSum()">
             </div>
         `;
     }).join('');
@@ -1615,6 +1749,24 @@ function updateSplitSum() {
     const totalAmount = parseFloat(document.getElementById('amount')?.value || 0);
     const msg = document.getElementById('split-validation-msg');
     if (!msg) return;
+
+    if (currentSplitType === 'item') {
+        let totalItems = 0;
+        for (const pid of parts) {
+            totalItems += parseFloat(document.getElementById(`split-user-${pid}`)?.value || 0);
+        }
+        
+        for (const pid of parts) {
+            const count = parseFloat(document.getElementById(`split-user-${pid}`)?.value || 0);
+            const userAmount = totalItems > 0 ? (count / totalItems) * totalAmount : 0;
+            const calcSpan = document.getElementById(`split-calc-${pid}`);
+            if (calcSpan) calcSpan.textContent = `(₪${userAmount.toFixed(2)})`;
+        }
+        
+        msg.className = 'split-validation-msg valid';
+        msg.textContent = 'חלוקה לפי פריטים/יחס מופעלת ✓';
+        return;
+    }
 
     let currentSum = 0;
     for (const pid of parts) {

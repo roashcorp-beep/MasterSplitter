@@ -361,6 +361,21 @@ def init_db_updates():
         )
     """)
 
+    # --- Phase 3: Notifications table ---
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS Notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            trip_id INTEGER NOT NULL,
+            type TEXT NOT NULL,
+            message TEXT,
+            is_read INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(user_id) REFERENCES Users(id),
+            FOREIGN KEY(trip_id) REFERENCES Trips(id)
+        )
+    """)
+
     conn.commit()
 
     # --- Add invite_token to Trips ---
@@ -438,6 +453,43 @@ def log_activity(trip_id, user_id, action, detail=None):
         conn.close()
     except Exception as e:
         logger.error(f"log_activity error: {e}")
+
+# ---------------------
+#   NOTIFICATION HELPER
+# ---------------------
+def create_notification(user_id, trip_id, notif_type, message):
+    """Insert an entry into the Notifications table."""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO Notifications (user_id, trip_id, type, message, created_at) VALUES (?, ?, ?, ?, ?)",
+            (user_id, trip_id, notif_type, message, datetime.now(timezone.utc).isoformat())
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.error(f"create_notification error: {e}")
+
+def notify_trip_members(trip_id, notif_type, message, exclude_user_id=None):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT user_id FROM TripMembers WHERE trip_id = ? AND user_id IS NOT NULL", (trip_id,))
+        members = cursor.fetchall()
+        
+        for m in members:
+            uid = m['user_id']
+            if exclude_user_id is None or uid != exclude_user_id:
+                cursor.execute(
+                    "INSERT INTO Notifications (user_id, trip_id, type, message, created_at) VALUES (?, ?, ?, ?, ?)",
+                    (uid, trip_id, notif_type, message, datetime.now(timezone.utc).isoformat())
+                )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.error(f"notify_trip_members error: {e}")
+
 
 
 # ---------------------
@@ -2014,6 +2066,7 @@ def add_expense():
         conn.commit()
         logger.info(f"Expense added: {currency} {amount} for trip {trip_id} by user {session['user_id']}")
         log_activity(trip_id, session['user_id'], 'expense_added', f"{description} — {currency} {amount}")
+        notify_trip_members(trip_id, 'expense_added', f"New expense: {description} ({amount} {currency})", exclude_user_id=session['user_id'])
         return jsonify({"success": True})
     except sqlite3.Error as e:
         logger.error(f"Add expense error: {e}")
@@ -2077,6 +2130,7 @@ def edit_expense(expense_id):
             exp_row = cursor.fetchone()
             if exp_row:
                 log_activity(exp_row['trip_id'], session['user_id'], 'expense_edited', exp_row['description'])
+                notify_trip_members(exp_row['trip_id'], 'expense_edited', f"Expense updated: {exp_row['description']}", exclude_user_id=session['user_id'])
             
         return jsonify({"success": True})
     except sqlite3.Error as e:
@@ -2129,6 +2183,7 @@ def delete_expense(expense_id):
         conn.commit()
         logger.info(f"Expense deleted: id={expense_id} (₪{expense['amount']}, '{expense['description']}') by user {session['user_id']}")
         log_activity(expense['trip_id'], session['user_id'], 'expense_deleted', expense['description'])
+        notify_trip_members(expense['trip_id'], 'expense_deleted', f"Expense deleted: {expense['description']}", exclude_user_id=session['user_id'])
         return jsonify({"success": True})
     except sqlite3.Error as e:
         logger.error(f"Delete expense error: {e}")
@@ -2222,6 +2277,90 @@ def get_balances(trip_id):
         'average': total_expenses / num_users if num_users > 0 else 0,
         'balances': balances
     })
+
+@app.route('/api/trips/<int:trip_id>/optimized-balances', methods=['GET'])
+@login_required
+@require_trip_access
+def get_optimized_balances(trip_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT u.id, u.name FROM Users u
+        JOIN TripMembers tm ON u.id = tm.user_id
+        WHERE tm.trip_id = ?
+    """, (trip_id,))
+    users = cursor.fetchall()
+
+    cursor.execute("SELECT user_id, SUM(amount) as total FROM Expenses WHERE trip_id = ? GROUP BY user_id", (trip_id,))
+    paid_data = {row['user_id']: row['total'] for row in cursor.fetchall()}
+
+    cursor.execute("""
+        SELECT es.user_id, SUM(es.amount) as total_owed
+        FROM ExpenseSplits es
+        JOIN Expenses e ON es.expense_id = e.id
+        WHERE e.trip_id = ?
+        GROUP BY es.user_id
+    """, (trip_id,))
+    owed_data = {row['user_id']: row['total_owed'] for row in cursor.fetchall()}
+
+    cursor.execute("SELECT payer_id, SUM(amount) as total FROM Settlements WHERE trip_id = ? GROUP BY payer_id", (trip_id,))
+    settled_out = {row['payer_id']: row['total'] for row in cursor.fetchall()}
+
+    cursor.execute("SELECT payee_id, SUM(amount) as total FROM Settlements WHERE trip_id = ? GROUP BY payee_id", (trip_id,))
+    settled_in = {row['payee_id']: row['total'] for row in cursor.fetchall()}
+
+    conn.close()
+
+    total_expenses = sum(paid_data.values()) if paid_data else 0
+    num_users = len(users)
+    has_splits = bool(owed_data)
+
+    debts = []
+    credits = []
+
+    for user in users:
+        uid = user['id']
+        paid = paid_data.get(uid, 0.0)
+        owed = owed_data.get(uid, 0.0) if has_splits else (total_expenses / num_users if num_users > 0 else 0)
+        s_out = settled_out.get(uid, 0.0)
+        s_in = settled_in.get(uid, 0.0)
+
+        balance = (paid + s_out) - (owed + s_in)
+        
+        if balance < -0.01:
+            debts.append({"user_id": uid, "name": user['name'], "amount": -balance})
+        elif balance > 0.01:
+            credits.append({"user_id": uid, "name": user['name'], "amount": balance})
+
+    # Greedy settlement matching
+    debts.sort(key=lambda x: x['amount'], reverse=True)
+    credits.sort(key=lambda x: x['amount'], reverse=True)
+
+    settlements = []
+    di, ci = 0
+
+    while di < len(debts) and ci < len(credits):
+        transfer = min(debts[di]['amount'], credits[ci]['amount'])
+        if transfer > 0.01:
+            settlements.append({
+                "from_id": debts[di]['user_id'],
+                "from": debts[di]['name'],
+                "to_id": credits[ci]['user_id'],
+                "to": credits[ci]['name'],
+                "amount": transfer
+            })
+        
+        debts[di]['amount'] -= transfer
+        credits[ci]['amount'] -= transfer
+        
+        if debts[di]['amount'] < 0.01:
+            di += 1
+        if credits[ci]['amount'] < 0.01:
+            ci += 1
+
+    return jsonify({"optimized_settlements": settlements})
+
 
 
 # =====================
@@ -2458,6 +2597,7 @@ def create_settlement():
 
         logger.info(f"Settlement: user {payer_id} settled {amount} with user {payee_id} in trip {trip_id}")
         log_activity(trip_id, payer_id, 'settlement', f"₪{amount:.0f} -> {payee_name}")
+        notify_trip_members(trip_id, 'settlement', f"Settlement: ₪{amount:.0f} paid to {payee_name}", exclude_user_id=session['user_id'])
         return jsonify({"success": True})
     except sqlite3.Error as e:
         logger.error(f"Settlement error: {e}")

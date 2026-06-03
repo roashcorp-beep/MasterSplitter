@@ -404,6 +404,36 @@
                 </div>
             </div>
         </div>
+
+        <div class="accordion-item">
+            <div class="accordion-header" onclick="toggleAccordion('phoneAcc')">
+                <span data-i18n="profile_change_phone">עדכון מספר טלפון</span>
+                <span class="chevron">▼</span>
+            </div>
+            <div class="accordion-content" id="phoneAcc">
+                <div class="input-group" style="margin-top: 10px;">
+                    <input type="tel" id="phoneInput" data-i18n="profile_phone_ph" placeholder="מספר טלפון חדש" style="direction:ltr; unicode-bidi:embed;">
+                </div>
+                <button class="action-btn" onclick="savePhone()" style="margin-top: 10px;" data-i18n="profile_save_phone_btn">שמור טלפון</button>
+                <div id="phoneFeedback" class="feedback"></div>
+            </div>
+        </div>
+
+        <div class="accordion-item">
+            <div class="accordion-header" onclick="toggleAccordion('tutorialAcc')">
+                <span data-i18n="profile_tutorial">מדריך שימוש</span>
+                <span class="chevron">▼</span>
+            </div>
+            <div class="accordion-content" id="tutorialAcc">
+                <div style="margin-top: 14px; text-align: center;">
+                    <div style="background: rgba(255,255,255,0.04); border: 2px dashed rgba(168,85,247,0.3); border-radius: 16px; padding: 32px 16px; color: var(--text-sec);">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.5; margin-bottom:12px;"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                        <p style="font-weight: 700; font-size: 0.95rem; margin-bottom: 6px;" data-i18n="profile_tutorial_coming">סרטון הדרכה בקרוב!</p>
+                        <p style="font-size: 0.82rem; color: var(--text-muted);" data-i18n="profile_tutorial_desc">כאן יופיע סרטון הדרכה שילמד אותך כיצד להשתמש באפליקציה.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="/static/js/translations.js"></script>
@@ -558,6 +588,39 @@
                     feedback.textContent = 'שם המשתמש עודכן בהצלחה';
                     feedback.className = 'feedback success';
                     profileUserData.name = newName;
+                    renderUserData();
+                } else {
+                    feedback.textContent = data.error || 'שגיאה בעדכון';
+                    feedback.className = 'feedback error';
+                }
+            } catch (err) {
+                feedback.textContent = 'שגיאה בחיבור לשרת';
+                feedback.className = 'feedback error';
+            }
+        }
+
+        async function savePhone() {
+            const phone = document.getElementById('phoneInput').value.trim();
+            const feedback = document.getElementById('phoneFeedback');
+            feedback.textContent = '';
+
+            if (!phone) {
+                feedback.textContent = typeof i18n === 'function' ? i18n('profile_phone_required') : 'יש להזין מספר טלפון';
+                feedback.className = 'feedback error';
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/profile', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone: phone })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    feedback.textContent = typeof i18n === 'function' ? i18n('profile_phone_saved') : 'הטלפון עודכן בהצלחה';
+                    feedback.className = 'feedback success';
+                    profileUserData.phone = phone;
                     renderUserData();
                 } else {
                     feedback.textContent = data.error || 'שגיאה בעדכון';

@@ -144,16 +144,19 @@
         function toggleLangPill() {
             const newLang = (typeof currentLang !== 'undefined' && currentLang === 'he') ? 'en' : 'he';
             setLanguage(newLang);
-            const pill = document.getElementById('lang-pill-code');
-            if (pill) pill.textContent = newLang === 'en' ? 'EN' : '\u05e2\u05d1';
+            updateLangPillText(newLang);
         }
-        // Set dropdown to match current language on load
+        function updateLangPillText(lang) {
+            const pill = document.getElementById('lang-pill-code');
+            if (!pill) return;
+            // Show the OPPOSITE language as the button label
+            pill.textContent = lang === 'he' ? 'EN' : '\u05e2\u05d1';
+        }
+        // Set pill text to match current language on load
         document.addEventListener('DOMContentLoaded', () => {
-            // Set pill text to match current language
             setTimeout(() => {
-                const pill = document.getElementById('lang-pill-code');
-                if (pill && typeof currentLang !== 'undefined') {
-                    pill.textContent = currentLang === 'en' ? 'EN' : 'עב';
+                if (typeof currentLang !== 'undefined') {
+                    updateLangPillText(currentLang);
                 }
             }, 300);
 

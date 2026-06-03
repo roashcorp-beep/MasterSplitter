@@ -208,7 +208,22 @@ const translations = {
         "settings_title": "הגדרות קבוצה",
         "settings_public_expenses": "הצג הוצאות לכולם",
         "settings_public_hint": "כשכבוי, חברים רואים רק הוצאות ששילמו או שהם חלק מהן.",
-        "settings_members": "חברי קבוצה"
+        "settings_members": "חברי קבוצה",
+
+        // Phase 2 additions
+        "demote_question": "הסר הרשאות מנהל?",
+        "demote_success": "הרשאות מנהל הוסרו",
+        "invite_link_copied": "קישור הזמנה הועתק!",
+        "invite_joined": "הצטרפת לקבוצה!",
+        "invite_link_btn": "צור קישור הזמנה",
+        "profile_change_phone": "עדכון מספר טלפון",
+        "profile_phone_ph": "מספר טלפון חדש",
+        "profile_save_phone_btn": "שמור טלפון",
+        "profile_phone_required": "יש להזין מספר טלפון",
+        "profile_phone_saved": "הטלפון עודכן בהצלחה",
+        "profile_tutorial": "מדריך שימוש",
+        "profile_tutorial_coming": "סרטון הדרכה בקרוב!",
+        "profile_tutorial_desc": "כאן יופיע סרטון הדרכה שילמד אותך כיצד להשתמש באפליקציה."
     },
     en: {
         // General
@@ -419,7 +434,22 @@ const translations = {
         "settings_title": "Group Settings",
         "settings_public_expenses": "Show all expenses to everyone",
         "settings_public_hint": "When off, members only see expenses they paid or are split with.",
-        "settings_members": "Members"
+        "settings_members": "Members",
+
+        // Phase 2 additions
+        "demote_question": "Remove Admin?",
+        "demote_success": "Admin removed",
+        "invite_link_copied": "Invite link copied!",
+        "invite_joined": "Joined group!",
+        "invite_link_btn": "Create Invite Link",
+        "profile_change_phone": "Update Phone Number",
+        "profile_phone_ph": "New phone number",
+        "profile_save_phone_btn": "Save Phone",
+        "profile_phone_required": "Please enter a phone number",
+        "profile_phone_saved": "Phone updated successfully",
+        "profile_tutorial": "Tutorial",
+        "profile_tutorial_coming": "Tutorial video coming soon!",
+        "profile_tutorial_desc": "A tutorial video will appear here to help you learn how to use the app."
     }
 };
 

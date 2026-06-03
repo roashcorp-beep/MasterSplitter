@@ -362,6 +362,19 @@ def init_db_updates():
     """)
 
     conn.commit()
+
+    # --- Add invite_token to Trips ---
+    try:
+        cursor.execute("PRAGMA table_info(Trips)")
+        trips_cols_inv = [c['name'] for c in cursor.fetchall()]
+        if 'invite_token' not in trips_cols_inv:
+            cursor.execute("ALTER TABLE Trips ADD COLUMN invite_token TEXT")
+            logger.info("Migration: added 'invite_token' column to Trips")
+            conn.commit()
+    except sqlite3.Error as e:
+        logger.error(f"Trips invite_token migration error: {e}")
+
+    conn.commit()
     conn.close()
     logger.info("Database initialization complete.")
 
@@ -1158,6 +1171,14 @@ def update_profile():
         updates.append("default_currency = ?")
         params.append(default_currency)
 
+    phone = data.get('phone', '').strip()
+    if phone:
+        phone, err = validate_string(phone, 'Phone', 20, required=True)
+        if err:
+            return jsonify({"error": err}), 400
+        updates.append("phone = ?")
+        params.append(phone)
+
     if not updates:
         return jsonify({"success": True})
 
@@ -1589,6 +1610,114 @@ def promote_member(trip_id, member_id):
     return jsonify({"success": True})
 
 
+@app.route('/api/trips/<int:trip_id>/demote/<int:member_id>', methods=['POST'])
+@login_required
+@require_trip_access
+def demote_member(trip_id, member_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    # Check caller is admin
+    cursor.execute("SELECT COALESCE(is_admin, 0) as is_admin FROM TripMembers WHERE trip_id = ? AND user_id = ?",
+                   (trip_id, session['user_id']))
+    caller = cursor.fetchone()
+    if not caller or not caller['is_admin']:
+        conn.close()
+        return jsonify({"error": "Only admins can demote members."}), 403
+
+    # Cannot demote yourself if you are the last admin
+    if member_id == session['user_id']:
+        cursor.execute("SELECT COUNT(*) as cnt FROM TripMembers WHERE trip_id = ? AND COALESCE(is_admin, 0) = 1",
+                       (trip_id,))
+        admin_count = cursor.fetchone()['cnt']
+        if admin_count <= 1:
+            conn.close()
+            return jsonify({"error": "Cannot demote — you are the last admin."}), 400
+
+    cursor.execute("UPDATE TripMembers SET is_admin = 0 WHERE trip_id = ? AND user_id = ?",
+                   (trip_id, member_id))
+    if cursor.rowcount == 0:
+        conn.close()
+        return jsonify({"error": "Member not found."}), 404
+    conn.commit()
+    conn.close()
+    logger.info(f"User {session['user_id']} demoted {member_id} from admin in trip {trip_id}")
+    return jsonify({"success": True})
+
+
+@app.route('/api/trips/<int:trip_id>/invite-link', methods=['POST'])
+@login_required
+@require_trip_access
+def generate_invite_link(trip_id):
+    """Generate (or regenerate) a unique invite token for the trip."""
+    import uuid
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    # Only admins can generate invite links
+    cursor.execute("SELECT COALESCE(is_admin, 0) as is_admin FROM TripMembers WHERE trip_id = ? AND user_id = ?",
+                   (trip_id, session['user_id']))
+    caller = cursor.fetchone()
+    if not caller or not caller['is_admin']:
+        conn.close()
+        return jsonify({"error": "Only admins can generate invite links."}), 403
+
+    token = uuid.uuid4().hex[:12]
+    cursor.execute("UPDATE Trips SET invite_token = ? WHERE id = ?", (token, trip_id))
+    conn.commit()
+    conn.close()
+    logger.info(f"User {session['user_id']} generated invite link for trip {trip_id}")
+    return jsonify({"success": True, "invite_token": token})
+
+
+@app.route('/api/trips/<int:trip_id>/invite-link', methods=['GET'])
+@login_required
+@require_trip_access
+def get_invite_link(trip_id):
+    """Get the current invite token for the trip."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT invite_token FROM Trips WHERE id = ?", (trip_id,))
+    trip = cursor.fetchone()
+    conn.close()
+    token = trip['invite_token'] if trip and trip['invite_token'] else None
+    return jsonify({"invite_token": token})
+
+
+@app.route('/api/join/<token>', methods=['POST'])
+@login_required
+def join_via_invite(token):
+    """Join a trip via invite link token."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, destination FROM Trips WHERE invite_token = ?", (token,))
+    trip = cursor.fetchone()
+    if not trip:
+        conn.close()
+        return jsonify({"error": "Invalid or expired invite link."}), 404
+
+    trip_id = trip['id']
+    # Check if already a member
+    cursor.execute("SELECT 1 FROM TripMembers WHERE trip_id = ? AND user_id = ?",
+                   (trip_id, session['user_id']))
+    if cursor.fetchone():
+        conn.close()
+        return jsonify({"success": True, "trip_id": trip_id, "message": "Already a member."})
+
+    cursor.execute("INSERT INTO TripMembers (trip_id, user_id, is_admin) VALUES (?, ?, 0)",
+                   (trip_id, session['user_id']))
+    conn.commit()
+    conn.close()
+    logger.info(f"User {session['user_id']} joined trip {trip_id} via invite link")
+    return jsonify({"success": True, "trip_id": trip_id})
+
+
+@app.route('/join/<token>')
+def join_invite_page(token):
+    """Redirect page for invite links."""
+    if 'user_id' not in session:
+        return redirect(f'/?invite={token}')
+    return redirect(f'/app?invite={token}')
+
+
 @app.route('/api/trips/<int:trip_id>/leave', methods=['POST'])
 @login_required
 @require_trip_access
@@ -1822,16 +1951,21 @@ def add_expense():
     if currency not in ALLOWED_CURRENCIES:
         currency = 'ILS'
 
-    # Currency conversion: convert to ILS if foreign currency
+    # Look up user's default currency for conversion target
+    cursor.execute("SELECT COALESCE(default_currency, 'ILS') as default_currency FROM Users WHERE id = ?", (session['user_id'],))
+    user_row = cursor.fetchone()
+    user_default_currency = user_row['default_currency'] if user_row else 'ILS'
+
+    # Currency conversion: convert to user's default currency if foreign
     original_amount = None
-    if currency != 'ILS':
-        rate = get_exchange_rate(currency, 'ILS')
+    if currency != user_default_currency:
+        rate = get_exchange_rate(currency, user_default_currency)
         if rate:
             original_amount = amount
             amount = round(original_amount * rate, 2)
         else:
             # Could not get rate — store as-is with a warning
-            logger.warning(f"Could not get exchange rate for {currency}->ILS, storing raw amount")
+            logger.warning(f"Could not get exchange rate for {currency}->{user_default_currency}, storing raw amount")
             original_amount = amount
 
     # Personal expense flag

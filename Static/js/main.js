@@ -34,6 +34,7 @@ let authMode = 'login';
 let currentUser = null;
 let friendsList = [];
 let _groupSettings = { is_admin: false, allow_member_delete: true };
+let _cachedExpenses = [];
 
 function toggleAuthMode() {
     authMode = authMode === 'login' ? 'signup' : 'login';
@@ -974,6 +975,7 @@ async function fetchExpenses() {
         const res = await fetch(`/api/expenses/${currentTripId}`);
         if (res.status === 401) { window.location.href = '/'; return; }
         const expenses = await res.json();
+        _cachedExpenses = expenses; // Cache for stats modal
 
         let html = '';
         if (!expenses.length) {
@@ -991,12 +993,16 @@ async function fetchExpenses() {
                     ? `<img class="expense-avatar avatar-img" src="${escapeHTML(exp.payer_avatar)}" alt="${safePayer}" referrerpolicy="no-referrer">`
                     : `<div class="expense-avatar avatar-initial">${escapeHTML(exp.payer.charAt(0))}</div>`;
 
-                // Dual currency display using user's default currency
+                // Currency display: show original currency prominently, converted in parens
+                let amountDisplay = '';
                 const userSym = getUserCurrencySymbol();
-                let amountDisplay = `${userSym}${parseFloat(exp.amount).toFixed(2)}`;
-                if (exp.currency && exp.currency !== (currentUser?.default_currency || 'ILS') && exp.original_amount) {
+                if (exp.original_amount && exp.currency && exp.currency !== (currentUser?.default_currency || 'ILS')) {
+                    // Foreign currency: show original first, converted in parens
                     const origSym = getCurrencySymbol(exp.currency);
-                    amountDisplay += ` <span class="original-currency">(${origSym}${parseFloat(exp.original_amount).toFixed(2)})</span>`;
+                    amountDisplay = `<span class="primary-amount">${origSym}${parseFloat(exp.original_amount).toFixed(0)}</span>
+                        <span class="original-currency">(~${userSym}${parseFloat(exp.amount).toFixed(0)})</span>`;
+                } else {
+                    amountDisplay = `${userSym}${parseFloat(exp.amount).toFixed(0)}`;
                 }
 
                 const canEdit = currentUser && exp.user_id === currentUser.id;
@@ -1658,21 +1664,83 @@ async function fetchGroupSettings() {
 //   STATS VIEW (Category chart fullscreen)
 // ============================================
 function showStatsView() {
-    // Switch to home tab first
-    switchTab('home');
-    // Make category chart visible even without budget
-    const flipContainer = document.querySelector('.flip-card-container');
-    if (flipContainer) {
-        flipContainer.style.display = '';
-        // Flip to chart side
-        const inner = flipContainer.querySelector('.flip-card-inner');
-        if (inner) inner.classList.add('flipped');
+    // Open the stats modal overlay instead of flipping budget card
+    const modal = document.getElementById('stats-modal');
+    if (!modal) return;
+
+    const chartArea = document.getElementById('stats-chart-area');
+    const summaryArea = document.getElementById('stats-summary');
+    if (!chartArea || !summaryArea) return;
+
+    // Render category chart into modal
+    const uSym = getUserCurrencySymbol();
+    const expenseItems = document.querySelectorAll('.list-item');
+
+    // Use cached expenses data if available
+    if (typeof _cachedExpenses !== 'undefined' && _cachedExpenses && _cachedExpenses.length > 0) {
+        const catTotals = {};
+        let total = 0;
+        let maxAmt = 0;
+
+        _cachedExpenses.forEach(exp => {
+            const cat = exp.category || (typeof i18n === 'function' ? i18n('cat_general') : 'General');
+            const amt = parseFloat(exp.amount);
+            catTotals[cat] = (catTotals[cat] || 0) + amt;
+            total += amt;
+        });
+
+        Object.values(catTotals).forEach(val => { if (val > maxAmt) maxAmt = val; });
+
+        const categoriesList = [
+            { name: '\u05d0\u05d5\u05db\u05dc', nameEn: 'Food', icon: '\ud83c\udf54', color: 'var(--accent-yellow)' },
+            { name: '\u05dc\u05d9\u05e0\u05d4', nameEn: 'Lodging', icon: '\ud83c\udfe8', color: 'var(--primary)' },
+            { name: '\u05ea\u05d7\u05d1\u05d5\u05e8\u05d4', nameEn: 'Transport', icon: '\ud83d\ude95', color: 'var(--accent-cyan)' },
+            { name: '\u05d0\u05d8\u05e8\u05e7\u05e6\u05d9\u05d5\u05ea', nameEn: 'Attractions', icon: '\ud83c\udfa2', color: 'var(--error)' },
+            { name: '\u05db\u05dc\u05dc\u05d9', nameEn: 'General', icon: '\ud83d\udce6', color: 'var(--success)' }
+        ];
+
+        let barsHtml = '';
+        categoriesList.forEach(c => {
+            const val = catTotals[c.name] || catTotals[c.nameEn] || 0;
+            if (val > 0) {
+                const heightPct = maxAmt > 0 ? Math.max(10, (val / maxAmt) * 100) : 0;
+                const displayName = typeof translateCategory === 'function' ? translateCategory(c.name) : c.name;
+                barsHtml += `
+                <div class="chart-bar-wrapper">
+                    <div class="chart-bar" style="height: ${heightPct}%; background: ${c.color};" data-tooltip="${displayName}: ${uSym}${val.toFixed(0)}"></div>
+                    <div class="chart-icon">${c.icon}</div>
+                </div>`;
+            }
+        });
+
+        chartArea.innerHTML = barsHtml || `<div style="color:var(--text-muted); width:100%; text-align:center;">${typeof i18n === 'function' ? i18n('balances_no_data') : 'No data'}</div>`;
+
+        const numMembers = tripMembers ? tripMembers.length : 1;
+        const avg = numMembers > 0 ? total / numMembers : 0;
+        const totalLabel = typeof i18n === 'function' ? i18n('home_total_expenses') : 'Total Expenses';
+        const avgLabel = typeof currentLang !== 'undefined' && currentLang === 'he' ? '\u05de\u05de\u05d5\u05e6\u05e2 \u05dc\u05d0\u05d3\u05dd' : 'Avg / Person';
+        const catCount = Object.keys(catTotals).length;
+        const catLabel = typeof currentLang !== 'undefined' && currentLang === 'he' ? '\u05e7\u05d8\u05d2\u05d5\u05e8\u05d9\u05d5\u05ea' : 'Categories';
+        const expCount = _cachedExpenses.length;
+        const expLabel = typeof currentLang !== 'undefined' && currentLang === 'he' ? '\u05d4\u05d5\u05e6\u05d0\u05d5\u05ea' : 'Expenses';
+
+        summaryArea.innerHTML = `
+            <div class="stats-summary-card"><div class="stats-value">${uSym}${total.toFixed(0)}</div><div class="stats-label">${totalLabel}</div></div>
+            <div class="stats-summary-card"><div class="stats-value">${uSym}${avg.toFixed(0)}</div><div class="stats-label">${avgLabel}</div></div>
+            <div class="stats-summary-card"><div class="stats-value">${catCount}</div><div class="stats-label">${catLabel}</div></div>
+            <div class="stats-summary-card"><div class="stats-value">${expCount}</div><div class="stats-label">${expLabel}</div></div>
+        `;
+    } else {
+        chartArea.innerHTML = `<div style="color:var(--text-muted); width:100%; text-align:center;">${typeof i18n === 'function' ? i18n('balances_no_data') : 'No data'}</div>`;
+        summaryArea.innerHTML = '';
     }
-    // Scroll into view
-    setTimeout(() => {
-        const chart = document.getElementById('category-chart');
-        if (chart) chart.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 200);
+
+    modal.classList.add('open');
+}
+
+function closeStatsModal() {
+    const modal = document.getElementById('stats-modal');
+    if (modal) modal.classList.remove('open');
 }
 
 // ============================================
@@ -1774,18 +1842,27 @@ async function openGroupInfo() {
                     ? `<img class="member-avatar avatar-img" src="${escapeHTML(m.avatar_url)}" alt="${safeName}" referrerpolicy="no-referrer">`
                     : `<div class="member-avatar avatar-initial">${initial}</div>`;
                 const adminBadge = m.is_admin ? `<span class="admin-badge">${i18n('group_info_admin')}</span>` : '';
+                // Promote: long-press non-admin member
                 const promoteAttr = settings.is_admin && !m.is_admin && m.type === 'user'
                     ? ` oncontextmenu="event.preventDefault(); promoteMemberFromInfo(${m.id})" ontouchstart="startPromoteTimer(${m.id})" ontouchend="clearPromoteTimer()"`
+                    : '';
+                // Demote: show button for admin members (but not for the last admin)
+                const demoteBtn = settings.is_admin && m.is_admin && m.type === 'user'
+                    ? `<button class="admin-badge" style="cursor:pointer;opacity:0.7;font-size:0.6rem;background:var(--error);border:none;margin-inline-start:4px;" onclick="event.stopPropagation(); demoteMemberFromInfo(${m.id})" title="${typeof i18n === 'function' ? i18n('demote_question') : 'Remove Admin?'}">✕</button>`
                     : '';
                 return `<div class="member-row"${promoteAttr}>
                     ${avatarHtml}
                     <span class="member-name">${safeName}</span>
-                    ${adminBadge}
+                    ${adminBadge}${demoteBtn}
                 </div>`;
             }).join('');
         }
 
         modal.style.display = 'flex';
+
+        // Show invite link button for admins
+        const inviteLinkBtn = document.getElementById('invite-link-btn');
+        if (inviteLinkBtn) inviteLinkBtn.style.display = settings.is_admin ? 'block' : 'none';
     } catch (e) {
         console.error('Open group info error:', e);
     }
@@ -1881,6 +1958,27 @@ async function promoteMemberFromInfo(memberId) {
         }
     } catch (e) {
         console.error('Promote error:', e);
+    }
+}
+
+async function demoteMemberFromInfo(memberId) {
+    const confirmMsg = typeof i18n === 'function' ? i18n('demote_question') : 'Remove Admin?';
+    if (!confirm(confirmMsg)) return;
+    try {
+        const res = await fetch(`/api/trips/${currentTripId}/demote/${memberId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        if (res.ok) {
+            await fetchTripMembers();
+            openGroupInfo(); // refresh
+            showToast(typeof i18n === 'function' ? i18n('demote_success') : 'Admin removed', 'success');
+        } else {
+            const data = await res.json();
+            showToast(data.error || 'Error', 'error');
+        }
+    } catch (e) {
+        console.error('Demote error:', e);
     }
 }
 
@@ -2114,4 +2212,58 @@ window.addEventListener('appinstalled', () => {
     console.log('[PWA] App was installed successfully.');
     document.querySelectorAll('.pwa-install-btn').forEach(btn => btn.style.display = 'none');
     deferredPrompt = null;
+});
+
+// =====================
+//  INVITE LINK
+// =====================
+async function generateInviteLink() {
+    if (!currentTripId) return;
+    try {
+        const res = await fetch(`/api/trips/${currentTripId}/invite-link`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await res.json();
+        if (data.success && data.invite_token) {
+            const link = `${window.location.origin}/join/${data.invite_token}`;
+            if (navigator.clipboard) {
+                await navigator.clipboard.writeText(link);
+                showToast(typeof i18n === 'function' ? i18n('invite_link_copied') : 'Invite link copied!', 'success');
+            } else {
+                prompt('Copy this link:', link);
+            }
+        } else {
+            showToast(data.error || 'Error', 'error');
+        }
+    } catch (e) {
+        console.error('Invite link error:', e);
+    }
+}
+
+// Auto-join from invite link on page load
+document.addEventListener('DOMContentLoaded', () => {
+    const params = new URLSearchParams(window.location.search);
+    const inviteToken = params.get('invite');
+    if (inviteToken) {
+        // Clean URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+        fetch(`/api/join/${inviteToken}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showToast(typeof i18n === 'function' ? i18n('invite_joined') : 'Joined group!', 'success');
+                if (data.trip_id) {
+                    currentTripId = data.trip_id;
+                    loadLobby();
+                }
+            } else {
+                showToast(data.error || 'Invalid invite link', 'error');
+            }
+        })
+        .catch(e => console.error('Auto-join error:', e));
+    }
 });

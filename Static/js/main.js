@@ -1327,10 +1327,10 @@ async function fetchBalances() {
         const elBudget = document.getElementById('total-budget');
         const elLeft = document.getElementById('budget-left');
         const elPct = document.getElementById('circle-percent');
-        const uSym = getUserCurrencySymbol();
-        if (elSpent) elSpent.textContent = `${uSym}${spent.toFixed(0)}`;
-        if (elBudget) elBudget.textContent = `${uSym}${budget}`;
-        if (elLeft) elLeft.textContent = `${uSym}${Math.max(0, left).toFixed(0)}`;
+        const userSym = getUserCurrencySymbol();
+        if (elSpent) elSpent.textContent = `${userSym}${spent.toFixed(0)}`;
+        if (elBudget) elBudget.textContent = `${userSym}${budget}`;
+        if (elLeft) elLeft.textContent = `${userSym}${Math.max(0, left).toFixed(0)}`;
         if (elPct) elPct.textContent = `${pct}%`;
 
         const list = document.getElementById('balances-list');
@@ -1376,7 +1376,7 @@ async function fetchBalances() {
                             <span>${safeFrom}</span>
                             <span class="debt-arrow">←</span>
                             <span>${safeTo}</span>
-                            <span class="debt-amount">${uSym}${s.amount.toFixed(0)}</span>
+                            <span class="debt-amount">${userSym}${s.amount.toFixed(0)}</span>
                         </div>
                         ${settleBtn}
                     </div>`;
@@ -1394,12 +1394,12 @@ async function fetchBalances() {
                         <div class="avatar bg-purple" style="width:40px;height:40px;font-size:1.2rem;">${escapeHTML(b.name.charAt(0))}</div>
                         <div class="item-details">
                             <h4>${safeName}${me}</h4>
-                            <p>${paidTxt}${uSym}${b.paid.toFixed(0)}</p>
+                            <p>${paidTxt}${userSym}${b.paid.toFixed(0)}</p>
                         </div>
                     </div>
                     <div class="item-right">
                         <span class="balance-badge ${badgeCls}">${badgeTxt}</span>
-                        <div class="item-amount ${amtCls}">${uSym}${Math.abs(b.balance).toFixed(0)}</div>
+                        <div class="item-amount ${amtCls}">${userSym}${Math.abs(b.balance).toFixed(0)}</div>
                         <span class="accordion-arrow">▼</span>
                     </div>
                 </div>
@@ -1943,7 +1943,7 @@ function showStatsView() {
     if (!chartArea || !summaryArea) return;
 
     // Render category chart into modal
-    const uSym = getUserCurrencySymbol();
+    const userSym = getUserCurrencySymbol();
     const expenseItems = document.querySelectorAll('.list-item');
 
     // Use cached expenses data if available
@@ -1977,7 +1977,7 @@ function showStatsView() {
                 const displayName = typeof translateCategory === 'function' ? translateCategory(c.name) : c.name;
                 barsHtml += `
                 <div class="chart-bar-wrapper">
-                    <div class="chart-bar" style="height: ${heightPct}%; background: ${c.color};" data-tooltip="${displayName}: ${uSym}${val.toFixed(0)}"></div>
+                    <div class="chart-bar" style="height: ${heightPct}%; background: ${c.color};" data-tooltip="${displayName}: ${userSym}${val.toFixed(0)}"></div>
                     <div class="chart-icon">${c.icon}</div>
                 </div>`;
             }
@@ -1995,8 +1995,8 @@ function showStatsView() {
         const expLabel = typeof currentLang !== 'undefined' && currentLang === 'he' ? '\u05d4\u05d5\u05e6\u05d0\u05d5\u05ea' : 'Expenses';
 
         summaryArea.innerHTML = `
-            <div class="stats-summary-card"><div class="stats-value">${uSym}${total.toFixed(0)}</div><div class="stats-label">${totalLabel}</div></div>
-            <div class="stats-summary-card"><div class="stats-value">${uSym}${avg.toFixed(0)}</div><div class="stats-label">${avgLabel}</div></div>
+            <div class="stats-summary-card"><div class="stats-value">${userSym}${total.toFixed(0)}</div><div class="stats-label">${totalLabel}</div></div>
+            <div class="stats-summary-card"><div class="stats-value">${userSym}${avg.toFixed(0)}</div><div class="stats-label">${avgLabel}</div></div>
             <div class="stats-summary-card"><div class="stats-value">${catCount}</div><div class="stats-label">${catLabel}</div></div>
             <div class="stats-summary-card"><div class="stats-value">${expCount}</div><div class="stats-label">${expLabel}</div></div>
         `;

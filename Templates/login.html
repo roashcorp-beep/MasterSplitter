@@ -31,109 +31,53 @@
     </script>
     <!-- Babel Standalone -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        .math-bg {
+            background-color: #0f172a;
+            background-image: radial-gradient(circle at center, rgba(30, 58, 138, 0.2) 0%, rgba(15, 23, 42, 1) 100%), url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.03' font-family='monospace' font-size='12'%3E%3Ctext x='10' y='20'%3E∑(x_i)%3C/text%3E%3Ctext x='50' y='60'%3Eπ*r²%3C/text%3E%3Ctext x='80' y='10'%3E+1%3C/text%3E%3Ctext x='20' y='90'%3EE=mc²%3C/text%3E%3Ctext x='70' y='80'%3E∫dx%3C/text%3E%3C/g%3E%3C/svg%3E");
+            background-size: cover, 200px 200px;
+        }
+        @keyframes float {
+            0% { transform: translateY(0px) rotate(0deg); opacity: 0.1; }
+            50% { transform: translateY(-20px) rotate(5deg); opacity: 0.3; }
+            100% { transform: translateY(0px) rotate(0deg); opacity: 0.1; }
+        }
+        .floating-math {
+            animation: float 15s infinite ease-in-out;
+        }
+    </style>
 </head>
-<body class="bg-gray-50 dark:bg-slate-900 overflow-hidden font-sans text-gray-900 dark:text-gray-100">
+<body class="bg-gray-50 dark:bg-slate-900 font-sans text-gray-900 dark:text-gray-100">
     <!-- Root mount point for React -->
     <div id="root"></div>
 
     <!-- React Application Logic -->
     <script type="text/babel" data-type="module">
-        import React, { useState, useEffect, useRef } from 'react';
+        import React, { useState, useEffect } from 'react';
         import { createRoot } from 'react-dom/client';
         import { Globe, Eye, EyeOff, CheckCircle2, AlertCircle } from 'lucide-react';
 
         // i18n Bridge
         const i18n = window.MasterSplitterI18n;
 
-        const StarsIntro = ({ onComplete }) => {
-            const canvasRef = useRef(null);
-
-            useEffect(() => {
-                const canvas = canvasRef.current;
-                const ctx = canvas.getContext('2d');
-                let animationFrameId;
-                let startTime = Date.now();
-                const DURATION = 1500; // 1.5 seconds
-
-                const resize = () => {
-                    canvas.width = window.innerWidth;
-                    canvas.height = window.innerHeight;
-                };
-                window.addEventListener('resize', resize);
-                resize();
-
-                const centerX = canvas.width / 2;
-                const centerY = canvas.height / 2;
-
-                const stars = Array.from({ length: 150 }).map(() => ({
-                    x: Math.random() * canvas.width,
-                    y: Math.random() * canvas.height,
-                    size: Math.random() * 2 + 1,
-                    speed: Math.random() * 0.05 + 0.02
-                }));
-
-                const render = () => {
-                    const elapsed = Date.now() - startTime;
-                    const progress = Math.min(elapsed / DURATION, 1);
-                    
-                    ctx.fillStyle = '#0f172a'; // slate-900
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-                    ctx.fillStyle = '#ffffff';
-                    stars.forEach(star => {
-                        // Move towards center
-                        const dx = centerX - star.x;
-                        const dy = centerY - star.y;
-                        
-                        // Increase speed exponentially as time passes to create intense zoom convergence
-                        const easeIn = progress * progress * progress * progress;
-                        star.x += dx * star.speed * (1 + easeIn * 30);
-                        star.y += dy * star.speed * (1 + easeIn * 30);
-
-                        ctx.beginPath();
-                        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
-                        ctx.fill();
-                    });
-
-                    if (elapsed < DURATION) {
-                        animationFrameId = requestAnimationFrame(render);
-                    } else {
-                        // Trigger fade out in CSS, wait for it
-                        canvas.style.opacity = '0';
-                        setTimeout(() => {
-                            if (onComplete) onComplete();
-                        }, 500); // match transition duration
-                    }
-                };
-
-                render();
-
-                return () => {
-                    window.removeEventListener('resize', resize);
-                    cancelAnimationFrame(animationFrameId);
-                };
-            }, [onComplete]);
-
-            return (
-                <canvas 
-                    ref={canvasRef} 
-                    className="fixed inset-0 z-50 pointer-events-none transition-opacity duration-500 ease-in-out opacity-100"
-                />
-            );
+        const languageNames = {
+            'he': 'עברית',
+            'en': 'English',
+            'es': 'Español',
+            'ru': 'Русский',
+            'ar': 'العربية',
+            'fr': 'Français',
+            'zh': '中文'
         };
 
         const LanguageSelector = ({ currentLang, setLang }) => {
             const [isOpen, setIsOpen] = useState(false);
-            const languages = ['he', 'en', 'es', 'ru', 'ar', 'fr', 'zh'];
+            const languages = Object.keys(languageNames);
             
             const handleSelect = (langCode) => {
                 setLang(langCode);
                 setIsOpen(false);
-            };
-
-            // Calculate translation for language names if available, else uppercase
-            const getLangLabel = (code) => {
-                return code.toUpperCase();
             };
 
             return (
@@ -141,14 +85,14 @@
                     <button type="button" onClick={() => setIsOpen(!isOpen)} className="w-full flex items-center justify-between px-4 py-3 bg-white/50 dark:bg-black/20 backdrop-blur-md rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium transition-colors hover:bg-gray-50 dark:hover:bg-gray-800">
                         <div className="flex items-center gap-2">
                             <Globe size={18} className="text-blue-500" />
-                            <span className="dark:text-white uppercase font-semibold">{currentLang}</span>
+                            <span className="dark:text-white font-semibold">{languageNames[currentLang] || currentLang}</span>
                         </div>
                     </button>
                     {isOpen && (
                         <div className="absolute bottom-full mb-2 left-0 w-full bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 z-[60] max-h-48 overflow-y-auto">
                             {languages.map((code) => (
-                                <button key={code} type="button" onClick={() => handleSelect(code)} className="w-full px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors uppercase flex justify-between items-center">
-                                    <span className="font-medium dark:text-white">{code}</span>
+                                <button key={code} type="button" onClick={() => handleSelect(code)} className="w-full px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex justify-between items-center">
+                                    <span className="font-medium dark:text-white">{languageNames[code]}</span>
                                     {currentLang === code && <CheckCircle2 size={16} className="text-green-500" />}
                                 </button>
                             ))}
@@ -158,11 +102,22 @@
             );
         };
 
+        const FloatingMathBackground = () => (
+            <div className="fixed inset-0 overflow-hidden pointer-events-none math-bg">
+                {/* Extra floating elements to add subtle geek flair */}
+                <div className="absolute top-[10%] left-[20%] text-white/10 font-mono text-3xl floating-math" style={{animationDelay: '0s'}}>y = mx + b</div>
+                <div className="absolute top-[30%] right-[15%] text-white/10 font-mono text-2xl floating-math" style={{animationDelay: '-3s'}}>Δx</div>
+                <div className="absolute bottom-[20%] left-[10%] text-white/10 font-mono text-4xl floating-math" style={{animationDelay: '-7s'}}>∞</div>
+                <div className="absolute bottom-[10%] right-[25%] text-white/10 font-mono text-xl floating-math" style={{animationDelay: '-11s'}}>P(A|B)</div>
+                <div className="absolute top-[60%] left-[40%] text-white/5 font-mono text-5xl floating-math" style={{animationDelay: '-5s'}}>{`{ }`}</div>
+            </div>
+        );
+
         const App = () => {
-            const [introDone, setIntroDone] = useState(false);
             const [lang, setLangState] = useState(i18n ? i18n.getCurrentLanguage() : 'he');
             const [showPassword, setShowPassword] = useState(false);
             const [termsAgreed, setTermsAgreed] = useState(false);
+            const [rememberMe, setRememberMe] = useState(false);
             
             const [emailInput, setEmailInput] = useState('');
             const [passwordInput, setPasswordInput] = useState('');
@@ -175,7 +130,6 @@
                 }
             };
             
-            // Re-render when lang changes
             const t = (key) => i18n ? i18n.getTranslation(key) : key;
 
             const handleSubmit = async (e) => {
@@ -191,7 +145,7 @@
                     const res = await fetch('/api/login', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ username: emailInput, password: passwordInput })
+                        body: JSON.stringify({ username: emailInput, password: passwordInput, remember: rememberMe })
                     });
                     const data = await res.json();
                     if (res.ok && data.success) {
@@ -205,60 +159,84 @@
             };
 
             return (
-                <>
-                    {!introDone && <StarsIntro onComplete={() => setIntroDone(true)} />}
+                <div className="min-h-screen overflow-y-auto pb-10 relative flex flex-col items-center justify-center">
+                    <FloatingMathBackground />
                     
-                    <div className={`min-h-screen relative flex items-center justify-center transition-opacity duration-1000 ${introDone ? 'opacity-100' : 'opacity-0'}`}>
-                        <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-slate-900 dark:to-blue-950 transition-colors" />
+                    <div className="relative z-10 w-full max-w-[420px] px-6 py-12 flex flex-col items-center mt-8">
                         
-                        <div className="relative z-10 w-full max-w-[420px] px-6 py-12 flex flex-col items-center">
-                            {/* Original App Logo */}
-                            <div className="mb-8 drop-shadow-2xl flex flex-col items-center justify-center">
-                                <img src="/static/icons/icon-192x192.png" alt="MasterSplitter Logo" className="w-24 h-24 object-contain rounded-2xl drop-shadow-[0_0_15px_rgba(37,99,235,0.5)]" />
+                        {/* Text Logo */}
+                        <div className="mb-6 drop-shadow-2xl flex flex-col items-center text-center">
+                            <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-purple-600">
+                                MASTER
+                            </h1>
+                            <h1 className="text-3xl md:text-4xl font-black tracking-widest text-gray-800 dark:text-white mt-1">
+                                SPLITTER
+                            </h1>
+                        </div>
+                        
+                        <div className="w-full bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl rounded-[2rem] p-8 shadow-2xl border border-white/50 dark:border-gray-700/50 space-y-6">
+                            
+                            <div className="text-center space-y-2">
+                                <h2 className="text-2xl font-bold dark:text-white">{t('loginTitle')}</h2>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">{t('welcomeText')}</p>
                             </div>
                             
-                            <div className="w-full bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-[2.5rem] p-8 shadow-2xl border border-white/50 dark:border-gray-700/50 space-y-6">
-                                <h2 className="text-2xl font-bold text-center dark:text-white">{t('loginTitle')}</h2>
-                                
-                                <form className="space-y-4" onSubmit={handleSubmit}>
-                                    <input type="text" placeholder={t('email')} value={emailInput} onChange={(e)=>setEmailInput(e.target.value)} required className="w-full py-3 px-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl outline-none dark:text-white transition-colors focus:ring-2 focus:ring-blue-500" />
-                                    
-                                    <div className="relative">
-                                        <input type={showPassword ? "text" : "password"} placeholder={t('password')} value={passwordInput} onChange={(e)=>setPasswordInput(e.target.value)} required aria-required="true" className="w-full py-3 px-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl outline-none dark:text-white transition-colors focus:ring-2 focus:ring-blue-500" />
-                                        <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label="Toggle password visibility" className="absolute inset-y-0 end-3 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
-                                            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                                        </button>
-                                    </div>
-
-                                    <div className="flex items-center justify-start pt-2 gap-2">
-                                        <input type="checkbox" id="terms-agree" checked={termsAgreed} onChange={(e) => setTermsAgreed(e.target.checked)} className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600 cursor-pointer" />
-                                        <label htmlFor="terms-agree" className="text-sm text-gray-600 dark:text-gray-300 cursor-pointer select-none">{t('termsAgree')}</label>
-                                    </div>
-
-                                    <button type="submit" className="w-full py-4 mt-2 bg-blue-600 text-white font-bold rounded-2xl shadow-lg shadow-blue-500/30 transition-all active:scale-95 hover:bg-blue-700 flex items-center justify-center">
-                                        {t('loginBtn')}
-                                    </button>
-                                </form>
-
-                                {errorMsg && <div className="text-center text-red-500 mt-2 text-sm font-medium flex items-center justify-center gap-1"><AlertCircle size={14}/> {errorMsg}</div>}
-
-                                <div className="pt-2 border-t border-gray-200 dark:border-gray-700 mt-4 flex flex-col gap-3">
-                                    <button type="button" onClick={() => { window.location.href='/api/auth/google'; }} className="w-full py-3 px-4 flex items-center justify-center gap-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm">
-                                        <svg viewBox="0 0 24 24" width="20" height="20">
-                                            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
-                                            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                                            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                                            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                                        </svg>
-                                        <span className="text-sm font-medium dark:text-white">{t('googleLogin')}</span>
-                                    </button>
+                            <form className="space-y-4" onSubmit={handleSubmit}>
+                                <div>
+                                    <input type="email" placeholder={t('email')} value={emailInput} onChange={(e)=>setEmailInput(e.target.value)} required className="w-full py-3 px-4 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-gray-700 rounded-xl outline-none dark:text-white transition-colors focus:ring-2 focus:ring-blue-500" />
                                 </div>
                                 
-                                <LanguageSelector currentLang={lang} setLang={setLang} />
+                                <div className="relative">
+                                    <input type={showPassword ? "text" : "password"} placeholder={t('password')} value={passwordInput} onChange={(e)=>setPasswordInput(e.target.value)} required aria-required="true" className="w-full py-3 px-4 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-gray-700 rounded-xl outline-none dark:text-white transition-colors focus:ring-2 focus:ring-blue-500" />
+                                    <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label="Toggle password visibility" className="absolute inset-y-0 end-3 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                    </button>
+                                </div>
+
+                                <div className="flex items-center justify-between pt-1">
+                                    <div className="flex items-center gap-2">
+                                        <input type="checkbox" id="remember-me" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600 cursor-pointer" />
+                                        <label htmlFor="remember-me" className="text-sm text-gray-600 dark:text-gray-300 cursor-pointer select-none">{t('rememberMe')}</label>
+                                    </div>
+                                    <a href="#" className="text-sm font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+                                        {t('forgotPassword')}
+                                    </a>
+                                </div>
+
+                                <div className="flex items-center justify-start pt-2 gap-2">
+                                    <input type="checkbox" id="terms-agree" checked={termsAgreed} onChange={(e) => setTermsAgreed(e.target.checked)} className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600 cursor-pointer" />
+                                    <label htmlFor="terms-agree" className="text-sm text-gray-600 dark:text-gray-300 cursor-pointer select-none">{t('termsAgree')}</label>
+                                </div>
+
+                                <button type="submit" className="w-full py-3.5 mt-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl shadow-lg shadow-blue-500/30 transition-transform active:scale-95 hover:opacity-90 flex items-center justify-center">
+                                    {t('loginBtn')}
+                                </button>
+                            </form>
+
+                            {errorMsg && <div className="text-center text-red-500 mt-2 text-sm font-medium flex items-center justify-center gap-1"><AlertCircle size={14}/> {errorMsg}</div>}
+
+                            <div className="pt-4 border-t border-gray-200 dark:border-gray-700 flex flex-col gap-3">
+                                <button type="button" onClick={() => { window.location.href='/api/auth/google'; }} className="w-full py-3 px-4 flex items-center justify-center gap-2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-sm">
+                                    <svg viewBox="0 0 24 24" width="20" height="20">
+                                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+                                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                                    </svg>
+                                    <span className="text-sm font-medium dark:text-white">{t('googleLogin')}</span>
+                                </button>
                             </div>
+
+                            <div className="text-center pt-2">
+                                <a href="#" className="text-sm font-medium text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white transition-colors">
+                                    {t('signup')}
+                                </a>
+                            </div>
+                            
+                            <LanguageSelector currentLang={lang} setLang={setLang} />
                         </div>
                     </div>
-                </>
+                </div>
             );
         };
 

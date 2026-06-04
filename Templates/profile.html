@@ -794,10 +794,20 @@
 
         const i18n = window.MasterSplitterI18n;
 
+        const languageNames = {
+            'he': 'עברית',
+            'en': 'English',
+            'es': 'Español',
+            'ru': 'Русский',
+            'ar': 'العربية',
+            'fr': 'Français',
+            'zh': '中文'
+        };
+
         const LanguageSelector = ({ initialLang }) => {
             const [isOpen, setIsOpen] = useState(false);
             const [currentLang, setCurrentLang] = useState(initialLang || (i18n ? i18n.getCurrentLanguage() : 'he'));
-            const languages = ['he', 'en', 'es', 'ru', 'ar', 'fr', 'zh'];
+            const languages = Object.keys(languageNames);
             
             useEffect(() => {
                 // If profile loads the user's saved lang, sync it here
@@ -828,14 +838,14 @@
                     <button type="button" onClick={() => setIsOpen(!isOpen)} className="w-full flex items-center justify-between px-4 py-3 bg-white/50 dark:bg-black/20 backdrop-blur-md rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium transition-colors hover:bg-gray-50 dark:hover:bg-gray-800">
                         <div className="flex items-center gap-2">
                             <Globe size={18} className="text-blue-500" />
-                            <span className="dark:text-white uppercase font-semibold">{currentLang}</span>
+                            <span className="dark:text-white font-semibold">{languageNames[currentLang] || currentLang}</span>
                         </div>
                     </button>
                     {isOpen && (
                         <div className="absolute top-full mt-2 left-0 w-full bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 z-[60] max-h-48 overflow-y-auto">
                             {languages.map((code) => (
-                                <button key={code} type="button" onClick={() => handleSelect(code)} className="w-full px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors uppercase flex justify-between items-center">
-                                    <span className="font-medium dark:text-white">{code}</span>
+                                <button key={code} type="button" onClick={() => handleSelect(code)} className="w-full px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex justify-between items-center">
+                                    <span className="font-medium dark:text-white">{languageNames[code]}</span>
                                     {currentLang === code && <CheckCircle2 size={16} className="text-green-500" />}
                                 </button>
                             ))}

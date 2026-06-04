@@ -2566,8 +2566,17 @@ def ai_greeting():
     except Exception as e:
         logger.error(f"AI greeting error: {e}")
         
-    return jsonify({"greeting": ""})
-
+    # Fallback based on language
+    fallbacks = {
+        'he': 'ברוך שובך ל-MasterSplitter!',
+        'en': 'Welcome back to MasterSplitter!',
+        'es': '¡Bienvenido de nuevo a MasterSplitter!',
+        'ru': 'С возвращением в MasterSplitter!',
+        'ar': 'مرحبًا بك مرة أخرى في MasterSplitter!',
+        'fr': 'De retour à MasterSplitter!',
+        'zh': '欢迎回到 MasterSplitter！'
+    }
+    return jsonify({"greeting": fallbacks.get(lang, fallbacks['en'])})
 
 # =====================
 #   RECEIPT SCANNING

@@ -53,6 +53,7 @@
     <div id="root"></div>
 
     <!-- React Application Logic -->
+    {% raw %}
     <script type="text/babel" data-type="module">
         import React, { useState, useEffect } from 'react';
         import { createRoot } from 'react-dom/client';
@@ -243,5 +244,6 @@
         const root = createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
+    {% endraw %}
 </body>
 </html>

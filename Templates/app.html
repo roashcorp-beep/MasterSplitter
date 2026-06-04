@@ -25,7 +25,10 @@
             <div class="header-left">
                 <button class="hamburger-btn" onclick="openHamburgerMenu()">☰</button>
                 <div class="user-greeting">
-                    <span data-i18n="lobby_hello">שלום, </span><strong id="user-name-display">...</strong>
+                    <div>
+                        <span data-i18n="lobby_hello">שלום, </span><strong id="user-name-display">...</strong>
+                    </div>
+                    <div id="ai-greeting-display" style="font-size: 0.85rem; color: var(--accent-yellow); font-weight: normal; margin-top: 2px; max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: none;" title=""></div>
                 </div>
             </div>
             <div class="header-right">

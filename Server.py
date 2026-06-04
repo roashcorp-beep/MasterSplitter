@@ -2417,7 +2417,7 @@ def get_optimized_balances(trip_id):
 #   AI EXPENSE PARSING (Gemini)
 # =====================
 
-GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent"
 
 @app.route('/api/ai/parse-expense', methods=['POST'])
 @login_required
@@ -2470,12 +2470,18 @@ def ai_parse_expense():
     }
 
     try:
-        resp = http_requests.post(
-            f"{GEMINI_API_URL}?key={api_key}",
-            json=payload,
-            headers={"Content-Type": "application/json"},
-            timeout=15
-        )
+        import time
+        for attempt in range(3):
+            resp = http_requests.post(
+                f"{GEMINI_API_URL}?key={api_key}",
+                json=payload,
+                headers={"Content-Type": "application/json"},
+                timeout=15
+            )
+            if resp.status_code == 429 and attempt < 2:
+                time.sleep(2 ** attempt)
+                continue
+            break
 
         if resp.status_code != 200:
             logger.error(f"Gemini API error {resp.status_code}: {resp.text[:300]}")
@@ -2515,6 +2521,54 @@ def ai_parse_expense():
         return jsonify({"error": f"AI error: {str(e)}"}), 500
 
 
+@app.route('/api/ai_greeting', methods=['GET'])
+def ai_greeting():
+    """Return a localized welcome message using Gemini."""
+    lang = request.args.get('lang', 'he')
+    api_key = os.environ.get('GEMINI_API_KEY')
+    if not api_key:
+        return jsonify({"greeting": ""})
+        
+    system_instruction = (
+        "You are the Smart Financial Assistant for MasterSplitter. "
+        "Generate a short, friendly, personalized 1-sentence welcome message. "
+        "Do not include the user's name unless they provide it. "
+        f"The user selected language code: {lang}. Write the greeting in that language. "
+        "No emojis, no markdown."
+    )
+    
+    payload = {
+        "system_instruction": {"parts": [{"text": system_instruction}]},
+        "contents": [{"role": "user", "parts": [{"text": "Hello"}]}],
+        "generationConfig": {"temperature": 0.7, "maxOutputTokens": 60}
+    }
+    
+    try:
+        import time
+        for attempt in range(3):
+            resp = http_requests.post(
+                f"{GEMINI_API_URL}?key={api_key}",
+                json=payload,
+                headers={"Content-Type": "application/json"},
+                timeout=10
+            )
+            if resp.status_code == 429 and attempt < 2:
+                time.sleep(2 ** attempt)
+                continue
+            break
+            
+        if resp.status_code == 200:
+            result = resp.json()
+            candidates = result.get('candidates', [])
+            if candidates:
+                text = candidates[0].get('content', {}).get('parts', [{}])[0].get('text', '').strip()
+                return jsonify({"greeting": text})
+    except Exception as e:
+        logger.error(f"AI greeting error: {e}")
+        
+    return jsonify({"greeting": ""})
+
+
 # =====================
 #   RECEIPT SCANNING
 # =====================
@@ -2549,17 +2603,34 @@ def scan_receipt():
         try:
             import google.generativeai as genai
             genai.configure(api_key=api_key)
-            model = genai.GenerativeModel('gemini-2.0-flash')
+            model = genai.GenerativeModel('gemini-2.5-flash-preview-09-2025')
 
             import base64
+            import time
+            from google.api_core.exceptions import ResourceExhausted
+
             image_data = file.read()
             b64 = base64.b64encode(image_data).decode('utf-8')
             mime = f"image/{ext}" if ext != 'jpg' else 'image/jpeg'
 
-            response = model.generate_content([
-                "Extract all line items from this receipt. Return ONLY a valid JSON array of objects, each with 'name' (string), 'price' (float number, total price for the row), and 'quantity' (integer). Example: [{\"name\": \"Hamburger\", \"price\": 50.0, \"quantity\": 1}]. No markdown, no explanation, just the JSON array.",
-                {"mime_type": mime, "data": b64}
-            ])
+            response = None
+            for attempt in range(3):
+                try:
+                    response = model.generate_content([
+                        "Extract all line items from this receipt. Return ONLY a valid JSON array of objects, each with 'name' (string), 'price' (float number, total price for the row), and 'quantity' (integer). Example: [{\"name\": \"Hamburger\", \"price\": 50.0, \"quantity\": 1}]. No markdown, no explanation, just the JSON array.",
+                        {"mime_type": mime, "data": b64}
+                    ])
+                    break
+                except ResourceExhausted:
+                    if attempt < 2:
+                        time.sleep(2 ** attempt)
+                        continue
+                    raise
+                except Exception as e:
+                    if "429" in str(e) and attempt < 2:
+                        time.sleep(2 ** attempt)
+                        continue
+                    raise
 
             import re
             text = response.text.strip()

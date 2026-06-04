@@ -10,157 +10,269 @@
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#0a0a1a">
     <link rel="apple-touch-icon" href="/static/icons/icon-192x192.png">
+
+    <!-- React & Tailwind CDNs -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Heebo', 'sans-serif'],
+            }
+          }
+        }
+      }
+    </script>
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+        "lucide-react": "https://esm.sh/lucide-react@0.344.0"
+      }
+    }
+    </script>
+    <!-- Babel Standalone -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
-<body class="login-body">
+<body class="login-body font-sans text-gray-900 bg-gray-50 dark:bg-gray-900 overflow-hidden">
     <div id="toast" class="toast"></div>
-    <div class="login-page-wrapper">
 
-        <!-- Language Pill Toggle -->
-        <button class="lang-pill" id="lang-pill" onclick="toggleLangPill()">
-            <span id="lang-pill-code">HE</span>
-        </button>
+    <!-- The React App Mounting Point -->
+    <div id="root"></div>
 
-        <!-- Floating brand area -->
-        <div class="login-brand">
-            <h1 class="brand-title">
-                <span class="purple-text" data-i18n="brand_master">MASTER</span>
-                <span class="dark-text" data-i18n="brand_splitter">SPLITTER</span>
-            </h1>
-        </div>
-
-        <!-- Glass floating card -->
-        <div class="login-card">
-            <h2 class="welcome-text" id="welcome-title" data-i18n="login_welcome">ברוך הבא!</h2>
-            <p class="welcome-sub" id="welcome-sub" data-i18n="login_sub">התחבר כדי לנהל את ההוצאות שלך</p>
-
-            <!-- LOGIN / SIGNUP FORM -->
-            <div id="auth-form">
-                <div class="form-group">
-                    <div class="floating-input-wrapper">
-                        <span class="input-icon">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                        </span>
-                        <input type="text" id="username" placeholder=" " required autocomplete="username">
-                        <label for="username" data-i18n="login_username_email">שם משתמש או אימייל</label>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <div class="floating-input-wrapper">
-                        <span class="input-icon">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                        </span>
-                        <input type="password" id="password" placeholder=" " required autocomplete="current-password">
-                        <label for="password" data-i18n="login_password">סיסמה</label>
-                    </div>
-                </div>
-
-                <div class="form-group signup-only" style="display: none;" id="email-group">
-                    <div class="floating-input-wrapper">
-                        <span class="input-icon">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-                        </span>
-                        <input type="email" id="email" placeholder=" ">
-                        <label for="email" data-i18n="login_email">אימייל</label>
-                    </div>
-                </div>
-
-                <div class="form-group signup-only" style="display: none;" id="phone-group">
-                    <div class="floating-input-wrapper">
-                        <span class="input-icon">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
-                        </span>
-                        <input type="tel" id="phone" placeholder=" ">
-                        <label for="phone" data-i18n="login_phone">מספר טלפון</label>
-                    </div>
-                </div>
-
-                <button class="primary-btn full-width" id="submit-btn" onclick="submitAuth()" data-i18n="login_btn_login">התחבר</button>
-
-                <div class="forgot-link-wrapper" id="forgot-link-wrapper">
-                    <a href="#" class="forgot-pwd" onclick="showForgotForm(); return false;" data-i18n="login_forgot">שכחת סיסמה?</a>
-                </div>
-
-                <!-- Social Login Divider -->
-                <div class="divider social-divider" data-i18n="login_social_divider">או התחבר באמצעות</div>
-
-                <!-- Social Login Buttons -->
-                <div class="social-login-row">
-                    <button class="social-btn google-social-btn" onclick="window.location.href='/api/auth/google';" title="Google">
-                        <svg viewBox="0 0 24 24" width="22" height="22">
-                            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
-                            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                        </svg>
-                    </button>
-                    <button class="social-btn facebook-social-btn" onclick="showToast('Facebook OAuth coming soon!', 'error');" title="Facebook">
-                        <svg viewBox="0 0 24 24" width="22" height="22">
-                            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" fill="#1877F2"/>
-                        </svg>
-                    </button>
-                </div>
-
-                <div class="divider" data-i18n="login_or">או</div>
-
-                <button class="secondary-btn full-width" id="toggle-auth-btn" onclick="toggleAuthMode()" data-i18n="login_btn_signup">צור חשבון חדש</button>
-            </div>
-
-            <!-- FORGOT PASSWORD FORM (hidden by default) -->
-            <div id="forgot-form" style="display: none;">
-                <div class="form-group">
-                    <div class="floating-input-wrapper">
-                        <span class="input-icon">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-                        </span>
-                        <input type="email" id="forgot-email" placeholder=" " required>
-                        <label for="forgot-email" data-i18n="forgot_email">כתובת אימייל</label>
-                    </div>
-                </div>
-
-                <button class="primary-btn full-width" onclick="submitForgotPassword()" data-i18n="forgot_btn">שלח קישור לאיפוס</button>
-
-                <div style="text-align: center; margin-top: 16px;">
-                    <a href="#" class="forgot-pwd" onclick="hideForgotForm(); return false;" data-i18n="forgot_back">← חזור להתחברות</a>
-                </div>
-            </div>
-
-            <div class="error-message" id="error-msg"></div>
-            <div class="success-message" id="success-msg"></div>
-        </div>
-
-        <!-- PWA Install Button (shown only when supported) -->
-        <button class="pwa-install-btn" style="display: none;" onclick="triggerPWAInstall()">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            <span>התקן אפליקציה</span>
-        </button>
-
-    </div>
-    
     <script src="{{ url_for('static', filename='js/translations.js') }}?v=2.2"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}?v=2.2"></script>
-    <script>
-        // Login page language pill toggle
-        function toggleLangPill() {
-            const newLang = (typeof currentLang !== 'undefined' && currentLang === 'he') ? 'en' : 'he';
-            setLanguage(newLang);
-            updateLangPillText(newLang);
-        }
-        function updateLangPillText(lang) {
-            const pill = document.getElementById('lang-pill-code');
-            if (!pill) return;
-            // Show the OPPOSITE language as the button label
-            pill.textContent = lang === 'he' ? 'EN' : '\u05e2\u05d1';
-        }
-        // Set pill text to match current language on load
-        document.addEventListener('DOMContentLoaded', () => {
-            setTimeout(() => {
-                if (typeof currentLang !== 'undefined') {
-                    updateLangPillText(currentLang);
-                }
-            }, 300);
 
-            // Show OAuth error messages from URL params
+    <!-- React Application Logic -->
+    <script type="text/babel" data-type="module">
+        import React, { useState, useEffect, useRef } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { Globe, Eye, EyeOff, Lock, Mail, ChevronDown, Fingerprint, Apple, ShieldCheck, Info, CheckCircle2, AlertCircle, Sparkles, MessageSquare, RefreshCw } from 'lucide-react';
+
+        const translations = {
+            he: { 
+                dir: 'rtl', label: 'עברית', welcome: 'ברוכים הבאים ל-MasterSplitter', loginTitle: 'כניסה למערכת', 
+                email: 'אימייל', password: 'סיסמה', rememberMe: 'זכור אותי', forgotPassword: 'שכחתי סיסמה?', 
+                loginBtn: 'התחבר', googleLogin: 'המשך עם חשבון Google', termsAgree: 'אני מאשר את תנאי השימוש ומדיניות הפרטיות', 
+                securityNotice: 'הנתונים מוצפנים ומאובטחים', version: '2.0.26-AI', copyright: '© 2026', 
+                privacyPolicy: 'מדיניות פרטיות', termsOfUse: 'תנאי שימוש', errorTerms: 'יש לאשר את התנאים', 
+                loading: 'מתחבר...', placeholderEmail: 'אימייל', placeholderPass: 'סיסמה', backToLogin: 'חזרה', 
+                aiAssistant: 'עוזר חכם ✨', aiTipBtn: 'טיפ פיננסי ✨', aiGenerating: 'מייצר...', aiGreeting: 'הודעה מ-Gemini' 
+            },
+            en: { 
+                dir: 'ltr', label: 'English', welcome: 'Welcome to MasterSplitter', loginTitle: 'Login', 
+                email: 'Email', password: 'Password', rememberMe: 'Remember Me', forgotPassword: 'Forgot Password?', 
+                loginBtn: 'Sign In', googleLogin: 'Continue with Google Account', termsAgree: 'I agree to Terms & Privacy', 
+                securityNotice: 'Data is encrypted and secured', version: '2.0.26-AI', copyright: '© 2026', 
+                privacyPolicy: 'Privacy Policy', termsOfUse: 'Terms of Use', errorTerms: 'Agree to terms first', 
+                loading: 'Connecting...', placeholderEmail: 'Email', placeholderPass: 'Password', backToLogin: 'Back', 
+                aiAssistant: 'Smart AI ✨', aiTipBtn: 'AI Tip ✨', aiGenerating: 'Thinking...', aiGreeting: 'Message from Gemini' 
+            },
+            es: { dir: 'ltr', label: 'Español', loginTitle: 'Iniciar sesión', placeholderEmail: 'Correo', placeholderPass: 'Contraseña', loginBtn: 'Acceder', googleLogin: 'Continuar con Google', termsAgree: 'Acepto los Términos y Privacidad', errorTerms: 'Acepta los términos' },
+            ru: { dir: 'ltr', label: 'Русский', loginTitle: 'Войти', placeholderEmail: 'Электронная почта', placeholderPass: 'Пароль', loginBtn: 'Войти', googleLogin: 'Продолжить с Google', termsAgree: 'Я принимаю Условия и Конфиденциальность', errorTerms: 'Сначала примите условия' },
+            ar: { dir: 'rtl', label: 'العربية', loginTitle: 'تسجيل الدخول', placeholderEmail: 'البريد الإلكتروني', placeholderPass: 'كلمة المرور', loginBtn: 'دخول', googleLogin: 'المتابعة باستخدام Google', termsAgree: 'أوافق على الشروط والخصوصية', errorTerms: 'وافق على الشروط أولاً' },
+            fr: { dir: 'ltr', label: 'Français', loginTitle: 'Connexion', placeholderEmail: 'Email', placeholderPass: 'Mot de passe', loginBtn: 'Se connecter', googleLogin: 'Continuer avec Google', termsAgree: 'J\\'accepte les Conditions et la Confidentialité', errorTerms: 'Acceptez les conditions d\\'abord' },
+            zh: { dir: 'ltr', label: '中文', loginTitle: '登录', placeholderEmail: '电子邮件', placeholderPass: '密码', loginBtn: '登录', googleLogin: '使用 Google 账号继续', termsAgree: '我同意条款和隐私政策', errorTerms: '请先同意条款' }
+        };
+
+        const MatrixIntro = ({ onComplete }) => {
+            const canvasRef = useRef(null);
+            useEffect(() => {
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d');
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                const characters = "0123456789$¥€£MASTER-SPLITTER";
+                const fontSize = 16;
+                const columns = canvas.width / fontSize;
+                const drops = Array(Math.floor(columns)).fill(1);
+                let frame = 0;
+                let animId;
+                const draw = () => {
+                    ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = "#0F0"; 
+                    ctx.font = fontSize + "px monospace";
+                    for (let i = 0; i < drops.length; i++) {
+                        const text = characters.charAt(Math.floor(Math.random() * characters.length));
+                        ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                        if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+                        drops[i]++;
+                    }
+                    frame++;
+                    if (frame < 80) {
+                        animId = requestAnimationFrame(draw);
+                    } else { 
+                        canvas.classList.add('opacity-0'); 
+                        setTimeout(onComplete, 800); 
+                    }
+                };
+                draw();
+                return () => cancelAnimationFrame(animId);
+            }, [onComplete]);
+            return <canvas ref={canvasRef} className="fixed inset-0 z-[100] bg-black transition-opacity duration-1000" />;
+        };
+
+        const LanguageSelector = ({ currentLang, setLang, t }) => {
+            const [isOpen, setIsOpen] = useState(false);
+            return (
+                <div className="relative inline-block text-left mt-4 w-full">
+                <button onClick={() => setIsOpen(!isOpen)} className="w-full flex items-center justify-between px-4 py-3 bg-white/10 dark:bg-black/20 backdrop-blur-md rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium">
+                    <div className="flex items-center gap-2">
+                        <Globe size={18} className="text-blue-500" />
+                        <span className="dark:text-white">{translations[currentLang].label}</span>
+                    </div>
+                    <ChevronDown size={16} className={`transition-transform dark:text-gray-300 ${isOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {isOpen && (
+                    <div className="absolute bottom-full mb-2 left-0 w-full bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 z-[60] max-h-48 overflow-y-auto">
+                    {Object.keys(translations).map((key) => (
+                        <button key={key} onClick={() => { setLang(key); setIsOpen(false); }} className="w-full text-right px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex justify-between items-center transition-colors">
+                        <span className="dark:text-white">{translations[key].label}</span>
+                        {currentLang === key && <CheckCircle2 size={16} className="text-green-500" />}
+                        </button>
+                    ))}
+                    </div>
+                )}
+                </div>
+            );
+        };
+
+        function App() {
+            const [showIntro, setShowIntro] = useState(true);
+            const [lang, setLang] = useState('he');
+            const [showPassword, setShowPassword] = useState(false);
+            const [termsAgreed, setTermsAgreed] = useState(false);
+            const [rememberMe, setRememberMe] = useState(false);
+            const [emailInput, setEmailInput] = useState('');
+            
+            // Fallback for languages that might not have all keys
+            const t = { ...translations.en, ...translations[lang] };
+
+            useEffect(() => {
+                const storedEmail = localStorage.getItem('masterSplitterEmail');
+                if (storedEmail) {
+                    setEmailInput(storedEmail);
+                    setRememberMe(true);
+                }
+            }, []);
+
+            useEffect(() => {
+                document.documentElement.lang = lang;
+                document.documentElement.dir = t.dir;
+                // Hook into main.js language setting if available
+                if (window.setLanguage && typeof window.setLanguage === 'function') {
+                    window.setLanguage(lang);
+                }
+            }, [lang, t.dir]);
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                if (!termsAgreed) {
+                    if (window.showToast) {
+                        window.showToast(t.errorTerms, 'error');
+                    } else {
+                        alert(t.errorTerms);
+                    }
+                    return;
+                }
+                if (rememberMe) {
+                    localStorage.setItem('masterSplitterEmail', emailInput);
+                } else {
+                    localStorage.removeItem('masterSplitterEmail');
+                }
+                if (window.submitAuth) {
+                    window.submitAuth();
+                }
+            };
+
+            return (
+                <>
+                {showIntro && <MatrixIntro onComplete={() => setShowIntro(false)} />}
+                
+                <div className={`min-h-screen relative flex items-center justify-center overflow-hidden font-sans transition-opacity duration-1000 ${showIntro ? 'opacity-0' : 'opacity-100'}`} dir={t.dir}>
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-950 dark:to-blue-950 transition-colors" />
+                    
+                    <div className="relative z-10 w-full max-w-[420px] px-6 py-12 flex flex-col items-center">
+                        <div className="mb-8 drop-shadow-2xl">
+                            <svg width="100" height="60" viewBox="0 0 100 60" fill="none">
+                                <path d="M15 25C15 19.4772 19.4772 15 25 15H35C40.5228 15 45 19.4772 45 25V35C45 40.5228 40.5228 45 35 45H25C19.4772 45 15 40.5228 15 35V25Z" className="fill-blue-600 dark:fill-blue-500" />
+                                <path d="M55 25C55 19.4772 59.4772 15 65 15H75C80.5228 15 85 19.4772 85 25V35C85 40.5228 80.5228 45 75 45H65C59.4772 45 55 40.5228 55 35V25Z" className="fill-blue-600 dark:fill-blue-500" />
+                                <path d="M45 30H55" stroke="currentColor" strokeWidth="4" strokeLinecap="round" className="text-blue-600 dark:text-blue-500" />
+                            </svg>
+                        </div>
+                        
+                        <div className="w-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-[2.5rem] p-8 shadow-2xl border border-white/50 dark:border-gray-700/50 space-y-6">
+                            <h2 className="text-2xl font-bold text-center dark:text-white">{t.loginTitle}</h2>
+                            
+                            <form id="auth-form" className="space-y-4" onSubmit={handleSubmit}>
+                                <input id="username" type="text" placeholder={t.placeholderEmail} value={emailInput} onChange={(e) => setEmailInput(e.target.value)} required className="w-full py-3 px-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl outline-none dark:text-white transition-colors focus:ring-2 focus:ring-blue-500" />
+                                
+                                <div className="relative">
+                                    <input id="password" type={showPassword ? "text" : "password"} placeholder={t.placeholderPass} required aria-required="true" className="w-full py-3 px-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl outline-none dark:text-white transition-colors focus:ring-2 focus:ring-blue-500" />
+                                    <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label="Toggle password visibility" className="absolute inset-y-0 right-3 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                    </button>
+                                </div>
+
+                                <div class="flex items-center justify-between pt-2">
+                                    <div className="flex items-center gap-2">
+                                        <input type="checkbox" id="terms-agree" checked={termsAgreed} onChange={(e) => setTermsAgreed(e.target.checked)} className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600 cursor-pointer" />
+                                        <label htmlFor="terms-agree" className="text-sm text-gray-600 dark:text-gray-300 cursor-pointer select-none">{t.termsAgree}</label>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <input type="checkbox" id="remember-me" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600 cursor-pointer" />
+                                        <label htmlFor="remember-me" className="text-sm text-gray-600 dark:text-gray-300 cursor-pointer select-none">{t.rememberMe}</label>
+                                    </div>
+                                </div>
+
+                                <button id="submit-btn" type="submit" className="w-full py-4 mt-2 bg-blue-600 text-white font-bold rounded-2xl shadow-lg shadow-blue-500/30 transition-all active:scale-95 hover:bg-blue-700 flex items-center justify-center">
+                                    {t.loginBtn}
+                                </button>
+                            </form>
+
+                            <div className="pt-2 border-t border-gray-200 dark:border-gray-700 mt-4 flex flex-col gap-3">
+                                <button type="button" onClick={() => { window.location.href='/api/auth/google'; }} className="w-full py-3 px-4 flex items-center justify-center gap-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm">
+                                    <svg viewBox="0 0 24 24" width="20" height="20">
+                                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+                                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                                    </svg>
+                                    <span className="text-sm font-medium dark:text-white">{t.googleLogin}</span>
+                                </button>
+                                
+                                <div className="flex gap-3">
+                                    <button type="button" className="flex-1 py-3 px-4 flex items-center justify-center gap-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm" title="Passkey Placeholder">
+                                        <Fingerprint size={20} className="text-gray-600 dark:text-gray-300" />
+                                    </button>
+                                    <button type="button" className="flex-1 py-3 px-4 flex items-center justify-center gap-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm" title="Apple ID Placeholder">
+                                        <Apple size={20} className="text-gray-600 dark:text-gray-300" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            <LanguageSelector currentLang={lang} setLang={setLang} t={t} />
+                            
+                            <div id="error-msg" className="error-message hidden text-center text-red-500 mt-2 text-sm font-medium"></div>
+                            <div id="success-msg" className="success-message hidden text-center text-green-500 mt-2 text-sm font-medium"></div>
+                        </div>
+                    </div>
+                </div>
+                </>
+            );
+        }
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+    
+    <script>
+        // OAuth Error Handling matching original login.html logic
+        document.addEventListener('DOMContentLoaded', () => {
             const params = new URLSearchParams(window.location.search);
             const err = params.get('error');
             if (err) {
@@ -175,22 +287,26 @@
                     'google_no_email': 'Your Google account does not have an email address.',
                     'google_db_error': 'A server error occurred. Please try again later.',
                 };
-                const errMsg = document.getElementById('error-msg');
-                if (errMsg) {
-                    errMsg.textContent = errorMap[err] || 'An error occurred during Google login.';
-                    errMsg.classList.add('visible');
-                }
-                // Clean URL without reloading
+                setTimeout(() => {
+                    const errMsg = document.getElementById('error-msg');
+                    if (errMsg) {
+                        errMsg.textContent = errorMap[err] || 'An error occurred during Google login.';
+                        errMsg.classList.remove('hidden');
+                        errMsg.style.display = 'block';
+                    }
+                }, 1000);
                 window.history.replaceState({}, document.title, '/');
             }
 
-            // Show success message for verified accounts
             if (params.get('verified') === 'true') {
-                const successMsg = document.getElementById('success-msg');
-                if (successMsg) {
-                    successMsg.textContent = 'Email verified! You can now log in.';
-                    successMsg.classList.add('visible');
-                }
+                setTimeout(() => {
+                    const successMsg = document.getElementById('success-msg');
+                    if (successMsg) {
+                        successMsg.textContent = 'Email verified! You can now log in.';
+                        successMsg.classList.remove('hidden');
+                        successMsg.style.display = 'block';
+                    }
+                }, 1000);
                 window.history.replaceState({}, document.title, '/');
             }
         });

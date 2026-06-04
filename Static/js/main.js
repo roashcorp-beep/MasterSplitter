@@ -237,6 +237,25 @@ async function initApp() {
         currentUser = await res.json();
         const el = document.getElementById('user-name-display');
         if (el) el.textContent = currentUser.name;
+        
+        // Fetch AI Greeting
+        const aiGreetingEl = document.getElementById('ai-greeting-display');
+        if (aiGreetingEl) {
+            aiGreetingEl.textContent = "✨ ...";
+            aiGreetingEl.style.display = 'block';
+            fetch('/api/ai_greeting?lang=' + (document.documentElement.lang || 'he'))
+                .then(r => r.json())
+                .then(data => {
+                    if (data.greeting) {
+                        aiGreetingEl.textContent = "✨ " + data.greeting;
+                        aiGreetingEl.title = data.greeting;
+                    } else {
+                        aiGreetingEl.style.display = 'none';
+                    }
+                })
+                .catch(() => { aiGreetingEl.style.display = 'none'; });
+        }
+        
         const emailEl = document.getElementById('profile-email-display');
         if (emailEl) emailEl.textContent = currentUser.email || '';
         

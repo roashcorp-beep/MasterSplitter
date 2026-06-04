@@ -13,6 +13,33 @@
             document.documentElement.classList.add('light-theme');
         }
     </script>
+    
+    <!-- Step 1 Isolated i18n Engine -->
+    <script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
+
+    <!-- React & Tailwind CDNs -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: { sans: ['system-ui', 'sans-serif'] }
+          }
+        }
+      }
+    </script>
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+        "lucide-react": "https://esm.sh/lucide-react@0.344.0"
+      }
+    }
+    </script>
+    <!-- Babel Standalone -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <style>
         body {
@@ -354,13 +381,8 @@
                 <span class="chevron">▼</span>
             </div>
             <div class="accordion-content" id="languageAcc">
-                <div class="input-group" style="margin-top: 10px;">
-                    <select id="languageSelect">
-                        <option value="he">עברית</option>
-                        <option value="en">English</option>
-                    </select>
-                </div>
-                <button class="action-btn" onclick="saveLanguage()" style="margin-top: 10px;" data-i18n="profile_save_lang_btn">שמור שפה</button>
+                <!-- React Mount Point for Language Selector -->
+                <div id="language-selector-root"></div>
             </div>
         </div>
 
@@ -655,9 +677,8 @@
             }
         }
 
-        async function saveLanguage() {
-            const lang = document.getElementById('languageSelect').value;
-
+        // This function is kept for legacy compatibility if anything else calls it.
+        async function saveLanguage(lang) {
             try {
                 const res = await fetch('/api/profile', {
                     method: 'PUT',
@@ -666,10 +687,8 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    showToast('השפה עודכנה בהצלחה, מרענן...', "success");
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1000);
+                    showToast('השפה עודכנה בהצלחה', "success");
+                    // Do not reload so we can see dynamic i18n
                 } else {
                     showToast(data.error || 'שגיאה בעדכון', "error");
                 }
@@ -765,6 +784,71 @@
             } catch (err) {
                 showToast('שגיאה בחיבור לשרת', "error");
             }
+        }
+    </script>
+    <!-- React Language Selector Injection -->
+    <script type="text/babel" data-type="module">
+        import React, { useState, useEffect } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { Globe, CheckCircle2 } from 'lucide-react';
+
+        const i18n = window.MasterSplitterI18n;
+
+        const LanguageSelector = ({ initialLang }) => {
+            const [isOpen, setIsOpen] = useState(false);
+            const [currentLang, setCurrentLang] = useState(initialLang || (i18n ? i18n.getCurrentLanguage() : 'he'));
+            const languages = ['he', 'en', 'es', 'ru', 'ar', 'fr', 'zh'];
+            
+            useEffect(() => {
+                // If profile loads the user's saved lang, sync it here
+                if (window.profileUserData && window.profileUserData.language) {
+                    setCurrentLang(window.profileUserData.language);
+                    if (i18n) i18n.changeLanguage(window.profileUserData.language);
+                }
+            }, [window.profileUserData]);
+
+            const handleSelect = async (code) => {
+                setCurrentLang(code);
+                setIsOpen(false);
+                if (i18n) {
+                    i18n.changeLanguage(code);
+                    // trigger any legacy translation script update if needed
+                    if (typeof window.applyTranslations === 'function') {
+                        window.applyTranslations();
+                    }
+                }
+                // Save to backend using the profile.html's saveLanguage logic
+                if (typeof window.saveLanguage === 'function') {
+                    window.saveLanguage(code);
+                }
+            };
+
+            return (
+                <div className="relative inline-block text-left mt-4 w-full">
+                    <button type="button" onClick={() => setIsOpen(!isOpen)} className="w-full flex items-center justify-between px-4 py-3 bg-white/50 dark:bg-black/20 backdrop-blur-md rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium transition-colors hover:bg-gray-50 dark:hover:bg-gray-800">
+                        <div className="flex items-center gap-2">
+                            <Globe size={18} className="text-blue-500" />
+                            <span className="dark:text-white uppercase font-semibold">{currentLang}</span>
+                        </div>
+                    </button>
+                    {isOpen && (
+                        <div className="absolute top-full mt-2 left-0 w-full bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 z-[60] max-h-48 overflow-y-auto">
+                            {languages.map((code) => (
+                                <button key={code} type="button" onClick={() => handleSelect(code)} className="w-full px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors uppercase flex justify-between items-center">
+                                    <span className="font-medium dark:text-white">{code}</span>
+                                    {currentLang === code && <CheckCircle2 size={16} className="text-green-500" />}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const rootEl = document.getElementById('language-selector-root');
+        if (rootEl) {
+            const root = createRoot(rootEl);
+            root.render(<LanguageSelector />);
         }
     </script>
 </body>

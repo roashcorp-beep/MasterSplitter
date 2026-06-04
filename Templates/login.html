@@ -85,10 +85,10 @@
                         const dx = centerX - star.x;
                         const dy = centerY - star.y;
                         
-                        // Increase speed exponentially as time passes
-                        const easeIn = progress * progress * progress;
-                        star.x += dx * star.speed * (1 + easeIn * 10);
-                        star.y += dy * star.speed * (1 + easeIn * 10);
+                        // Increase speed exponentially as time passes to create intense zoom convergence
+                        const easeIn = progress * progress * progress * progress;
+                        star.x += dx * star.speed * (1 + easeIn * 30);
+                        star.y += dy * star.speed * (1 + easeIn * 30);
 
                         ctx.beginPath();
                         ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
@@ -212,13 +212,9 @@
                         <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-slate-900 dark:to-blue-950 transition-colors" />
                         
                         <div className="relative z-10 w-full max-w-[420px] px-6 py-12 flex flex-col items-center">
-                            {/* Glasses SVG Logo */}
-                            <div className="mb-8 drop-shadow-2xl">
-                                <svg width="100" height="60" viewBox="0 0 100 60" fill="none">
-                                    <path d="M15 25C15 19.4772 19.4772 15 25 15H35C40.5228 15 45 19.4772 45 25V35C45 40.5228 40.5228 45 35 45H25C19.4772 45 15 40.5228 15 35V25Z" className="fill-blue-600 dark:fill-blue-500" />
-                                    <path d="M55 25C55 19.4772 59.4772 15 65 15H75C80.5228 15 85 19.4772 85 25V35C85 40.5228 80.5228 45 75 45H65C59.4772 45 55 40.5228 55 35V25Z" className="fill-blue-600 dark:fill-blue-500" />
-                                    <path d="M45 30H55" stroke="currentColor" strokeWidth="4" strokeLinecap="round" className="text-blue-600 dark:text-blue-500" />
-                                </svg>
+                            {/* Original App Logo */}
+                            <div className="mb-8 drop-shadow-2xl flex flex-col items-center justify-center">
+                                <img src="/static/icons/icon-192x192.png" alt="MasterSplitter Logo" className="w-24 h-24 object-contain rounded-2xl drop-shadow-[0_0_15px_rgba(37,99,235,0.5)]" />
                             </div>
                             
                             <div className="w-full bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-[2.5rem] p-8 shadow-2xl border border-white/50 dark:border-gray-700/50 space-y-6">

@@ -69,8 +69,22 @@
         import { createRoot } from 'react-dom/client';
         import { 
             User, Image as ImageIcon, Mail, Phone, Lock, Globe, DollarSign, 
-            Moon, Sun, Bell, HelpCircle, MessageSquare, Shield, ChevronLeft, ChevronRight, X, Camera
+            Moon, Sun, Bell, HelpCircle, MessageSquare, Shield, ChevronLeft, ChevronRight, X, Camera,
+            Fingerprint, BookOpen, Send
         } from 'lucide-react';
+
+        // i18n Bridge — same pattern as login.html
+        const i18n = window.MasterSplitterI18n;
+
+        const languageNames = {
+            'he': 'עברית',
+            'en': 'English',
+            'es': 'Español',
+            'ru': 'Русский',
+            'ar': 'العربية',
+            'fr': 'Français',
+            'zh': '中文'
+        };
 
         const Modal = ({ isOpen, onClose, title, children }) => {
             if (!isOpen) return null;
@@ -83,7 +97,7 @@
                                 <X size={20} />
                             </button>
                         </div>
-                        <div className="p-4">
+                        <div className="p-5">
                             {children}
                         </div>
                     </div>
@@ -114,10 +128,7 @@
             const [success, setSuccess] = useState('');
 
             useEffect(() => {
-                const handleLangChange = () => setLang(i18n.getCurrentLanguage());
-                window.addEventListener('languageChanged', handleLangChange);
                 fetchProfile();
-                return () => window.removeEventListener('languageChanged', handleLangChange);
             }, []);
 
             const fetchProfile = async () => {
@@ -135,7 +146,7 @@
                 }
             };
 
-            const toggleTheme = async () => {
+            const toggleTheme = () => {
                 const newDark = !isDark;
                 setIsDark(newDark);
                 const theme = newDark ? 'dark' : 'light';
@@ -149,7 +160,7 @@
                 }
             };
 
-            const t = (key) => i18n ? i18n(key) : key;
+            const t = (key) => i18n ? i18n.getTranslation(key) : key;
             const isRTL = i18n ? i18n.getDirection() === 'rtl' : true;
             const Chevron = isRTL ? ChevronLeft : ChevronRight;
 
@@ -199,6 +210,12 @@
                 }
             };
 
+            const openModal = (name) => {
+                setError('');
+                setSuccess('');
+                setActiveModal(name);
+            };
+
             const renderMenuItem = (icon, text, onClick, rightContent = null) => (
                 <button 
                     onClick={onClick}
@@ -220,11 +237,11 @@
             return (
                 <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-slate-700/50 overflow-hidden" dir={isRTL ? 'rtl' : 'ltr'}>
                     <div className="p-6 text-center border-b border-gray-100 dark:border-gray-800 flex flex-col items-center relative">
-                        <button onClick={() => window.location.href='/app'} className="absolute top-6 left-6 p-2 bg-gray-100 dark:bg-slate-800 rounded-full hover:bg-gray-200 dark:hover:bg-slate-700 transition">
-                            <Chevron size={20} />
+                        <button onClick={() => window.location.href='/app'} className={`absolute top-6 ${isRTL ? 'right-6' : 'left-6'} p-2 bg-gray-100 dark:bg-slate-800 rounded-full hover:bg-gray-200 dark:hover:bg-slate-700 transition`}>
+                            <ChevronRight size={20} className={isRTL ? '' : 'rotate-180'} />
                         </button>
                         
-                        <div className="relative group cursor-pointer" onClick={() => setActiveModal('avatar')}>
+                        <div className="relative group cursor-pointer" onClick={() => openModal('avatar')}>
                             <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 flex items-center justify-center text-white text-3xl font-bold shadow-lg overflow-hidden border-4 border-white dark:border-slate-800">
                                 {profileData.avatar_url ? (
                                     <img src={profileData.avatar_url} className="w-full h-full object-cover" />
@@ -246,11 +263,11 @@
                         <div>
                             <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2 px-4">{t('profileAccount')}</h3>
                             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
-                                {renderMenuItem(<User size={20}/>, t('profileChangeName'), () => setActiveModal('name'), <span className="text-sm truncate max-w-[100px]">{profileData.name}</span>)}
-                                {renderMenuItem(<ImageIcon size={20}/>, t('profileChangeAvatar'), () => setActiveModal('avatar'))}
-                                {renderMenuItem(<Mail size={20}/>, t('profileUpdateEmail'), () => setActiveModal('email'), <span className="text-sm truncate max-w-[100px]">{profileData.email}</span>)}
-                                {renderMenuItem(<Phone size={20}/>, t('profileUpdatePhone'), () => setActiveModal('phone'), <span className="text-sm truncate max-w-[100px]">{profileData.phone}</span>)}
-                                {renderMenuItem(<Lock size={20}/>, t('profileChangePassword'), () => setActiveModal('password'))}
+                                {renderMenuItem(<User size={20}/>, t('profileChangeName'), () => openModal('name'), <span className="text-sm truncate max-w-[100px]">{profileData.name}</span>)}
+                                {renderMenuItem(<ImageIcon size={20}/>, t('profileChangeAvatar'), () => openModal('avatar'))}
+                                {renderMenuItem(<Mail size={20}/>, t('profileUpdateEmail'), () => openModal('email'), <span className="text-sm truncate max-w-[100px]">{profileData.email}</span>)}
+                                {renderMenuItem(<Phone size={20}/>, t('profileUpdatePhone'), () => openModal('phone'), <span className="text-sm truncate max-w-[100px]">{profileData.phone}</span>)}
+                                {renderMenuItem(<Lock size={20}/>, t('profileChangePassword'), () => openModal('password'))}
                             </div>
                         </div>
 
@@ -258,8 +275,8 @@
                         <div>
                             <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2 px-4">{t('profilePreferences')}</h3>
                             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
-                                {renderMenuItem(<Globe size={20}/>, t('profileLanguage'), () => setActiveModal('language'), <span className="text-sm">{lang.toUpperCase()}</span>)}
-                                {renderMenuItem(<DollarSign size={20}/>, t('profileCurrency'), () => setActiveModal('currency'), <span className="text-sm">{profileData.default_currency}</span>)}
+                                {renderMenuItem(<Globe size={20}/>, t('profileLanguage'), () => openModal('language'), <span className="text-sm">{languageNames[lang] || lang}</span>)}
+                                {renderMenuItem(<DollarSign size={20}/>, t('profileCurrency'), () => openModal('currency'), <span className="text-sm">{profileData.default_currency}</span>)}
                                 <button onClick={toggleTheme} className="w-full flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors border-b last:border-b-0 border-gray-100 dark:border-gray-800">
                                     <div className="flex items-center gap-3">
                                         <div className="text-purple-500 dark:text-purple-400">{isDark ? <Moon size={20}/> : <Sun size={20}/>}</div>
@@ -269,7 +286,7 @@
                                         <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${isDark ? (isRTL ? 'left-1' : 'right-1') : (isRTL ? 'right-1' : 'left-1')}`}></div>
                                     </div>
                                 </button>
-                                {renderMenuItem(<Bell size={20}/>, t('profileNotifications'), () => setActiveModal('comingSoon'))}
+                                {renderMenuItem(<Bell size={20}/>, t('profileNotifications'), () => openModal('comingSoon'))}
                             </div>
                         </div>
 
@@ -277,9 +294,9 @@
                         <div>
                             <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2 px-4">{t('profileSupport')}</h3>
                             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
-                                {renderMenuItem(<HelpCircle size={20}/>, t('profileGuide'), () => setActiveModal('comingSoon'))}
-                                {renderMenuItem(<MessageSquare size={20}/>, t('profileFeedback'), () => setActiveModal('feedback'))}
-                                {renderMenuItem(<Phone size={20}/>, t('profileContact'), () => setActiveModal('contact'))}
+                                {renderMenuItem(<HelpCircle size={20}/>, t('profileGuide'), () => openModal('comingSoon'))}
+                                {renderMenuItem(<MessageSquare size={20}/>, t('profileFeedback'), () => openModal('feedback'))}
+                                {renderMenuItem(<Phone size={20}/>, t('profileContact'), () => openModal('contact'))}
                             </div>
                         </div>
 
@@ -287,10 +304,10 @@
                         <div>
                             <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2 px-4">{t('profilePrivacySecurity')}</h3>
                             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
-                                {renderMenuItem(<Shield size={20}/>, t('profilePrivacySettings'), () => setActiveModal('comingSoon'))}
-                                {renderMenuItem(<Shield size={20}/>, t('termsOfUse'), () => setActiveModal('comingSoon'))}
-                                {renderMenuItem(<Shield size={20}/>, t('privacyPolicy'), () => setActiveModal('comingSoon'))}
-                                {renderMenuItem(<Lock size={20}/>, t('profile2FA'), () => setActiveModal('2fa'), <span className="text-sm">{profileData.two_fa_method}</span>)}
+                                {renderMenuItem(<Shield size={20}/>, t('profilePrivacySettings'), () => openModal('comingSoon'))}
+                                {renderMenuItem(<BookOpen size={20}/>, t('termsOfUse'), () => openModal('comingSoon'))}
+                                {renderMenuItem(<BookOpen size={20}/>, t('privacyPolicy'), () => openModal('comingSoon'))}
+                                {renderMenuItem(<Fingerprint size={20}/>, t('profile2FA'), () => openModal('2fa'), <span className="text-sm capitalize">{profileData.two_fa_method}</span>)}
                             </div>
                         </div>
 
@@ -349,13 +366,15 @@
 
                     <Modal isOpen={activeModal === 'language'} onClose={() => setActiveModal(null)} title={t('profileLanguage')}>
                         <div className="space-y-2">
-                            {['he', 'en', 'es', 'ru', 'ar', 'fr', 'zh'].map(code => (
+                            {Object.entries(languageNames).map(([code, name]) => (
                                 <button key={code} onClick={() => {
-                                    i18n.changeLanguage(code);
+                                    if (i18n) i18n.changeLanguage(code);
+                                    setLang(code);
                                     localStorage.setItem('lang', code);
                                     handleUpdateProfile('language', code);
-                                }} className={`w-full p-3 rounded-xl border transition-colors ${lang === code ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400' : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white'}`}>
-                                    {code.toUpperCase()}
+                                }} className={`w-full p-3 rounded-xl border transition-colors flex items-center justify-between ${lang === code ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400' : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white'}`}>
+                                    <span className="font-medium">{name}</span>
+                                    {lang === code && <span className="text-purple-500">✓</span>}
                                 </button>
                             ))}
                         </div>
@@ -366,7 +385,7 @@
                             {['ILS (₪)', 'USD ($)', 'EUR (€)', 'GBP (£)', 'THB (฿)', 'JPY (¥)', 'CAD ($)', 'AUD ($)', 'CHF'].map(curr => {
                                 const code = curr.split(' ')[0];
                                 return (
-                                <button key={code} onClick={() => handleUpdateProfile('default_currency', code)} className={`p-3 rounded-xl border transition-colors ${profileData.default_currency === code ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400' : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white'}`}>
+                                <button key={code} onClick={() => handleUpdateProfile('default_currency', code)} className={`p-3 rounded-xl border transition-colors text-sm font-semibold ${profileData.default_currency === code ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400' : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white'}`}>
                                     {curr}
                                 </button>
                             )})}
@@ -378,7 +397,9 @@
                             placeholder={t('profileMessage')} onChange={e => setFormData({...formData, feedback: e.target.value})}></textarea>
                         {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
                         {success && <p className="text-green-500 text-sm mb-4">{success}</p>}
-                        <button onClick={() => handleUpdateProfile(null, null, '/api/feedback', 'POST')} className="w-full p-3 bg-purple-600 text-white rounded-xl font-bold">{t('profileSend')}</button>
+                        <button onClick={() => handleUpdateProfile(null, null, '/api/feedback', 'POST')} className="w-full p-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold transition-colors flex items-center justify-center gap-2">
+                            <Send size={16} />{t('profileSend')}
+                        </button>
                     </Modal>
 
                     <Modal isOpen={activeModal === 'contact'} onClose={() => setActiveModal(null)} title={t('profileContact')}>
@@ -388,16 +409,34 @@
                             placeholder={t('profileMessage')} onChange={e => setFormData({...formData, message: e.target.value})}></textarea>
                         {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
                         {success && <p className="text-green-500 text-sm mb-4">{success}</p>}
-                        <button onClick={() => handleUpdateProfile(null, null, '/api/contact', 'POST')} className="w-full p-3 bg-purple-600 text-white rounded-xl font-bold">{t('profileSend')}</button>
+                        <button onClick={() => handleUpdateProfile(null, null, '/api/contact', 'POST')} className="w-full p-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold transition-colors flex items-center justify-center gap-2">
+                            <Send size={16} />{t('profileSend')}
+                        </button>
                     </Modal>
 
                     <Modal isOpen={activeModal === '2fa'} onClose={() => setActiveModal(null)} title={t('profile2FA')}>
-                        <div className="space-y-2">
-                            {['none', 'email', 'fingerprint'].map(method => (
-                                <button key={method} onClick={() => handleUpdateProfile('two_fa_method', method)} className={`w-full p-3 rounded-xl border transition-colors flex items-center justify-between ${profileData.two_fa_method === method ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400' : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white'}`}>
-                                    <span className="capitalize">{method}</span>
-                                </button>
-                            ))}
+                        <div className="space-y-3">
+                            <button onClick={() => handleUpdateProfile('two_fa_method', 'none')} className={`w-full p-4 rounded-xl border transition-colors flex items-center gap-3 ${profileData.two_fa_method === 'none' ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20' : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800'}`}>
+                                <Shield size={20} className={profileData.two_fa_method === 'none' ? 'text-purple-500' : 'text-gray-400'} />
+                                <div className="text-right flex-1">
+                                    <div className={`font-semibold ${profileData.two_fa_method === 'none' ? 'text-purple-600 dark:text-purple-400' : 'text-gray-900 dark:text-white'}`}>Off</div>
+                                    <div className="text-xs text-gray-500">{isRTL ? 'ללא אימות נוסף' : 'No additional verification'}</div>
+                                </div>
+                            </button>
+                            <button onClick={() => handleUpdateProfile('two_fa_method', 'email')} className={`w-full p-4 rounded-xl border transition-colors flex items-center gap-3 ${profileData.two_fa_method === 'email' ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20' : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800'}`}>
+                                <Mail size={20} className={profileData.two_fa_method === 'email' ? 'text-purple-500' : 'text-gray-400'} />
+                                <div className="text-right flex-1">
+                                    <div className={`font-semibold ${profileData.two_fa_method === 'email' ? 'text-purple-600 dark:text-purple-400' : 'text-gray-900 dark:text-white'}`}>Email</div>
+                                    <div className="text-xs text-gray-500">{isRTL ? 'קוד אימות לאימייל' : 'Verification code via email'}</div>
+                                </div>
+                            </button>
+                            <button onClick={() => handleUpdateProfile('two_fa_method', 'fingerprint')} className={`w-full p-4 rounded-xl border transition-colors flex items-center gap-3 ${profileData.two_fa_method === 'fingerprint' ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20' : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800'}`}>
+                                <Fingerprint size={20} className={profileData.two_fa_method === 'fingerprint' ? 'text-purple-500' : 'text-gray-400'} />
+                                <div className="text-right flex-1">
+                                    <div className={`font-semibold ${profileData.two_fa_method === 'fingerprint' ? 'text-purple-600 dark:text-purple-400' : 'text-gray-900 dark:text-white'}`}>Fingerprint / WebAuthn</div>
+                                    <div className="text-xs text-gray-500">{isRTL ? 'אימות ביומטרי' : 'Biometric authentication'}</div>
+                                </div>
+                            </button>
                         </div>
                     </Modal>
 

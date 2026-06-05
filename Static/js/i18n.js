@@ -423,7 +423,36 @@
             loadingThinking: '思考中...',
             resetEmailSent: '密码重置链接已成功发送。',
             invalidEmail: '无效的电子邮件或用户名。',
-            emptyUsernameOrEmail: '请输入电子邮件或用户名以重置密码。'
+            emptyUsernameOrEmail: '请输入电子邮件或用户名以重置密码。',
+            profileAccount: '账户',
+            profileChangeName: '更改显示名称',
+            profileChangeAvatar: '更改头像',
+            profileUpdateEmail: '更新电子邮件',
+            profileUpdatePhone: '更新电话',
+            profileChangePassword: '更改密码',
+            profilePreferences: '偏好设置',
+            profileLanguage: '语言',
+            profileCurrency: '默认货币',
+            profileTheme: '深色/浅色模式',
+            profileNotifications: '通知',
+            profileSupport: '支持',
+            profileGuide: '用户指南',
+            profileFeedback: '发送反馈',
+            profileContact: '联系我们',
+            profilePrivacySecurity: '隐私与安全',
+            profilePrivacySettings: '隐私设置',
+            profile2FA: '双重身份验证',
+            profileComingSoon: '即将推出',
+            profileGoogleManaged: '电子邮件由Google管理',
+            profileGoogleManagedDesc: '由于您通过Google登录，因此无法更改电子邮件。',
+            profileSave: '保存',
+            profileCancel: '取消',
+            profileCurrentPassword: '当前密码',
+            profileNewPassword: '新密码',
+            profileSubject: '主题',
+            profileMessage: '信息',
+            profileSend: '发送',
+            profileSuccess: '保存成功！'
         }
     };
 
@@ -453,8 +482,12 @@
     global.MasterSplitterI18n = {
         changeLanguage: setLanguage,
         getCurrentLanguage: () => currentLanguage,
-        getTranslation: (key) => dictionary[currentLanguage][key] || key
+        getTranslation: (key) => dictionary[currentLanguage][key] || key,
+        getDirection: () => (dictionary[currentLanguage] && dictionary[currentLanguage].dir) || 'rtl'
     };
+
+    // Convenience alias so React components can use `const i18n = window.i18n;`
+    global.i18n = global.MasterSplitterI18n;
 
     // Alias a safe global function specifically requested for testing
     global.changeLanguage = setLanguage;

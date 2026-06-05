@@ -786,11 +786,11 @@
             }
         }
     </script>
-    <!-- React Language Selector Injection -->
+    <!-- React Settings Selectors Injection -->
     <script type="text/babel" data-type="module">
         import React, { useState, useEffect } from 'react';
         import { createRoot } from 'react-dom/client';
-        import { Globe, CheckCircle2 } from 'lucide-react';
+        import { Globe, CheckCircle2, Moon, Sun } from 'lucide-react';
 
         const i18n = window.MasterSplitterI18n;
 
@@ -804,13 +804,15 @@
             'zh': '中文'
         };
 
-        const LanguageSelector = ({ initialLang }) => {
-            const [isOpen, setIsOpen] = useState(false);
+        const SettingsSelectors = ({ initialLang }) => {
+            const [isLangOpen, setIsLangOpen] = useState(false);
             const [currentLang, setCurrentLang] = useState(initialLang || (i18n ? i18n.getCurrentLanguage() : 'he'));
             const languages = Object.keys(languageNames);
             
+            const initialDark = document.documentElement.classList.contains('dark') || localStorage.getItem('theme') === 'dark';
+            const [isDark, setIsDark] = useState(initialDark);
+            
             useEffect(() => {
-                // If profile loads the user's saved lang, sync it here
                 if (window.profileUserData && window.profileUserData.language) {
                     setCurrentLang(window.profileUserData.language);
                     if (i18n) i18n.changeLanguage(window.profileUserData.language);
@@ -819,38 +821,57 @@
 
             const handleSelect = async (code) => {
                 setCurrentLang(code);
-                setIsOpen(false);
+                setIsLangOpen(false);
                 if (i18n) {
                     i18n.changeLanguage(code);
-                    // trigger any legacy translation script update if needed
                     if (typeof window.applyTranslations === 'function') {
                         window.applyTranslations();
                     }
                 }
-                // Save to backend using the profile.html's saveLanguage logic
+                localStorage.setItem('lang', code);
                 if (typeof window.saveLanguage === 'function') {
                     window.saveLanguage(code);
                 }
             };
+            
+            const toggleTheme = () => {
+                const newTheme = isDark ? 'light' : 'dark';
+                setIsDark(!isDark);
+                localStorage.setItem('theme', newTheme);
+                if (newTheme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                    document.documentElement.classList.remove('light');
+                    document.body.classList.remove('light-theme');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                    document.documentElement.classList.add('light');
+                    document.body.classList.add('light-theme');
+                }
+            };
 
             return (
-                <div className="relative inline-block text-left mt-4 w-full">
-                    <button type="button" onClick={() => setIsOpen(!isOpen)} className="w-full flex items-center justify-between px-4 py-3 bg-white/50 dark:bg-black/20 backdrop-blur-md rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium transition-colors hover:bg-gray-50 dark:hover:bg-gray-800">
-                        <div className="flex items-center gap-2">
-                            <Globe size={18} className="text-blue-500" />
-                            <span className="dark:text-white font-semibold">{languageNames[currentLang] || currentLang}</span>
-                        </div>
+                <div className="flex gap-2 mt-4 w-full relative">
+                    <div className="relative inline-block text-left flex-1">
+                        <button type="button" onClick={() => setIsLangOpen(!isLangOpen)} className="w-full flex items-center justify-between px-4 py-3 bg-white/50 dark:bg-black/20 backdrop-blur-md rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium transition-colors hover:bg-gray-50 dark:hover:bg-gray-800">
+                            <div className="flex items-center gap-2">
+                                <Globe size={18} className="text-blue-500" />
+                                <span className="dark:text-white font-semibold">{languageNames[currentLang] || currentLang}</span>
+                            </div>
+                        </button>
+                        {isLangOpen && (
+                            <div className="absolute top-full mt-2 left-0 w-full bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 z-[60] max-h-48 overflow-y-auto">
+                                {languages.map((code) => (
+                                    <button key={code} type="button" onClick={() => handleSelect(code)} className="w-full px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex justify-between items-center">
+                                        <span className="font-medium dark:text-white">{languageNames[code]}</span>
+                                        {currentLang === code && <CheckCircle2 size={16} className="text-green-500" />}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                    <button type="button" onClick={toggleTheme} className="flex-none px-4 py-3 bg-white/50 dark:bg-black/20 backdrop-blur-md rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium transition-colors hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center justify-center text-gray-700 dark:text-gray-300">
+                        {isDark ? <Sun size={18} /> : <Moon size={18} />}
                     </button>
-                    {isOpen && (
-                        <div className="absolute top-full mt-2 left-0 w-full bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 z-[60] max-h-48 overflow-y-auto">
-                            {languages.map((code) => (
-                                <button key={code} type="button" onClick={() => handleSelect(code)} className="w-full px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex justify-between items-center">
-                                    <span className="font-medium dark:text-white">{languageNames[code]}</span>
-                                    {currentLang === code && <CheckCircle2 size={16} className="text-green-500" />}
-                                </button>
-                            ))}
-                        </div>
-                    )}
                 </div>
             );
         };
@@ -858,7 +879,7 @@
         const rootEl = document.getElementById('language-selector-root');
         if (rootEl) {
             const root = createRoot(rootEl);
-            root.render(<LanguageSelector />);
+            root.render(<SettingsSelectors />);
         }
     </script>
 </body>

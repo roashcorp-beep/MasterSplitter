@@ -2417,7 +2417,7 @@ def get_optimized_balances(trip_id):
 #   AI EXPENSE PARSING (Gemini)
 # =====================
 
-GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent"
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
 
 @app.route('/api/ai/parse-expense', methods=['POST'])
 @login_required

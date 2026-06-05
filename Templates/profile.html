@@ -1,18 +1,9 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
-
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Profile</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2.2">
-
-    <script>
-        const savedTheme = localStorage.getItem('theme') || 'dark';
-        if (savedTheme === 'light') {
-            document.documentElement.classList.add('light-theme');
-        }
-    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MasterSplitter - Profile</title>
     
     <!-- Step 1 Isolated i18n Engine -->
     <script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
@@ -42,846 +33,387 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <style>
-        body {
-            font-family: 'Inter', 'Heebo', sans-serif;
-            background-color: var(--bg-main, #0a0a1a);
-            color: var(--text-main, #e2e8f0);
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
+        .math-bg {
+            background-color: #0f172a;
+            background-image: radial-gradient(circle at center, rgba(30, 58, 138, 0.2) 0%, rgba(15, 23, 42, 1) 100%), url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.03' font-family='monospace' font-size='12'%3E%3Ctext x='10' y='20'%3E∑(x_i)%3C/text%3E%3Ctext x='50' y='60'%3Eπ*r²%3C/text%3E%3Ctext x='80' y='10'%3E+1%3C/text%3E%3Ctext x='20' y='90'%3EE=mc²%3C/text%3E%3Ctext x='70' y='80'%3E∫dx%3C/text%3E%3C/g%3E%3C/svg%3E");
+            background-size: cover, 200px 200px;
         }
-
-        .profile-container {
-            width: 100%;
-            max-width: 500px;
-            background: var(--surface-card, #12122a);
-            border-radius: 24px;
-            padding: 32px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            border: 1px solid var(--border, rgba(255, 255, 255, 0.05));
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        /* Back Button */
-        .header-actions {
-            width: 100%;
-            display: flex;
-            justify-content: flex-start;
-            margin-bottom: 20px;
-        }
-
-        .icon-back-btn {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: var(--text-main, #e2e8f0);
-            width: 40px;
-            height: 40px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            padding: 0;
-        }
-
-        .icon-back-btn:hover {
-            background: rgba(168, 85, 247, 0.2);
-            border-color: #a855f7;
-            transform: translateX(3px);
-        }
-
-        /* Avatar */
-        .avatar-wrapper {
-            position: relative;
-            width: 120px;
-            height: 120px;
-            border-radius: 50%;
-            cursor: pointer;
-            background: linear-gradient(135deg, #a855f7, #ec4899);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 42px;
-            font-weight: bold;
-            color: white;
-            box-shadow: 0 8px 20px rgba(168, 85, 247, 0.4);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-            overflow: hidden;
-            margin-bottom: 16px;
-        }
-
-        .avatar-wrapper:hover {
-            transform: scale(1.05);
-            box-shadow: 0 12px 25px rgba(168, 85, 247, 0.6);
-        }
-
-        .avatar-image {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: none;
-        }
-
-        .avatar-overlay {
-            position: absolute;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.6);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            color: white;
-        }
-
-        .avatar-wrapper:hover .avatar-overlay {
-            opacity: 1;
-        }
-
-        #avatarInput {
-            display: none;
-        }
-
-        /* User Details */
-        .user-name {
-            font-size: 24px;
-            font-weight: 700;
-            margin: 0 0 8px 0;
-            text-align: center;
-        }
-
-        .user-email {
-            font-size: 14px;
-            color: var(--text-muted, #94a3b8);
-            margin: 0 0 4px 0;
-            text-align: center;
-        }
-
-        .user-phone {
-            font-size: 13px;
-            color: var(--text-muted, #94a3b8);
-            margin: 0 0 32px 0;
-            text-align: center;
-            direction: ltr;
-            unicode-bidi: embed;
-        }
-
-        /* Accordions */
-        .accordion-item {
-            width: 100%;
-            margin-bottom: 12px;
-            background: rgba(255, 255, 255, 0.03);
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            transition: background 0.3s ease;
-        }
-
-        .accordion-header {
-            padding: 16px 20px;
-            cursor: pointer;
-            font-weight: 600;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .accordion-header:hover {
-            background: rgba(255, 255, 255, 0.05);
-        }
-
-        .accordion-content {
-            display: none;
-            padding: 0 20px 20px 20px;
-        }
-
-        .accordion-content.expanded {
-            display: block;
-        }
-
-        /* Inputs & Buttons */
-        .input-group {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            margin-bottom: 16px;
-        }
-
-        input,
-        select {
-            width: 100%;
-            padding: 12px 16px;
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            background: rgba(0, 0, 0, 0.2);
-            color: var(--text-main, #e2e8f0);
-            font-family: inherit;
-            box-sizing: border-box;
-            outline: none;
-            transition: border-color 0.3s, box-shadow 0.3s;
-        }
-
-        input:focus,
-        select:focus {
-            border-color: #a855f7;
-        }
-
-        button.action-btn {
-            width: 100%;
-            padding: 12px;
-            border-radius: 8px;
-            border: none;
-            background: linear-gradient(135deg, #a855f7, #ec4899);
-            color: white;
-            font-weight: bold;
-            font-family: inherit;
-            cursor: pointer;
-            transition: opacity 0.3s ease, transform 0.1s ease;
-        }
-
-        button.action-btn:hover {
-            opacity: 0.9;
-        }
-
-        button.action-btn:active {
-            transform: scale(0.98);
-        }
-
-        .hidden {
-            display: none !important;
-        }
-
-        .feedback {
-            font-size: 13px;
-            margin-top: 4px;
-        }
-
-        .feedback.success {
-            color: #4ade80;
-        }
-
-        .feedback.error {
-            color: #f87171;
-        }
-
-        /* ====================================================
-           LIGHT THEME FIXES
-           ==================================================== */
-        .light-theme .profile-container {
-            background: #ffffff;
-            border-color: #e2e8f0;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
-        }
-
-        .light-theme .accordion-item {
-            background: #f8fafc;
-            border-color: #e2e8f0;
-        }
-
-        .light-theme .accordion-header:hover {
-            background: #f1f5f9;
-        }
-
-        .light-theme input,
-        .light-theme select {
-            background: #ffffff;
-            border: 1px solid #94a3b8;
-            color: #0f172a;
-            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
-        }
-
-        .light-theme input:focus,
-        .light-theme select:focus {
-            border-color: #a855f7;
-            box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.15);
-        }
-
-        .light-theme .user-name {
-            color: #0f172a;
-        }
-
-        .light-theme .user-email,
-        .light-theme .user-phone {
-            color: #475569;
-        }
-
-        .light-theme .icon-back-btn {
-            color: #0f172a;
-            border-color: #cbd5e1;
-            background: #f8fafc;
-        }
-
-        .light-theme .icon-back-btn:hover {
-            background: #e2e8f0;
+        .light .math-bg {
+            background-color: #f8fafc;
+            background-image: radial-gradient(circle at center, rgba(59, 130, 246, 0.05) 0%, rgba(248, 250, 252, 1) 100%), url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23000000' fill-opacity='0.03' font-family='monospace' font-size='12'%3E%3Ctext x='10' y='20'%3E∑(x_i)%3C/text%3E%3Ctext x='50' y='60'%3Eπ*r²%3C/text%3E%3Ctext x='80' y='10'%3E+1%3C/text%3E%3Ctext x='20' y='90'%3EE=mc²%3C/text%3E%3Ctext x='70' y='80'%3E∫dx%3C/text%3E%3C/g%3E%3C/svg%3E");
         }
     </style>
-</head>
-
-<body>
-
-    <div class="profile-container">
-        <div class="header-actions">
-            <button class="icon-back-btn" onclick="window.location.href='/app'" title="Back">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                    stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="9 18 15 12 9 6"></polyline>
-                </svg>
-                <span style="display:none" data-i18n="profile_back"></span>
-            </button>
-        </div>
-
-        <div class="avatar-wrapper" id="avatarWrapper" title="החלף תמונת פרופיל">
-            <span id="avatarInitials">?</span>
-            <img id="avatarImg" class="avatar-image" alt="User Avatar">
-            <div class="avatar-overlay">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                    stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
-                    <circle cx="12" cy="13" r="4"></circle>
-                </svg>
-            </div>
-            <input type="file" id="avatarInput" accept="image/*">
-        </div>
-
-        <h2 class="user-name" id="userNameDisplay">...</h2>
-        <p class="user-email" id="userEmailDisplay">...</p>
-        <p class="user-phone" id="userPhoneDisplay">...</p>
-
-        <div class="accordion-item">
-            <div class="accordion-header" onclick="toggleAccordion('usernameAcc')">
-                <span data-i18n="profile_change_username">שינוי שם משתמש</span>
-                <span class="chevron">▼</span>
-            </div>
-            <div class="accordion-content" id="usernameAcc">
-                <div class="input-group" style="margin-top: 10px;">
-                    <input type="text" id="usernameInput" data-i18n="profile_new_name_ph" placeholder="שם משתמש חדש">
-                </div>
-                <button class="action-btn" onclick="saveUsername()" data-i18n="profile_save_name_btn">שמור</button>
-            </div>
-        </div>
-
-        <div class="accordion-item">
-            
-            <!-- Feedback -->
-            <div class="accordion-header" onclick="toggleAccordion('feedbackAcc')">
-                <span data-i18n="profile_feedback">שלח משוב</span>
-                <span class="chevron">▼</span>
-            </div>
-            <div class="accordion-content" id="feedbackAcc">
-                <div class="input-group" style="margin-top: 10px;">
-                    <textarea id="feedbackInput" data-i18n="profile_feedback_ph" placeholder="המשוב שלך כאן..." rows="3" style="resize:none; width:100%; border-radius:8px; padding:12px 16px; background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.1); color:var(--text-main); outline:none; font-family:inherit;"></textarea>
-                </div>
-                <button class="action-btn" onclick="submitFeedbackForm()" style="margin-top: 10px;" data-i18n="btn_save">שמור</button>
-            </div>
-            <div class="accordion-header" onclick="toggleAccordion('languageAcc')">
-                <span data-i18n="profile_change_language">שינוי שפה</span>
-                <span class="chevron">▼</span>
-            </div>
-            <div class="accordion-content" id="languageAcc">
-                <!-- React Mount Point for Language Selector -->
-                <div id="language-selector-root"></div>
-            </div>
-        </div>
-
-        <div class="accordion-item">
-            <div class="accordion-header" onclick="toggleAccordion('currencyAcc')">
-                <span data-i18n="profile_change_currency">מטבע ברירת מחדל</span>
-                <span class="chevron">▼</span>
-            </div>
-            <div class="accordion-content" id="currencyAcc">
-                <div class="input-group" style="margin-top: 10px;">
-                    <select id="currencySelect">
-                        <option value="ILS">₪ ILS - שקל חדש</option>
-                        <option value="USD">$ USD - US Dollar</option>
-                        <option value="EUR">€ EUR - Euro</option>
-                        <option value="GBP">£ GBP - British Pound</option>
-                        <option value="THB">฿ THB - Thai Baht</option>
-                        <option value="JPY">¥ JPY - Japanese Yen</option>
-                        <option value="CAD">$ CAD - Canadian Dollar</option>
-                        <option value="AUD">$ AUD - Australian Dollar</option>
-                        <option value="CHF">CHF - Swiss Franc</option>
-                    </select>
-                </div>
-                <button class="action-btn" onclick="saveCurrency()" style="margin-top: 10px;" data-i18n="profile_save_currency_btn">שמור מטבע</button>
-            </div>
-        </div>
-
-        <div class="accordion-item">
-            <div class="accordion-header" onclick="toggleAccordion('passwordAcc')">
-                <span data-i18n="profile_change_pwd">שינוי סיסמה</span>
-                <span class="chevron">▼</span>
-            </div>
-            <div class="accordion-content" id="passwordAcc">
-                <div id="step1Password" style="margin-top: 10px;">
-                    <div class="input-group">
-                        <input type="password" id="currentPassword" data-i18n="profile_current_pwd_ph" placeholder="סיסמה נוכחית">
-                    </div>
-                    <button class="action-btn" onclick="verifyPassword()" data-i18n="profile_verify_btn">בדיקה</button>
-                </div>
-
-                <div id="step2Password" class="hidden" style="margin-top: 10px;">
-                    <div class="input-group">
-                        <input type="password" id="newPassword" data-i18n="profile_new_pwd_ph" placeholder="סיסמה חדשה">
-                    </div>
-                    <div class="input-group">
-                        <input type="password" id="confirmNewPassword" data-i18n="profile_confirm_pwd_ph" placeholder="אימות סיסמה חדשה">
-                    </div>
-                    <button class="action-btn" onclick="changePassword()" data-i18n="profile_save_pwd">אישור</button>
-                </div>
-            </div>
-        </div>
-
-        <div class="accordion-item">
-            <div class="accordion-header" onclick="toggleAccordion('phoneAcc')">
-                <span data-i18n="profile_change_phone">עדכון מספר טלפון</span>
-                <span class="chevron">▼</span>
-            </div>
-            <div class="accordion-content" id="phoneAcc">
-                <div class="input-group" style="margin-top: 10px;">
-                    <input type="tel" id="phoneInput" data-i18n="profile_phone_ph" placeholder="מספר טלפון חדש" style="direction:ltr; unicode-bidi:embed;">
-                </div>
-                <button class="action-btn" onclick="savePhone()" style="margin-top: 10px;" data-i18n="profile_save_phone_btn">שמור טלפון</button>
-            </div>
-        </div>
-
-        <div class="accordion-item">
-            <div class="accordion-header" onclick="toggleAccordion('tutorialAcc')">
-                <span data-i18n="profile_tutorial">מדריך שימוש</span>
-                <span class="chevron">▼</span>
-            </div>
-            <div class="accordion-content" id="tutorialAcc">
-                <div style="margin-top: 14px; text-align: center;">
-                    <div style="background: rgba(255,255,255,0.04); border: 2px dashed rgba(168,85,247,0.3); border-radius: 16px; padding: 32px 16px; color: var(--text-sec);">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.5; margin-bottom:12px;"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-                        <p style="font-weight: 700; font-size: 0.95rem; margin-bottom: 6px;" data-i18n="profile_tutorial_coming">סרטון הדרכה בקרוב!</p>
-                        <p style="font-size: 0.82rem; color: var(--text-muted);" data-i18n="profile_tutorial_desc">כאן יופיע סרטון הדרכה שילמד אותך כיצד להשתמש באפליקציה.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script src="{{ url_for('static', filename='js/translations.js') }}?v=2.2"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=2.2"></script>
-
-    <!-- Global Toast for Profile -->
-    <div id="toast" class="toast"></div>
-
+    
     <script>
-        async function submitFeedbackForm() {
-            const textEl = document.getElementById('feedbackInput');
-            const text = textEl.value.trim();
-            if (!text) {
-                showToast(typeof i18n === 'function' ? i18n('err_fill_all') : 'Please fill all fields', 'error');
-                return;
-            }
+        (function() {
             try {
-                const res = await fetch('/api/feedback', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({content: text})
-                });
-                const data = await res.json();
-                if (data.success) {
-                    showToast(typeof i18n === 'function' ? (currentLang === 'he' ? 'המשוב נשלח בהצלחה!' : 'Feedback sent!') : 'Feedback sent!', 'success');
-                    textEl.value = '';
-                    toggleAccordion('feedbackAcc');
+                const theme = localStorage.getItem('theme') || 'dark';
+                if (theme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                    document.documentElement.classList.remove('light');
                 } else {
-                    showToast(data.error || 'Error sending feedback', 'error');
+                    document.documentElement.classList.add('light');
+                    document.documentElement.classList.remove('dark');
                 }
-            } catch(e) {
-                showToast('Network error', 'error');
-            }
-        }
-
-        // שינינו את השם של המשתנה כדי שלא יתנגש עם main.js!
-        let profileUserData = null;
-
-        document.addEventListener('DOMContentLoaded', () => {
-            if (localStorage.getItem('theme') === 'light') {
-                document.body.classList.add('light-theme');
-            }
-            fetchUserData();
-        });
-
-        async function fetchUserData() {
-            try {
-                const res = await fetch('/api/me');
-                if (res.ok) {
-                    const data = await res.json();
-                    profileUserData = data;
-                    renderUserData();
-                    // Apply translations after data loads
-                    if (typeof setLanguage === 'function') {
-                        setLanguage(data.language || 'he');
-                    }
-                } else {
-                    window.location.href = '/';
-                }
-            } catch (err) {
-                console.error('Error fetching user data', err);
-                document.getElementById('userNameDisplay').textContent = 'שגיאת תקשורת';
-                document.getElementById('userEmailDisplay').textContent = 'אנא נסה לרענן את העמוד';
-            }
-        }
-
-        function renderUserData() {
-            if (!profileUserData) return;
-
-            document.getElementById('userNameDisplay').textContent = profileUserData.name || 'Unknown';
-            document.getElementById('userEmailDisplay').textContent = profileUserData.email || (typeof i18n === 'function' ? i18n('profile_no_email') : 'לא מוגדר אימייל');
-
-            // Phone display
-            const phoneEl = document.getElementById('userPhoneDisplay');
-            if (phoneEl) {
-                phoneEl.textContent = profileUserData.phone || (typeof i18n === 'function' ? i18n('profile_no_phone') : 'לא מוגדר טלפון');
-            }
-
-            document.getElementById('usernameInput').value = profileUserData.name || '';
-            const langSelect = document.getElementById('languageSelect');
-            if (langSelect) langSelect.value = profileUserData.language || 'he';
-            const currSelect = document.getElementById('currencySelect');
-            if (currSelect) currSelect.value = profileUserData.default_currency || 'ILS';
-
-            const initials = document.getElementById('avatarInitials');
-            const img = document.getElementById('avatarImg');
-
-            if (profileUserData.avatar_url) {
-                img.src = profileUserData.avatar_url;
-                img.style.display = 'block';
-                initials.style.display = 'none';
-            } else {
-                const nameStr = profileUserData.name || '?';
-                const words = nameStr.trim().split(/\s+/);
-                let initText = '';
-
-                if (words.length >= 2) {
-                    initText = words[0].charAt(0) + words[1].charAt(0);
-                } else {
-                    initText = nameStr.substring(0, 2);
-                }
-
-                initials.textContent = initText.toUpperCase();
-                img.style.display = 'none';
-                initials.style.display = 'block';
-            }
-
-            try {
-                if (typeof setupCustomDropdowns === 'function') {
-                    setupCustomDropdowns();
-                }
-            } catch (e) {
-                console.error("Custom dropdown failed, using native:", e);
-            }
-        }
-
-        const avatarWrapper = document.getElementById('avatarWrapper');
-        const avatarInput = document.getElementById('avatarInput');
-
-        avatarWrapper.addEventListener('click', () => {
-            avatarInput.click();
-        });
-
-        avatarInput.addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const formData = new FormData();
-            formData.append('avatar', file);
-
-            try {
-                const res = await fetch('/api/upload-avatar', {
-                    method: 'POST',
-                    body: formData
-                });
-                const data = await res.json();
-                if (data.success) {
-                    profileUserData.avatar_url = data.avatar_url;
-                    renderUserData();
-                } else {
-                    alert('שגיאה בהעלאת התמונה: ' + (data.error || 'שגיאה לא ידועה'));
-                }
-            } catch (err) {
-                console.error('Upload error', err);
-                alert('שגיאה בחיבור לשרת');
-            }
-        });
-
-        function toggleAccordion(id) {
-            const content = document.getElementById(id);
-            const isCurrentlyExpanded = content.classList.contains('expanded');
-
-            document.querySelectorAll('.accordion-content').forEach(el => {
-                el.classList.remove('expanded');
-            });
-
-            if (!isCurrentlyExpanded) {
-                content.classList.add('expanded');
-            }
-        }
-
-        async function saveUsername() {
-            const newName = document.getElementById('usernameInput').value.trim();
-
-            if (!newName) {
-                showToast('יש להזין שם משתמש', "error");
-                return;
-            }
-
-            try {
-                const res = await fetch('/api/profile', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: newName })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    showToast('שם המשתמש עודכן בהצלחה', "success");
-                    profileUserData.name = newName;
-                    renderUserData();
-                } else {
-                    showToast(data.error || 'שגיאה בעדכון', "error");
-                }
-            } catch (err) {
-                showToast('שגיאה בחיבור לשרת', "error");
-            }
-        }
-
-        async function savePhone() {
-            const phone = document.getElementById('phoneInput').value.trim();
-
-            if (!phone) {
-                showToast(typeof i18n === 'function' ? i18n('profile_phone_required') : 'יש להזין מספר טלפון', "error");
-                return;
-            }
-
-            try {
-                const res = await fetch('/api/profile', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ phone: phone })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    showToast(typeof i18n === 'function' ? i18n('profile_phone_saved') : 'הטלפון עודכן בהצלחה', "success");
-                    profileUserData.phone = phone;
-                    renderUserData();
-                } else {
-                    showToast(data.error || 'שגיאה בעדכון', "error");
-                }
-            } catch (err) {
-                showToast('שגיאה בחיבור לשרת', "error");
-            }
-        }
-
-        // This function is kept for legacy compatibility if anything else calls it.
-        async function saveLanguage(lang) {
-            try {
-                const res = await fetch('/api/profile', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ language: lang })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    showToast('השפה עודכנה בהצלחה', "success");
-                    // Do not reload so we can see dynamic i18n
-                } else {
-                    showToast(data.error || 'שגיאה בעדכון', "error");
-                }
-            } catch (err) {
-                showToast('שגיאה בחיבור לשרת', "error");
-            }
-        }
-
-        async function saveCurrency() {
-            const currency = document.getElementById('currencySelect').value;
-
-            try {
-                const res = await fetch('/api/profile', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ default_currency: currency })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    showToast('המטבע עודכן בהצלחה', "success");
-                } else {
-                    showToast(data.error || 'שגיאה בעדכון', "error");
-                }
-            } catch (err) {
-                showToast('שגיאה בחיבור לשרת', "error");
-            }
-        }
-
-        async function verifyPassword() {
-            const currentPassword = document.getElementById('currentPassword').value;
-
-            if (!currentPassword) {
-                showToast('יש להזין סיסמה נוכחית', "error");
-                return;
-            }
-
-            try {
-                const res = await fetch('/api/verify-password', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ current_password: currentPassword })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    
-                    document.getElementById('step1Password').classList.add('hidden');
-                    document.getElementById('step2Password').classList.remove('hidden');
-                } else {
-                    showToast(data.error || 'סיסמה שגויה', "error");
-                }
-            } catch (err) {
-                showToast('שגיאה בחיבור לשרת', "error");
-            }
-        }
-
-        async function changePassword() {
-            const currentPassword = document.getElementById('currentPassword').value;
-            const newPassword = document.getElementById('newPassword').value;
-            const confirmPass = document.getElementById('confirmNewPassword').value;
-
-            if (!newPassword || !confirmPass) {
-                showToast('יש למלא את כל השדות', "error");
-                return;
-            }
-
-            if (newPassword !== confirmPass) {
-                showToast('הסיסמאות אינן תואמות', "error");
-                return;
-            }
-
-            try {
-                const res = await fetch('/api/profile/change-password', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    showToast('הסיסמה שונתה בהצלחה', "success");
-
-                    setTimeout(() => {
-                        document.getElementById('currentPassword').value = '';
-                        document.getElementById('newPassword').value = '';
-                        document.getElementById('confirmNewPassword').value = '';
-                        document.getElementById('step2Password').classList.add('hidden');
-                        document.getElementById('step1Password').classList.remove('hidden');
-                        
-                        toggleAccordion('passwordAcc');
-                    }, 2000);
-                } else {
-                    showToast(data.error || 'שגיאה בעדכון הסיסמה', "error");
-                }
-            } catch (err) {
-                showToast('שגיאה בחיבור לשרת', "error");
-            }
-        }
+                const lang = localStorage.getItem('lang') || 'he';
+                if (window.i18n) window.i18n.changeLanguage(lang);
+            } catch(e) {}
+        })();
     </script>
-    <!-- React Settings Selectors Injection -->
+</head>
+<body class="math-bg text-gray-900 dark:text-white min-h-screen flex items-center justify-center p-4 transition-colors duration-300">
+    <div id="root" class="w-full max-w-lg"></div>
+
     <script type="text/babel" data-type="module">
         import React, { useState, useEffect } from 'react';
         import { createRoot } from 'react-dom/client';
-        import { Globe, CheckCircle2, Moon, Sun } from 'lucide-react';
+        import { 
+            User, Image as ImageIcon, Mail, Phone, Lock, Globe, DollarSign, 
+            Moon, Sun, Bell, HelpCircle, MessageSquare, Shield, ChevronLeft, ChevronRight, X, Camera
+        } from 'lucide-react';
 
-        const i18n = window.MasterSplitterI18n;
-
-        const languageNames = {
-            'he': 'עברית',
-            'en': 'English',
-            'es': 'Español',
-            'ru': 'Русский',
-            'ar': 'العربية',
-            'fr': 'Français',
-            'zh': '中文'
-        };
-
-        const SettingsSelectors = ({ initialLang }) => {
-            const [isLangOpen, setIsLangOpen] = useState(false);
-            const [currentLang, setCurrentLang] = useState(initialLang || (i18n ? i18n.getCurrentLanguage() : 'he'));
-            const languages = Object.keys(languageNames);
-            
-            const initialDark = document.documentElement.classList.contains('dark') || localStorage.getItem('theme') === 'dark';
-            const [isDark, setIsDark] = useState(initialDark);
-            
-            useEffect(() => {
-                if (window.profileUserData && window.profileUserData.language) {
-                    setCurrentLang(window.profileUserData.language);
-                    if (i18n) i18n.changeLanguage(window.profileUserData.language);
-                }
-            }, [window.profileUserData]);
-
-            const handleSelect = async (code) => {
-                setCurrentLang(code);
-                setIsLangOpen(false);
-                if (i18n) {
-                    i18n.changeLanguage(code);
-                    if (typeof window.applyTranslations === 'function') {
-                        window.applyTranslations();
-                    }
-                }
-                localStorage.setItem('lang', code);
-                if (typeof window.saveLanguage === 'function') {
-                    window.saveLanguage(code);
-                }
-            };
-            
-            const toggleTheme = () => {
-                const newTheme = isDark ? 'light' : 'dark';
-                setIsDark(!isDark);
-                localStorage.setItem('theme', newTheme);
-                if (newTheme === 'dark') {
-                    document.documentElement.classList.add('dark');
-                    document.documentElement.classList.remove('light');
-                    document.body.classList.remove('light-theme');
-                } else {
-                    document.documentElement.classList.remove('dark');
-                    document.documentElement.classList.add('light');
-                    document.body.classList.add('light-theme');
-                }
-            };
-
+        const Modal = ({ isOpen, onClose, title, children }) => {
+            if (!isOpen) return null;
             return (
-                <div className="flex gap-2 mt-4 w-full relative">
-                    <div className="relative inline-block text-left flex-1">
-                        <button type="button" onClick={() => setIsLangOpen(!isLangOpen)} className="w-full flex items-center justify-between px-4 py-3 bg-white/50 dark:bg-black/20 backdrop-blur-md rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium transition-colors hover:bg-gray-50 dark:hover:bg-gray-800">
-                            <div className="flex items-center gap-2">
-                                <Globe size={18} className="text-blue-500" />
-                                <span className="dark:text-white font-semibold">{languageNames[currentLang] || currentLang}</span>
-                            </div>
-                        </button>
-                        {isLangOpen && (
-                            <div className="absolute top-full mt-2 left-0 w-full bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 z-[60] max-h-48 overflow-y-auto">
-                                {languages.map((code) => (
-                                    <button key={code} type="button" onClick={() => handleSelect(code)} className="w-full px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex justify-between items-center">
-                                        <span className="font-medium dark:text-white">{languageNames[code]}</span>
-                                        {currentLang === code && <CheckCircle2 size={16} className="text-green-500" />}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
+                <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-50 p-4" onClick={onClose}>
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all border border-gray-100 dark:border-gray-800" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center p-4 border-b border-gray-100 dark:border-gray-800">
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">{title}</h3>
+                            <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="p-4">
+                            {children}
+                        </div>
                     </div>
-                    <button type="button" onClick={toggleTheme} className="flex-none px-4 py-3 bg-white/50 dark:bg-black/20 backdrop-blur-md rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium transition-colors hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center justify-center text-gray-700 dark:text-gray-300">
-                        {isDark ? <Sun size={18} /> : <Moon size={18} />}
-                    </button>
                 </div>
             );
         };
 
-        const rootEl = document.getElementById('language-selector-root');
-        if (rootEl) {
-            const root = createRoot(rootEl);
-            root.render(<SettingsSelectors />);
-        }
+        const ProfileApp = () => {
+            const [lang, setLang] = useState(i18n ? i18n.getCurrentLanguage() : 'he');
+            const [isDark, setIsDark] = useState(document.documentElement.classList.contains('dark'));
+            const [activeModal, setActiveModal] = useState(null);
+            
+            const [profileData, setProfileData] = useState({
+                id: null,
+                name: '',
+                email: '',
+                phone: '',
+                avatar_url: '',
+                language: 'he',
+                default_currency: 'ILS',
+                is_google_auth: false,
+                two_fa_method: 'none'
+            });
+
+            const [formData, setFormData] = useState({});
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState('');
+            const [success, setSuccess] = useState('');
+
+            useEffect(() => {
+                const handleLangChange = () => setLang(i18n.getCurrentLanguage());
+                window.addEventListener('languageChanged', handleLangChange);
+                fetchProfile();
+                return () => window.removeEventListener('languageChanged', handleLangChange);
+            }, []);
+
+            const fetchProfile = async () => {
+                try {
+                    const res = await fetch('/api/profile');
+                    const data = await res.json();
+                    if (res.ok) {
+                        setProfileData(data);
+                        setFormData(data);
+                    }
+                } catch(e) {
+                    console.error("Failed to load profile", e);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const toggleTheme = async () => {
+                const newDark = !isDark;
+                setIsDark(newDark);
+                const theme = newDark ? 'dark' : 'light';
+                localStorage.setItem('theme', theme);
+                if (newDark) {
+                    document.documentElement.classList.add('dark');
+                    document.documentElement.classList.remove('light');
+                } else {
+                    document.documentElement.classList.add('light');
+                    document.documentElement.classList.remove('dark');
+                }
+            };
+
+            const t = (key) => i18n ? i18n(key) : key;
+            const isRTL = i18n ? i18n.getDirection() === 'rtl' : true;
+            const Chevron = isRTL ? ChevronLeft : ChevronRight;
+
+            const handleUpdateProfile = async (field, value, endpoint='/api/profile', method='PUT') => {
+                setError('');
+                setSuccess('');
+                try {
+                    const payload = field ? { [field]: value } : formData;
+                    const res = await fetch(endpoint, {
+                        method,
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        setSuccess(t('profileSuccess'));
+                        if (field) {
+                            setProfileData(prev => ({ ...prev, [field]: value }));
+                        } else {
+                            fetchProfile();
+                        }
+                        setTimeout(() => setActiveModal(null), 1500);
+                    } else {
+                        setError(data.error || 'Error');
+                    }
+                } catch (e) {
+                    setError('Network Error');
+                }
+            };
+
+            const handleAvatarUpload = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const fd = new FormData();
+                fd.append('avatar', file);
+                try {
+                    const res = await fetch('/api/upload-avatar', { method: 'POST', body: fd });
+                    const data = await res.json();
+                    if (res.ok) {
+                        setProfileData(prev => ({ ...prev, avatar_url: data.avatar_url }));
+                        setActiveModal(null);
+                    } else {
+                        setError(data.error);
+                    }
+                } catch (err) {
+                    setError('Network Error');
+                }
+            };
+
+            const renderMenuItem = (icon, text, onClick, rightContent = null) => (
+                <button 
+                    onClick={onClick}
+                    className="w-full flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors first:rounded-t-2xl last:rounded-b-2xl border-b last:border-b-0 border-gray-100 dark:border-gray-800"
+                >
+                    <div className="flex items-center gap-3">
+                        <div className="text-purple-500 dark:text-purple-400">{icon}</div>
+                        <span className="font-medium text-gray-700 dark:text-gray-200">{text}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-gray-400">
+                        {rightContent}
+                        <Chevron size={18} />
+                    </div>
+                </button>
+            );
+
+            if (loading) return <div className="text-center text-white">{t('loadingThinking')}</div>;
+
+            return (
+                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-slate-700/50 overflow-hidden" dir={isRTL ? 'rtl' : 'ltr'}>
+                    <div className="p-6 text-center border-b border-gray-100 dark:border-gray-800 flex flex-col items-center relative">
+                        <button onClick={() => window.location.href='/app'} className="absolute top-6 left-6 p-2 bg-gray-100 dark:bg-slate-800 rounded-full hover:bg-gray-200 dark:hover:bg-slate-700 transition">
+                            <Chevron size={20} />
+                        </button>
+                        
+                        <div className="relative group cursor-pointer" onClick={() => setActiveModal('avatar')}>
+                            <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 flex items-center justify-center text-white text-3xl font-bold shadow-lg overflow-hidden border-4 border-white dark:border-slate-800">
+                                {profileData.avatar_url ? (
+                                    <img src={profileData.avatar_url} className="w-full h-full object-cover" />
+                                ) : (
+                                    profileData.name.charAt(0).toUpperCase()
+                                )}
+                            </div>
+                            <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                <Camera className="text-white" size={24} />
+                            </div>
+                        </div>
+                        <h2 className="mt-4 text-2xl font-bold text-gray-900 dark:text-white">{profileData.name}</h2>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{profileData.email || t('emptyEmail')}</p>
+                    </div>
+
+                    <div className="p-4 space-y-6 max-h-[60vh] overflow-y-auto">
+                        
+                        {/* Account */}
+                        <div>
+                            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2 px-4">{t('profileAccount')}</h3>
+                            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
+                                {renderMenuItem(<User size={20}/>, t('profileChangeName'), () => setActiveModal('name'), <span className="text-sm truncate max-w-[100px]">{profileData.name}</span>)}
+                                {renderMenuItem(<ImageIcon size={20}/>, t('profileChangeAvatar'), () => setActiveModal('avatar'))}
+                                {renderMenuItem(<Mail size={20}/>, t('profileUpdateEmail'), () => setActiveModal('email'), <span className="text-sm truncate max-w-[100px]">{profileData.email}</span>)}
+                                {renderMenuItem(<Phone size={20}/>, t('profileUpdatePhone'), () => setActiveModal('phone'), <span className="text-sm truncate max-w-[100px]">{profileData.phone}</span>)}
+                                {renderMenuItem(<Lock size={20}/>, t('profileChangePassword'), () => setActiveModal('password'))}
+                            </div>
+                        </div>
+
+                        {/* Preferences */}
+                        <div>
+                            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2 px-4">{t('profilePreferences')}</h3>
+                            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
+                                {renderMenuItem(<Globe size={20}/>, t('profileLanguage'), () => setActiveModal('language'), <span className="text-sm">{lang.toUpperCase()}</span>)}
+                                {renderMenuItem(<DollarSign size={20}/>, t('profileCurrency'), () => setActiveModal('currency'), <span className="text-sm">{profileData.default_currency}</span>)}
+                                <button onClick={toggleTheme} className="w-full flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors border-b last:border-b-0 border-gray-100 dark:border-gray-800">
+                                    <div className="flex items-center gap-3">
+                                        <div className="text-purple-500 dark:text-purple-400">{isDark ? <Moon size={20}/> : <Sun size={20}/>}</div>
+                                        <span className="font-medium text-gray-700 dark:text-gray-200">{t('profileTheme')}</span>
+                                    </div>
+                                    <div className="w-11 h-6 bg-purple-500 rounded-full relative transition-colors">
+                                        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${isDark ? (isRTL ? 'left-1' : 'right-1') : (isRTL ? 'right-1' : 'left-1')}`}></div>
+                                    </div>
+                                </button>
+                                {renderMenuItem(<Bell size={20}/>, t('profileNotifications'), () => setActiveModal('comingSoon'))}
+                            </div>
+                        </div>
+
+                        {/* Support */}
+                        <div>
+                            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2 px-4">{t('profileSupport')}</h3>
+                            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
+                                {renderMenuItem(<HelpCircle size={20}/>, t('profileGuide'), () => setActiveModal('comingSoon'))}
+                                {renderMenuItem(<MessageSquare size={20}/>, t('profileFeedback'), () => setActiveModal('feedback'))}
+                                {renderMenuItem(<Phone size={20}/>, t('profileContact'), () => setActiveModal('contact'))}
+                            </div>
+                        </div>
+
+                        {/* Privacy & Security */}
+                        <div>
+                            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2 px-4">{t('profilePrivacySecurity')}</h3>
+                            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
+                                {renderMenuItem(<Shield size={20}/>, t('profilePrivacySettings'), () => setActiveModal('comingSoon'))}
+                                {renderMenuItem(<Shield size={20}/>, t('termsOfUse'), () => setActiveModal('comingSoon'))}
+                                {renderMenuItem(<Shield size={20}/>, t('privacyPolicy'), () => setActiveModal('comingSoon'))}
+                                {renderMenuItem(<Lock size={20}/>, t('profile2FA'), () => setActiveModal('2fa'), <span className="text-sm">{profileData.two_fa_method}</span>)}
+                            </div>
+                        </div>
+
+                    </div>
+
+                    {/* Modals */}
+                    
+                    <Modal isOpen={activeModal === 'name'} onClose={() => setActiveModal(null)} title={t('profileChangeName')}>
+                        <input type="text" className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white mb-4" 
+                            value={formData.name || ''} onChange={e => setFormData({...formData, name: e.target.value})} />
+                        {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+                        {success && <p className="text-green-500 text-sm mb-4">{success}</p>}
+                        <button onClick={() => handleUpdateProfile('name', formData.name)} className="w-full p-3 bg-purple-600 text-white rounded-xl font-bold">{t('profileSave')}</button>
+                    </Modal>
+
+                    <Modal isOpen={activeModal === 'avatar'} onClose={() => setActiveModal(null)} title={t('profileChangeAvatar')}>
+                        <input type="file" accept="image/*" onChange={handleAvatarUpload} className="w-full p-3 text-gray-900 dark:text-white" />
+                        {error && <p className="text-red-500 text-sm mt-4">{error}</p>}
+                    </Modal>
+
+                    <Modal isOpen={activeModal === 'email'} onClose={() => setActiveModal(null)} title={t('profileUpdateEmail')}>
+                        {profileData.is_google_auth ? (
+                            <div className="text-center py-6">
+                                <Globe size={48} className="mx-auto text-blue-500 mb-4" />
+                                <h4 className="font-bold text-gray-900 dark:text-white mb-2">{t('profileGoogleManaged')}</h4>
+                                <p className="text-gray-500 dark:text-gray-400 text-sm">{t('profileGoogleManagedDesc')}</p>
+                            </div>
+                        ) : (
+                            <div>
+                                <input type="email" className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white mb-4" 
+                                    value={formData.email || ''} onChange={e => setFormData({...formData, email: e.target.value})} />
+                                {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+                                {success && <p className="text-green-500 text-sm mb-4">{success}</p>}
+                                <button onClick={() => handleUpdateProfile('email', formData.email)} className="w-full p-3 bg-purple-600 text-white rounded-xl font-bold">{t('profileSave')}</button>
+                            </div>
+                        )}
+                    </Modal>
+
+                    <Modal isOpen={activeModal === 'phone'} onClose={() => setActiveModal(null)} title={t('profileUpdatePhone')}>
+                        <input type="tel" className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white mb-4" 
+                            value={formData.phone || ''} onChange={e => setFormData({...formData, phone: e.target.value})} />
+                        {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+                        {success && <p className="text-green-500 text-sm mb-4">{success}</p>}
+                        <button onClick={() => handleUpdateProfile('phone', formData.phone)} className="w-full p-3 bg-purple-600 text-white rounded-xl font-bold">{t('profileSave')}</button>
+                    </Modal>
+
+                    <Modal isOpen={activeModal === 'password'} onClose={() => setActiveModal(null)} title={t('profileChangePassword')}>
+                        <input type="password" placeholder={t('profileCurrentPassword')} className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white mb-3" 
+                            onChange={e => setFormData({...formData, current_password: e.target.value})} />
+                        <input type="password" placeholder={t('profileNewPassword')} className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white mb-4" 
+                            onChange={e => setFormData({...formData, new_password: e.target.value})} />
+                        {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+                        {success && <p className="text-green-500 text-sm mb-4">{success}</p>}
+                        <button onClick={() => handleUpdateProfile(null, null, '/api/profile/change-password', 'POST')} className="w-full p-3 bg-purple-600 text-white rounded-xl font-bold">{t('profileSave')}</button>
+                    </Modal>
+
+                    <Modal isOpen={activeModal === 'language'} onClose={() => setActiveModal(null)} title={t('profileLanguage')}>
+                        <div className="space-y-2">
+                            {['he', 'en', 'es', 'ru', 'ar', 'fr', 'zh'].map(code => (
+                                <button key={code} onClick={() => {
+                                    i18n.changeLanguage(code);
+                                    localStorage.setItem('lang', code);
+                                    handleUpdateProfile('language', code);
+                                }} className={`w-full p-3 rounded-xl border transition-colors ${lang === code ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400' : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white'}`}>
+                                    {code.toUpperCase()}
+                                </button>
+                            ))}
+                        </div>
+                    </Modal>
+
+                    <Modal isOpen={activeModal === 'currency'} onClose={() => setActiveModal(null)} title={t('profileCurrency')}>
+                        <div className="grid grid-cols-3 gap-2">
+                            {['ILS (₪)', 'USD ($)', 'EUR (€)', 'GBP (£)', 'THB (฿)', 'JPY (¥)', 'CAD ($)', 'AUD ($)', 'CHF'].map(curr => {
+                                const code = curr.split(' ')[0];
+                                return (
+                                <button key={code} onClick={() => handleUpdateProfile('default_currency', code)} className={`p-3 rounded-xl border transition-colors ${profileData.default_currency === code ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400' : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white'}`}>
+                                    {curr}
+                                </button>
+                            )})}
+                        </div>
+                    </Modal>
+
+                    <Modal isOpen={activeModal === 'feedback'} onClose={() => setActiveModal(null)} title={t('profileFeedback')}>
+                        <textarea className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white mb-4 h-32 resize-none" 
+                            placeholder={t('profileMessage')} onChange={e => setFormData({...formData, feedback: e.target.value})}></textarea>
+                        {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+                        {success && <p className="text-green-500 text-sm mb-4">{success}</p>}
+                        <button onClick={() => handleUpdateProfile(null, null, '/api/feedback', 'POST')} className="w-full p-3 bg-purple-600 text-white rounded-xl font-bold">{t('profileSend')}</button>
+                    </Modal>
+
+                    <Modal isOpen={activeModal === 'contact'} onClose={() => setActiveModal(null)} title={t('profileContact')}>
+                        <input type="text" placeholder={t('profileSubject')} className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white mb-3" 
+                            onChange={e => setFormData({...formData, subject: e.target.value})} />
+                        <textarea className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white mb-4 h-32 resize-none" 
+                            placeholder={t('profileMessage')} onChange={e => setFormData({...formData, message: e.target.value})}></textarea>
+                        {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+                        {success && <p className="text-green-500 text-sm mb-4">{success}</p>}
+                        <button onClick={() => handleUpdateProfile(null, null, '/api/contact', 'POST')} className="w-full p-3 bg-purple-600 text-white rounded-xl font-bold">{t('profileSend')}</button>
+                    </Modal>
+
+                    <Modal isOpen={activeModal === '2fa'} onClose={() => setActiveModal(null)} title={t('profile2FA')}>
+                        <div className="space-y-2">
+                            {['none', 'email', 'fingerprint'].map(method => (
+                                <button key={method} onClick={() => handleUpdateProfile('two_fa_method', method)} className={`w-full p-3 rounded-xl border transition-colors flex items-center justify-between ${profileData.two_fa_method === method ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400' : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white'}`}>
+                                    <span className="capitalize">{method}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </Modal>
+
+                    <Modal isOpen={activeModal === 'comingSoon'} onClose={() => setActiveModal(null)} title="">
+                        <div className="text-center py-6">
+                            <Shield size={48} className="mx-auto text-purple-500 mb-4" />
+                            <h4 className="font-bold text-gray-900 dark:text-white mb-2">{t('profileComingSoon')}</h4>
+                        </div>
+                    </Modal>
+
+                </div>
+            );
+        };
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<ProfileApp />);
     </script>
 </body>
-
 </html>

@@ -216,8 +216,11 @@ def init_db_updates():
         if 'google_id' not in cols:
             cursor.execute("ALTER TABLE Users ADD COLUMN google_id TEXT")
             logger.info("Migration: added 'google_id' column to Users")
+        if 'two_fa_method' not in cols:
+            cursor.execute("ALTER TABLE Users ADD COLUMN two_fa_method TEXT DEFAULT 'none'")
+            logger.info("Migration: added 'two_fa_method' column to Users")
     except sqlite3.Error as e:
-        logger.error(f"Users google_id migration error: {e}")
+        logger.error(f"Users google_id or two_fa_method migration error: {e}")
 
     # --- Create trip_invitations table ---
     cursor.execute("""
@@ -1131,12 +1134,24 @@ def get_profile():
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute("SELECT id, name, email, phone, language, avatar_url FROM Users WHERE id = ?", (session['user_id'],))
+        cursor.execute("SELECT id, name, email, phone, language, avatar_url, default_currency, google_id, two_fa_method FROM Users WHERE id = ?", (session['user_id'],))
         user = cursor.fetchone()
         if not user:
             return jsonify({"error": "User not found"}), 404
         phone = user['phone'] if 'phone' in user.keys() else ''
-        return jsonify({"id": user['id'], "name": user['name'], "email": user['email'], "phone": phone, "language": user['language'], "avatar_url": user['avatar_url']})
+        default_currency = user['default_currency'] if 'default_currency' in user.keys() else 'ILS'
+        two_fa_method = user['two_fa_method'] if 'two_fa_method' in user.keys() else 'none'
+        return jsonify({
+            "id": user['id'], 
+            "name": user['name'], 
+            "email": user['email'], 
+            "phone": phone, 
+            "language": user['language'], 
+            "avatar_url": user['avatar_url'],
+            "default_currency": default_currency,
+            "is_google_auth": bool(user['google_id']),
+            "two_fa_method": two_fa_method
+        })
     finally:
         conn.close()
 
@@ -1213,9 +1228,22 @@ def update_profile():
         updates.append("name = ?")
         params.append(new_name)
 
-    if language in ('he', 'en'):
+    if language in ('he', 'en', 'es', 'ru', 'ar', 'fr', 'zh'):
         updates.append("language = ?")
         params.append(language)
+        
+    two_fa_method = data.get('two_fa_method')
+    if two_fa_method in ('none', 'email', 'fingerprint'):
+        updates.append("two_fa_method = ?")
+        params.append(two_fa_method)
+        
+    email = data.get('email', '').strip()
+    if email:
+        email, err = validate_string(email, 'Email', MAX_EMAIL_LENGTH, required=True)
+        if err:
+            return jsonify({"error": err}), 400
+        updates.append("email = ?")
+        params.append(email)
 
     default_currency = data.get('default_currency', '').strip().upper()
     valid_currencies = ['ILS', 'USD', 'EUR', 'GBP', 'THB', 'JPY', 'CAD', 'AUD', 'CHF']
@@ -1243,6 +1271,11 @@ def update_profile():
             if cursor.fetchone():
                 return jsonify({"error": "שם המשתמש כבר תפוס."}), 400
             session['username'] = new_name
+            
+        if email:
+            cursor.execute("SELECT id FROM Users WHERE email = ? AND id != ?", (email, session['user_id']))
+            if cursor.fetchone():
+                return jsonify({"error": "כתובת האימייל כבר בשימוש במערכת."}), 400
 
         params.append(session['user_id'])
         cursor.execute(f"UPDATE Users SET {', '.join(updates)} WHERE id = ?", params)
@@ -1290,6 +1323,103 @@ def change_password():
     finally:
         conn.close()
 
+
+@app.route('/api/feedback', methods=['POST'])
+@login_required
+def send_feedback():
+    data = request.json or {}
+    feedback_text = data.get('feedback', '').strip()
+    if not feedback_text:
+        return jsonify({"error": "Feedback text is required."}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT name, email FROM Users WHERE id = ?", (session['user_id'],))
+    user = cursor.fetchone()
+    conn.close()
+
+    if not user:
+        return jsonify({"error": "User not found."}), 404
+
+    smtp_server = os.environ.get('SMTP_SERVER')
+    smtp_port = os.environ.get('SMTP_PORT', 587)
+    smtp_username = os.environ.get('SMTP_USERNAME')
+    smtp_password = os.environ.get('SMTP_PASSWORD')
+
+    target_email = "RoashCorp@gmail.com"
+    subject = f"משוב מאת {user['name']}"
+    body = f"User Email: {user['email']}\nUser Name: {user['name']}\n\nFeedback:\n{feedback_text}"
+
+    if smtp_server and smtp_username and smtp_password:
+        try:
+            msg = MIMEMultipart()
+            msg['From'] = f"MasterSplitter <{smtp_username}>"
+            msg['To'] = target_email
+            msg['Subject'] = subject
+            msg.attach(MIMEText(body, 'plain'))
+
+            server = smtplib.SMTP(smtp_server, int(smtp_port))
+            server.starttls()
+            server.login(smtp_username, smtp_password)
+            server.send_message(msg)
+            server.quit()
+        except Exception as e:
+            logger.error(f"Failed to send feedback email: {e}")
+            return jsonify({"error": "Failed to send email."}), 500
+    else:
+        logger.warning(f"SMTP not configured. Mocking feedback email to {target_email}:\nSubject: {subject}\nBody: {body}")
+
+    return jsonify({"success": True})
+
+
+@app.route('/api/contact', methods=['POST'])
+@login_required
+def contact_us():
+    data = request.json or {}
+    contact_subject = data.get('subject', '').strip()
+    message_text = data.get('message', '').strip()
+
+    if not contact_subject or not message_text:
+        return jsonify({"error": "Subject and message are required."}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT name, email FROM Users WHERE id = ?", (session['user_id'],))
+    user = cursor.fetchone()
+    conn.close()
+
+    if not user:
+        return jsonify({"error": "User not found."}), 404
+
+    smtp_server = os.environ.get('SMTP_SERVER')
+    smtp_port = os.environ.get('SMTP_PORT', 587)
+    smtp_username = os.environ.get('SMTP_USERNAME')
+    smtp_password = os.environ.get('SMTP_PASSWORD')
+
+    target_email = "RoashCorp@gmail.com"
+    subject = f"יצירת קשר: {contact_subject}"
+    body = f"User Email: {user['email']}\nUser Name: {user['name']}\n\nMessage:\n{message_text}"
+
+    if smtp_server and smtp_username and smtp_password:
+        try:
+            msg = MIMEMultipart()
+            msg['From'] = f"MasterSplitter <{smtp_username}>"
+            msg['To'] = target_email
+            msg['Subject'] = subject
+            msg.attach(MIMEText(body, 'plain'))
+
+            server = smtplib.SMTP(smtp_server, int(smtp_port))
+            server.starttls()
+            server.login(smtp_username, smtp_password)
+            server.send_message(msg)
+            server.quit()
+        except Exception as e:
+            logger.error(f"Failed to send contact email: {e}")
+            return jsonify({"error": "Failed to send email."}), 500
+    else:
+        logger.warning(f"SMTP not configured. Mocking contact email to {target_email}:\nSubject: {subject}\nBody: {body}")
+
+    return jsonify({"success": True})
 
 # =====================
 #   USER LOOKUP API

@@ -231,7 +231,9 @@ const translations = {
         "profile_phone_saved": "הטלפון עודכן בהצלחה",
         "profile_tutorial": "מדריך שימוש",
         "profile_tutorial_coming": "סרטון הדרכה בקרוב!",
-        "profile_tutorial_desc": "כאן יופיע סרטון הדרכה שילמד אותך כיצד להשתמש באפליקציה."
+        "profile_tutorial_desc": "כאן יופיע סרטון הדרכה שילמד אותך כיצד להשתמש באפליקציה.",
+        "getFinancialTipBtn": "עוזר פיננסי חכם ✨",
+        "loadingThinking": "חושב..."
     },
     en: {
         // General
@@ -465,7 +467,9 @@ const translations = {
         "profile_phone_saved": "Phone updated successfully",
         "profile_tutorial": "Tutorial",
         "profile_tutorial_coming": "Tutorial video coming soon!",
-        "profile_tutorial_desc": "A tutorial video will appear here to help you learn how to use the app."
+        "profile_tutorial_desc": "A tutorial video will appear here to help you learn how to use the app.",
+        "getFinancialTipBtn": "Smart Financial Assistant ✨",
+        "loadingThinking": "Thinking..."
     }
 };
 

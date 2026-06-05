@@ -140,6 +140,13 @@
 
                     </div>
                 </div>
+                <div class="ai-tip-container" style="margin-bottom: 20px;">
+                    <button class="primary-btn" id="get-ai-tip-btn" style="width: 100%; background: linear-gradient(135deg, #8b5cf6, #3b82f6); border: none; padding: 15px; border-radius: 12px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3); cursor: pointer; color: white;" onclick="getAITip()" data-i18n="getFinancialTipBtn" aria-label="Get Financial Tip">
+                        עוזר פיננסי חכם ✨
+                    </button>
+                    <div id="ai-tip-display" class="card" style="display: none; margin-top: 15px; background: var(--bg-card); border-left: 4px solid #8b5cf6; padding: 15px; color: var(--text-dark); line-height: 1.5; font-size: 0.95rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);" role="region" aria-live="polite">
+                    </div>
+                </div>
 
                 <div class="recent-expenses-header">
                     <h3 data-i18n="home_recent_expenses">הוצאות אחרונות</h3>
@@ -444,8 +451,31 @@
         </div>
     </div>
 
+    <div id="cookie-consent-banner" style="display: none; position: fixed; bottom: 0; left: 0; right: 0; padding: 16px; background: var(--bg-card); border-top: 1px solid var(--border-color); z-index: 1000; flex-direction: row; align-items: center; justify-content: space-between; gap: 16px; box-shadow: 0 -4px 20px rgba(0,0,0,0.1);">
+        <p style="margin: 0; font-size: 0.9rem; color: var(--text-dark); flex: 1;" data-i18n="cookieConsentText">
+            אפליקציה זו משתמשת באחסון מקומי עבור הפעלות, שפה והגדרות ערכת נושא כדי להבטיח את החוויה הטובה ביותר.
+        </p>
+        <button onclick="acceptCookies()" aria-label="Accept Cookies" style="white-space: nowrap; padding: 10px 24px; background: #2563eb; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" data-i18n="cookieConsentBtn">
+            הבנתי
+        </button>
+    </div>
+
     <script src="{{ url_for('static', filename='js/translations.js') }}?v=2.2"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}?v=2.2"></script>
+    <script>
+        function checkCookieConsent() {
+            if (!localStorage.getItem('cookieConsent')) {
+                document.getElementById('cookie-consent-banner').style.display = 'flex';
+            } else {
+                document.getElementById('cookie-consent-banner').style.display = 'none';
+            }
+        }
+        function acceptCookies() {
+            localStorage.setItem('cookieConsent', 'true');
+            document.getElementById('cookie-consent-banner').style.display = 'none';
+        }
+        setTimeout(checkCookieConsent, 100);
+    </script>
 
     <!-- Scanning Overlay -->
     <div id="scan-overlay" class="scan-overlay" style="display:none;">

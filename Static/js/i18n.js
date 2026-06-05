@@ -28,7 +28,15 @@
             emptyEmail: 'אנא הזן אימייל',
             emptyPassword: 'אנא הזן סיסמה',
             emptyPhone: 'אנא הזן טלפון',
-            agreeTermsMsg: 'אנא אשר את תנאי השימוש'
+            agreeTermsMsg: 'אנא אשר את תנאי השימוש',
+            privacyPolicy: 'מדיניות פרטיות',
+            termsOfUse: 'תנאי שימוש',
+            version: 'גרסה 2.0.26',
+            copyright: '© 2026 MasterSplitter',
+            cookieConsentText: 'אפליקציה זו משתמשת באחסון מקומי עבור הפעלות, שפה והגדרות ערכת נושא כדי להבטיח את החוויה הטובה ביותר.',
+            cookieConsentBtn: 'הבנתי',
+            getFinancialTipBtn: 'עוזר פיננסי חכם ✨',
+            loadingThinking: 'חושב...'
         },
         en: {
             dir: 'ltr',
@@ -52,7 +60,15 @@
             emptyEmail: 'Please enter an email',
             emptyPassword: 'Please enter a password',
             emptyPhone: 'Please enter a phone number',
-            agreeTermsMsg: 'Please agree to the Terms & Privacy policy first.'
+            agreeTermsMsg: 'Please agree to the Terms & Privacy policy first.',
+            privacyPolicy: 'Privacy Policy',
+            termsOfUse: 'Terms of Use',
+            version: 'Version 2.0.26',
+            copyright: '© 2026 MasterSplitter',
+            cookieConsentText: 'This app uses local storage for sessions, language, and theme preferences to ensure the best experience.',
+            cookieConsentBtn: 'I Understand',
+            getFinancialTipBtn: 'Smart Financial Assistant ✨',
+            loadingThinking: 'Thinking...'
         },
         es: {
             dir: 'ltr',
@@ -76,7 +92,15 @@
             emptyEmail: 'Por favor ingrese su correo',
             emptyPassword: 'Por favor ingrese su contraseña',
             emptyPhone: 'Por favor ingrese su teléfono',
-            agreeTermsMsg: 'Por favor acepte los términos y condiciones'
+            agreeTermsMsg: 'Por favor acepte los términos y condiciones',
+            privacyPolicy: 'Política de Privacidad',
+            termsOfUse: 'Términos de Uso',
+            version: 'Versión 2.0.26',
+            copyright: '© 2026 MasterSplitter',
+            cookieConsentText: 'Esta aplicación utiliza almacenamiento local para sesiones, idioma y preferencias de tema para garantizar la mejor experiencia.',
+            cookieConsentBtn: 'Entiendo',
+            getFinancialTipBtn: 'Asistente Financiero Inteligente ✨',
+            loadingThinking: 'Pensando...'
         },
         ru: {
             dir: 'ltr',
@@ -100,7 +124,15 @@
             emptyEmail: 'Пожалуйста, введите email',
             emptyPassword: 'Пожалуйста, введите пароль',
             emptyPhone: 'Пожалуйста, введите номер телефона',
-            agreeTermsMsg: 'Пожалуйста, примите условия использования'
+            agreeTermsMsg: 'Пожалуйста, примите условия использования',
+            privacyPolicy: 'Политика конфиденциальности',
+            termsOfUse: 'Условия использования',
+            version: 'Версия 2.0.26',
+            copyright: '© 2026 MasterSplitter',
+            cookieConsentText: 'Это приложение использует локальное хранилище для сеансов, настроек языка и темы, чтобы обеспечить наилучший опыт.',
+            cookieConsentBtn: 'Я понимаю',
+            getFinancialTipBtn: 'Умный финансовый помощник ✨',
+            loadingThinking: 'Думаю...'
         },
         ar: {
             dir: 'rtl',
@@ -124,7 +156,15 @@
             emptyEmail: 'الرجاء إدخال البريد الإلكتروني',
             emptyPassword: 'الرجاء إدخال كلمة المرور',
             emptyPhone: 'الرجاء إدخال رقم الهاتف',
-            agreeTermsMsg: 'الرجاء الموافقة على الشروط أولاً'
+            agreeTermsMsg: 'الرجاء الموافقة على الشروط أولاً',
+            privacyPolicy: 'سياسة الخصوصية',
+            termsOfUse: 'شروط الاستخدام',
+            version: 'الإصدار 2.0.26',
+            copyright: '© 2026 MasterSplitter',
+            cookieConsentText: 'يستخدم هذا التطبيق التخزين المحلي للجلسات واللغة وتفضيلات المظهر لضمان أفضل تجربة.',
+            cookieConsentBtn: 'أفهم ذلك',
+            getFinancialTipBtn: 'مساعد مالي ذكي ✨',
+            loadingThinking: 'يفكر...'
         },
         fr: {
             dir: 'ltr',
@@ -148,7 +188,15 @@
             emptyEmail: 'Veuillez entrer un email',
             emptyPassword: 'Veuillez entrer un mot de passe',
             emptyPhone: 'Veuillez entrer un numéro de téléphone',
-            agreeTermsMsg: 'Veuillez accepter les conditions d\'utilisation'
+            agreeTermsMsg: 'Veuillez accepter les conditions d\'utilisation',
+            privacyPolicy: 'Politique de Confidentialité',
+            termsOfUse: 'Conditions d\'Utilisation',
+            version: 'Version 2.0.26',
+            copyright: '© 2026 MasterSplitter',
+            cookieConsentText: 'Cette application utilise le stockage local pour les sessions, la langue et les préférences de thème afin de garantir la meilleure expérience.',
+            cookieConsentBtn: 'Je Comprends',
+            getFinancialTipBtn: 'Assistant Financier Intelligent ✨',
+            loadingThinking: 'Réflexion...'
         },
         zh: {
             dir: 'ltr',
@@ -172,7 +220,15 @@
             emptyEmail: '请输入电子邮件',
             emptyPassword: '请输入密码',
             emptyPhone: '请输入电话号码',
-            agreeTermsMsg: '请先同意服务条款和隐私政策'
+            agreeTermsMsg: '请先同意服务条款和隐私政策',
+            privacyPolicy: '隐私政策',
+            termsOfUse: '使用条款',
+            version: '版本 2.0.26',
+            copyright: '© 2026 MasterSplitter',
+            cookieConsentText: '此应用使用本地存储来保存会话、语言和主题偏好，以确保最佳体验。',
+            cookieConsentBtn: '我了解',
+            getFinancialTipBtn: '智能财务助手 ✨',
+            loadingThinking: '思考中...'
         }
     };
 

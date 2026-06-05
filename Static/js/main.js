@@ -2589,3 +2589,34 @@ function closeJoinConfirmModal() {
     const modal = document.getElementById('join-confirm-modal');
     if (modal) modal.style.display = 'none';
 }
+
+// =====================
+//  AI FINANCIAL TIP
+// =====================
+async function getAITip() {
+    const btn = document.getElementById('get-ai-tip-btn');
+    const display = document.getElementById('ai-tip-display');
+    if (!btn || !display) return;
+    
+    const savedLang = localStorage.getItem('lang') || document.documentElement.lang || 'he';
+    const loadingText = typeof i18n === 'function' ? i18n('loadingThinking') : (savedLang === 'he' ? 'חושב...' : 'Thinking...');
+    const originalText = btn.innerHTML;
+    
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner" style="display:inline-block; margin:0 5px; animation:spin 1s linear infinite;">↻</span> ${loadingText}`;
+    display.style.display = 'none';
+    
+    try {
+        const res = await fetch('/api/ai_tip?lang=' + savedLang);
+        const data = await res.json();
+        if (data.tip) {
+            display.textContent = data.tip;
+            display.style.display = 'block';
+        }
+    } catch (e) {
+        console.error("AI Tip Error", e);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}

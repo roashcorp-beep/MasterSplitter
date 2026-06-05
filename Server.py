@@ -2578,6 +2578,62 @@ def ai_greeting():
     }
     return jsonify({"greeting": fallbacks.get(lang, fallbacks['en'])})
 
+@app.route('/api/ai_tip', methods=['GET'])
+def ai_tip():
+    """Return a localized financial tip using Gemini."""
+    lang = request.args.get('lang', 'he')
+    api_key = os.environ.get('GEMINI_API_KEY')
+    if not api_key:
+        return jsonify({"tip": ""})
+        
+    system_instruction = (
+        "You are the Smart Financial Assistant for MasterSplitter. "
+        "Generate a short, practical, context-aware tip about sharing expenses, budgeting, or saving money. "
+        f"The user selected language code: {lang}. Write the tip in that language. "
+        "No emojis, no markdown."
+    )
+    
+    payload = {
+        "system_instruction": {"parts": [{"text": system_instruction}]},
+        "contents": [{"role": "user", "parts": [{"text": "Give me a financial tip."}]}],
+        "generationConfig": {"temperature": 0.8, "maxOutputTokens": 100}
+    }
+    
+    try:
+        import time
+        for attempt in range(3):
+            resp = http_requests.post(
+                f"{GEMINI_API_URL}?key={api_key}",
+                json=payload,
+                headers={"Content-Type": "application/json"},
+                timeout=10
+            )
+            if resp.status_code == 429 and attempt < 2:
+                time.sleep(2 ** attempt)
+                continue
+            break
+            
+        if resp.status_code == 200:
+            result = resp.json()
+            candidates = result.get('candidates', [])
+            if candidates:
+                text = candidates[0].get('content', {}).get('parts', [{}])[0].get('text', '').strip()
+                return jsonify({"tip": text})
+    except Exception as e:
+        logger.error(f"AI tip error: {e}")
+        
+    # Fallback based on language
+    fallbacks = {
+        'he': 'טיפ פיננסי: עקוב אחרי ההוצאות הקטנות, הן מצטברות להרבה כסף.',
+        'en': 'Financial Tip: Track small expenses, they add up to a lot of money.',
+        'es': 'Consejo Financiero: Haz un seguimiento de los gastos pequeños, suman mucho dinero.',
+        'ru': 'Финансовый совет: Следите за мелкими расходами, они складываются в большие суммы.',
+        'ar': 'نصيحة مالية: تتبع النفقات الصغيرة ، فهي تتراكم للكثير من المال.',
+        'fr': 'Conseil financier : Suivez les petites dépenses, elles s\'accumulent rapidement.',
+        'zh': '财务提示：记录小额支出，积少成多。'
+    }
+    return jsonify({"tip": fallbacks.get(lang, fallbacks['en'])})
+
 # =====================
 #   RECEIPT SCANNING
 # =====================

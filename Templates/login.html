@@ -141,6 +141,36 @@
             </div>
         );
 
+        const CookieBanner = ({ t }) => {
+            const [show, setShow] = useState(false);
+            useEffect(() => {
+                if (!localStorage.getItem('cookieConsent')) {
+                    setShow(true);
+                }
+            }, []);
+            if (!show) return null;
+            return (
+                <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-t border-gray-200 dark:border-slate-700 z-[100] flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-700 dark:text-slate-300 shadow-[0_-4px_20px_rgba(0,0,0,0.1)]">
+                    <p className="text-center sm:text-left flex-1" aria-label="Cookie Policy Text">{t('cookieConsentText')}</p>
+                    <button onClick={() => { localStorage.setItem('cookieConsent', 'true'); setShow(false); }} className="whitespace-nowrap px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-md" aria-label={t('cookieConsentBtn')}>
+                        {t('cookieConsentBtn')}
+                    </button>
+                </div>
+            );
+        };
+
+        const LegalFooter = ({ t }) => (
+            <div className="mt-8 text-center text-sm font-medium text-gray-500 dark:text-gray-400 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 relative z-10 w-full pb-8 pt-4">
+                <a href="#" aria-label={t('privacyPolicy')} className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus:outline-none focus:underline">{t('privacyPolicy')}</a>
+                <span className="hidden sm:inline opacity-50">•</span>
+                <a href="#" aria-label={t('termsOfUse')} className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus:outline-none focus:underline">{t('termsOfUse')}</a>
+                <span className="hidden sm:inline opacity-50">•</span>
+                <span aria-label={t('version')}>{t('version')}</span>
+                <span className="hidden sm:inline opacity-50">•</span>
+                <span aria-label={t('copyright')}>{t('copyright')}</span>
+            </div>
+        );
+
         const App = () => {
             const initialLang = localStorage.getItem('lang') || (i18n ? i18n.getCurrentLanguage() : 'he');
             const [lang, setLangState] = useState(initialLang);
@@ -345,7 +375,9 @@
                             
                             <SettingsSelectors currentLang={lang} setLang={setLang} isDark={isDark} toggleTheme={toggleTheme} />
                         </div>
+                        <LegalFooter t={t} />
                     </div>
+                    <CookieBanner t={t} />
                 </div>
             );
         };

@@ -1062,7 +1062,8 @@ def forgot_password():
     data = request.json or {}
     email_or_username = (data.get('email') or '').strip()
     if not email_or_username:
-        return jsonify({"error": "יש למלא שם משתמש או אימייל."}), 400
+        # Returning a localized error key
+        return jsonify({"error": "emptyUsernameOrEmail"}), 400
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -1070,8 +1071,7 @@ def forgot_password():
         cursor.execute("SELECT id, email FROM Users WHERE email = ? OR name = ?", (email_or_username, email_or_username))
         user = cursor.fetchone()
         if not user:
-            # Explicit error as requested by the user
-            return jsonify({"error": "כתובת אימייל לא תקינה."}), 400
+            return jsonify({"error": "invalidEmail"}), 400
 
         token = secrets.token_urlsafe(32)
         expiry = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
@@ -1080,7 +1080,7 @@ def forgot_password():
 
         send_reset_email(user['email'], token)
         logger.info(f"Password reset requested for user {user['id']}")
-        return jsonify({"success": True, "message": "קישור לאיפוס סיסמה נשלח בהצלחה."})
+        return jsonify({"success": True, "message": "resetEmailSent"})
     except sqlite3.Error as e:
         logger.error(f"Forgot password DB error: {e}")
         return jsonify({"error": "שגיאת שרת."}), 500

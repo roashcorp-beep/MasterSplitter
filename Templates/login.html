@@ -430,7 +430,7 @@
                 setErrorMsg('');
                 setSuccessMsg('');
                 if (!emailInput.trim()) {
-                    setFieldErrors({ ...fieldErrors, email: "יש למלא כתובת אימייל או שם משתמש כדי לשחזר סיסמה" });
+                    setFieldErrors({ ...fieldErrors, email: t('emptyUsernameOrEmail') });
                     return;
                 }
                 
@@ -442,9 +442,9 @@
                     });
                     const data = await res.json();
                     if (res.ok && data.success) {
-                        setSuccessMsg(data.message);
+                        setSuccessMsg(t(data.message));
                     } else {
-                        setErrorMsg(data.error || 'Network error');
+                        setErrorMsg(t(data.error) || 'Network error');
                     }
                 } catch (err) {
                     setErrorMsg('Network error');

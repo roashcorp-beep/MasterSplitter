@@ -36,7 +36,10 @@
             cookieConsentText: 'אפליקציה זו משתמשת באחסון מקומי עבור הפעלות, שפה והגדרות ערכת נושא כדי להבטיח את החוויה הטובה ביותר.',
             cookieConsentBtn: 'הבנתי',
             getFinancialTipBtn: 'עוזר פיננסי חכם ✨',
-            loadingThinking: 'חושב...'
+            loadingThinking: 'חושב...',
+            resetEmailSent: 'קישור לאיפוס סיסמה נשלח בהצלחה.',
+            invalidEmail: 'כתובת אימייל או שם משתמש לא תקינים.',
+            emptyUsernameOrEmail: 'יש למלא כתובת אימייל או שם משתמש כדי לשחזר סיסמה.'
         },
         en: {
             dir: 'ltr',
@@ -66,9 +69,12 @@
             version: 'Version 2.0.26',
             copyright: '© 2026 MasterSplitter',
             cookieConsentText: 'This app uses local storage for sessions, language, and theme preferences to ensure the best experience.',
-            cookieConsentBtn: 'I Understand',
+            cookieConsentBtn: 'Got it',
             getFinancialTipBtn: 'Smart Financial Assistant ✨',
-            loadingThinking: 'Thinking...'
+            loadingThinking: 'Thinking...',
+            resetEmailSent: 'Password reset link sent successfully.',
+            invalidEmail: 'Invalid email or username.',
+            emptyUsernameOrEmail: 'Please enter an email or username to reset password.'
         },
         es: {
             dir: 'ltr',
@@ -98,9 +104,12 @@
             version: 'Versión 2.0.26',
             copyright: '© 2026 MasterSplitter',
             cookieConsentText: 'Esta aplicación utiliza almacenamiento local para sesiones, idioma y preferencias de tema para garantizar la mejor experiencia.',
-            cookieConsentBtn: 'Entiendo',
+            cookieConsentBtn: 'Entendido',
             getFinancialTipBtn: 'Asistente Financiero Inteligente ✨',
-            loadingThinking: 'Pensando...'
+            loadingThinking: 'Pensando...',
+            resetEmailSent: 'Enlace de restablecimiento de contraseña enviado correctamente.',
+            invalidEmail: 'Correo electrónico o nombre de usuario no válido.',
+            emptyUsernameOrEmail: 'Ingrese un correo electrónico o nombre de usuario para restablecer.'
         },
         ru: {
             dir: 'ltr',
@@ -130,9 +139,12 @@
             version: 'Версия 2.0.26',
             copyright: '© 2026 MasterSplitter',
             cookieConsentText: 'Это приложение использует локальное хранилище для сеансов, настроек языка и темы, чтобы обеспечить наилучший опыт.',
-            cookieConsentBtn: 'Я понимаю',
+            cookieConsentBtn: 'Понятно',
             getFinancialTipBtn: 'Умный финансовый помощник ✨',
-            loadingThinking: 'Думаю...'
+            loadingThinking: 'Думаю...',
+            resetEmailSent: 'Ссылка для сброса пароля успешно отправлена.',
+            invalidEmail: 'Неверный адрес электронной почты или имя пользователя.',
+            emptyUsernameOrEmail: 'Пожалуйста, введите email или имя пользователя для сброса.'
         },
         ar: {
             dir: 'rtl',
@@ -162,9 +174,12 @@
             version: 'الإصدار 2.0.26',
             copyright: '© 2026 MasterSplitter',
             cookieConsentText: 'يستخدم هذا التطبيق التخزين المحلي للجلسات واللغة وتفضيلات المظهر لضمان أفضل تجربة.',
-            cookieConsentBtn: 'أفهم ذلك',
+            cookieConsentBtn: 'فهمت',
             getFinancialTipBtn: 'مساعد مالي ذكي ✨',
-            loadingThinking: 'يفكر...'
+            loadingThinking: 'يفكر...',
+            resetEmailSent: 'تم إرسال رابط إعادة تعيين كلمة المرور بنجاح.',
+            invalidEmail: 'البريد الإلكتروني أو اسم المستخدم غير صالح.',
+            emptyUsernameOrEmail: 'الرجاء إدخال البريد الإلكتروني أو اسم المستخدم لإعادة التعيين.'
         },
         fr: {
             dir: 'ltr',
@@ -194,9 +209,12 @@
             version: 'Version 2.0.26',
             copyright: '© 2026 MasterSplitter',
             cookieConsentText: 'Cette application utilise le stockage local pour les sessions, la langue et les préférences de thème afin de garantir la meilleure expérience.',
-            cookieConsentBtn: 'Je Comprends',
+            cookieConsentBtn: 'Compris',
             getFinancialTipBtn: 'Assistant Financier Intelligent ✨',
-            loadingThinking: 'Réflexion...'
+            loadingThinking: 'En réflexion...',
+            resetEmailSent: 'Lien de réinitialisation du mot de passe envoyé avec succès.',
+            invalidEmail: 'Email ou nom d\'utilisateur invalide.',
+            emptyUsernameOrEmail: 'Veuillez entrer un email ou un nom d\'utilisateur pour réinitialiser.'
         },
         zh: {
             dir: 'ltr',
@@ -226,9 +244,12 @@
             version: '版本 2.0.26',
             copyright: '© 2026 MasterSplitter',
             cookieConsentText: '此应用使用本地存储来保存会话、语言和主题偏好，以确保最佳体验。',
-            cookieConsentBtn: '我了解',
+            cookieConsentBtn: '知道了',
             getFinancialTipBtn: '智能财务助手 ✨',
-            loadingThinking: '思考中...'
+            loadingThinking: '思考中...',
+            resetEmailSent: '密码重置链接已成功发送。',
+            invalidEmail: '无效的电子邮件或用户名。',
+            emptyUsernameOrEmail: '请输入电子邮件或用户名以重置密码。'
         }
     };
 

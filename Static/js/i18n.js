@@ -70,7 +70,6 @@
             profileSend: 'שלח',
             profileSuccess: 'נשמר בהצלחה!',
         },
-        },
         en: {
             dir: 'ltr',
             loginTitle: 'Welcome',
@@ -134,7 +133,6 @@
             profileMessage: 'Message',
             profileSend: 'Send',
             profileSuccess: 'Saved successfully!',
-        },
         },
         es: {
             dir: 'ltr',
@@ -200,7 +198,6 @@
             profileSend: 'Enviar',
             profileSuccess: '¡Guardado exitosamente!',
         },
-        },
         ru: {
             dir: 'ltr',
             loginTitle: 'Добро пожаловать',
@@ -264,7 +261,6 @@
             profileMessage: 'Сообщение',
             profileSend: 'Отправить',
             profileSuccess: 'Успешно сохранено!',
-        },
         },
         ar: {
             dir: 'rtl',
@@ -330,7 +326,6 @@
             profileSend: 'إرسال',
             profileSuccess: 'تم الحفظ بنجاح!',
         },
-        },
         fr: {
             dir: 'ltr',
             loginTitle: 'Bienvenue',
@@ -394,7 +389,6 @@
             profileMessage: 'Message',
             profileSend: 'Envoyer',
             profileSuccess: 'Enregistré avec succès !',
-        },
         },
         zh: {
             dir: 'ltr',

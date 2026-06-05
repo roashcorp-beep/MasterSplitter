@@ -339,6 +339,7 @@
             const [passwordInput, setPasswordInput] = useState('');
             
             const [errorMsg, setErrorMsg] = useState('');
+            const [successMsg, setSuccessMsg] = useState('');
             const [fieldErrors, setFieldErrors] = useState({});
             
             const [modalContent, setModalContent] = useState(null);
@@ -424,6 +425,32 @@
                 }
             };
 
+            const handleForgotPassword = async (e) => {
+                e.preventDefault();
+                setErrorMsg('');
+                setSuccessMsg('');
+                if (!emailInput.trim()) {
+                    setFieldErrors({ ...fieldErrors, email: "יש למלא כתובת אימייל או שם משתמש כדי לשחזר סיסמה" });
+                    return;
+                }
+                
+                try {
+                    const res = await fetch('/api/forgot-password', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: emailInput })
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        setSuccessMsg(data.message);
+                    } else {
+                        setErrorMsg(data.error || 'Network error');
+                    }
+                } catch (err) {
+                    setErrorMsg('Network error');
+                }
+            };
+
             return (
                 <div className="min-h-screen overflow-y-auto pb-10 relative flex flex-col items-center justify-center">
                     <DynamicBackground isDark={isDark} />
@@ -480,7 +507,7 @@
                                             <input type="checkbox" id="remember-me" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600 cursor-pointer" />
                                             <label htmlFor="remember-me" className="text-sm text-gray-600 dark:text-gray-300 cursor-pointer select-none">{t('rememberMe')}</label>
                                         </div>
-                                        <a href="#" className="text-sm font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+                                        <a href="#" onClick={handleForgotPassword} className="text-sm font-semibold text-blue-600 dark:text-blue-400 hover:underline">
                                             {t('forgotPassword')}
                                         </a>
                                     </div>
@@ -520,6 +547,7 @@
                             </form>
 
                             {errorMsg && <div className="text-center text-red-500 mt-2 text-sm font-medium flex items-center justify-center gap-1"><AlertCircle size={14}/> {errorMsg}</div>}
+                            {successMsg && <div className="text-center text-green-500 mt-2 text-sm font-medium flex items-center justify-center gap-1"><CheckCircle2 size={14}/> {successMsg}</div>}
 
                             <div className="pt-4 border-t border-gray-200 dark:border-gray-700 flex flex-col gap-3">
                                 <button type="button" onClick={() => { window.location.href='/api/auth/google'; }} className="w-full py-3 px-4 flex items-center justify-center gap-2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-sm">

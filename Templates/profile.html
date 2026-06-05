@@ -65,6 +65,7 @@
     <div id="root" class="w-full max-w-lg"></div>
 
     <script type="text/babel" data-type="module">
+{% raw %}
         import React, { useState, useEffect } from 'react';
         import { createRoot } from 'react-dom/client';
         import { 
@@ -688,6 +689,7 @@ const LEGAL_TEXTS = {
 
         const root = createRoot(document.getElementById('root'));
         root.render(<ProfileApp />);
-    </script>
+    {% endraw %}
+</script>
 </body>
 </html>

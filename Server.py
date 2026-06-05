@@ -2417,7 +2417,7 @@ def get_optimized_balances(trip_id):
 #   AI EXPENSE PARSING (Gemini)
 # =====================
 
-GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent"
 
 @app.route('/api/ai/parse-expense', methods=['POST'])
 @login_required
@@ -2531,7 +2531,7 @@ def ai_greeting():
         
     system_instruction = (
         "You are the Smart Financial Assistant for MasterSplitter. "
-        "Generate a short, friendly, personalized 1-sentence welcome message. "
+        "Generate a short, friendly, personalized 1-sentence financial greeting or tip. "
         "Do not include the user's name unless they provide it. "
         f"The user selected language code: {lang}. Write the greeting in that language. "
         "No emojis, no markdown."

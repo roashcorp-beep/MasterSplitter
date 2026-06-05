@@ -243,7 +243,8 @@ async function initApp() {
         if (aiGreetingEl) {
             aiGreetingEl.textContent = "✨ ...";
             aiGreetingEl.style.display = 'block';
-            fetch('/api/ai_greeting?lang=' + (document.documentElement.lang || 'he'))
+            const savedLang = localStorage.getItem('lang') || document.documentElement.lang || 'he';
+            fetch('/api/ai_greeting?lang=' + savedLang)
                 .then(r => r.json())
                 .then(data => {
                     if (data.greeting) {

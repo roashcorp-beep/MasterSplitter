@@ -209,7 +209,7 @@ def init_db_updates():
     except sqlite3.Error as e:
         logger.error(f"Users migration error: {e}")
 
-    # --- Add google_id column for OAuth (safe to re-run) ---
+    # --- Add google_id column for OAuth and other fields (safe to re-run) ---
     try:
         cursor.execute("PRAGMA table_info(Users)")
         cols = [c['name'] for c in cursor.fetchall()]
@@ -219,8 +219,14 @@ def init_db_updates():
         if 'two_fa_method' not in cols:
             cursor.execute("ALTER TABLE Users ADD COLUMN two_fa_method TEXT DEFAULT 'none'")
             logger.info("Migration: added 'two_fa_method' column to Users")
+        if 'notify_expense_added' not in cols:
+            cursor.execute("ALTER TABLE Users ADD COLUMN notify_expense_added INTEGER DEFAULT 1")
+            logger.info("Migration: added 'notify_expense_added' column to Users")
+        if 'notify_group_expense' not in cols:
+            cursor.execute("ALTER TABLE Users ADD COLUMN notify_group_expense INTEGER DEFAULT 1")
+            logger.info("Migration: added 'notify_group_expense' column to Users")
     except sqlite3.Error as e:
-        logger.error(f"Users google_id or two_fa_method migration error: {e}")
+        logger.error(f"Users google_id, two_fa, or notification migration error: {e}")
 
     # --- Create trip_invitations table ---
     cursor.execute("""
@@ -757,14 +763,26 @@ def get_me():
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute("SELECT language, email, phone, avatar_url, default_currency FROM Users WHERE id = ?", (session['user_id'],))
+        cursor.execute("SELECT language, email, phone, avatar_url, default_currency, notify_expense_added, notify_group_expense FROM Users WHERE id = ?", (session['user_id'],))
         user = cursor.fetchone()
         lang = user['language'] if user else 'he'
         email = user['email'] if user and 'email' in user.keys() else ''
         phone = user['phone'] if user and 'phone' in user.keys() else ''
         avatar_url = user['avatar_url'] if user and 'avatar_url' in user.keys() else None
         default_currency = user['default_currency'] if user and 'default_currency' in user.keys() else 'ILS'
-        return jsonify({"id": session['user_id'], "name": session['username'], "language": lang, "email": email, "phone": phone, "avatar_url": avatar_url, "default_currency": default_currency})
+        notify_expense_added = user['notify_expense_added'] if user and 'notify_expense_added' in user.keys() else 1
+        notify_group_expense = user['notify_group_expense'] if user and 'notify_group_expense' in user.keys() else 1
+        return jsonify({
+            "id": session['user_id'], 
+            "name": session['username'], 
+            "language": lang, 
+            "email": email, 
+            "phone": phone, 
+            "avatar_url": avatar_url, 
+            "default_currency": default_currency,
+            "notify_expense_added": notify_expense_added,
+            "notify_group_expense": notify_group_expense
+        })
     finally:
         conn.close()
 
@@ -1236,6 +1254,14 @@ def update_profile():
     if two_fa_method in ('none', 'email', 'fingerprint'):
         updates.append("two_fa_method = ?")
         params.append(two_fa_method)
+        
+    if 'notify_expense_added' in data:
+        updates.append("notify_expense_added = ?")
+        params.append(1 if data['notify_expense_added'] else 0)
+        
+    if 'notify_group_expense' in data:
+        updates.append("notify_group_expense = ?")
+        params.append(1 if data['notify_group_expense'] else 0)
         
     email = data.get('email', '').strip()
     if email:

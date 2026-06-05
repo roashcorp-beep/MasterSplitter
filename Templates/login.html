@@ -490,7 +490,25 @@
                                     <div className="flex items-start justify-start pt-2 gap-2 flex-col">
                                         <div className="flex items-center gap-2">
                                             <input type="checkbox" id="terms-agree" checked={termsAgreed} onChange={(e) => {setTermsAgreed(e.target.checked); setFieldErrors({...fieldErrors, terms: null})}} className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600 cursor-pointer mt-0.5" />
-                                            <label htmlFor="terms-agree" className="text-sm text-gray-600 dark:text-gray-300 cursor-pointer select-none leading-tight">{t('termsAgree')}</label>
+                                            <label htmlFor="terms-agree" className="text-sm text-gray-600 dark:text-gray-300 cursor-pointer select-none leading-tight flex flex-wrap gap-x-1 items-center">
+                                                {lang === 'he' ? (
+                                                    <>
+                                                        <span>אני מסכים/ה ל</span>
+                                                        <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setModalContent(LEGAL_TEXTS.terms); }} className="hover:text-blue-600 dark:hover:text-blue-400 underline transition-colors focus:outline-none">תנאי השימוש</button>
+                                                        <span>ול</span>
+                                                        <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setModalContent(LEGAL_TEXTS.privacy); }} className="hover:text-blue-600 dark:hover:text-blue-400 underline transition-colors focus:outline-none">מדיניות הפרטיות</button>
+                                                    </>
+                                                ) : lang === 'en' ? (
+                                                    <>
+                                                        <span>I agree to the</span>
+                                                        <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setModalContent(LEGAL_TEXTS.terms); }} className="hover:text-blue-600 dark:hover:text-blue-400 underline transition-colors focus:outline-none">Terms</button>
+                                                        <span>&</span>
+                                                        <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setModalContent(LEGAL_TEXTS.privacy); }} className="hover:text-blue-600 dark:hover:text-blue-400 underline transition-colors focus:outline-none">Privacy Policy</button>
+                                                    </>
+                                                ) : (
+                                                    <span>{t('termsAgree')}</span>
+                                                )}
+                                            </label>
                                         </div>
                                         {fieldErrors.terms && <p className="text-red-500 text-xs font-medium px-1 flex items-center gap-1"><AlertCircle size={12}/> {fieldErrors.terms}</p>}
                                     </div>

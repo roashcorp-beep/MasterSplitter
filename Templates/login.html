@@ -132,11 +132,13 @@
         };
 
         const DynamicBackground = ({ isDark }) => {
-            const canvasRef = React.useRef(null);
+            const darkCanvasRef = React.useRef(null);
+            const lightCanvasRef = React.useRef(null);
 
+            // Dark mode (stars)
             React.useEffect(() => {
                 if (!isDark) return;
-                const canvas = canvasRef.current;
+                const canvas = darkCanvasRef.current;
                 if (!canvas) return;
                 const ctx = canvas.getContext('2d');
                 let animationFrameId;
@@ -180,22 +182,73 @@
                 };
             }, [isDark]);
 
+            // Light mode (doodles)
+            React.useEffect(() => {
+                if (isDark) return;
+                const canvas = lightCanvasRef.current;
+                if (!canvas) return;
+                const ctx = canvas.getContext('2d');
+                let animationFrameId;
+
+                const resize = () => {
+                    canvas.width = window.innerWidth;
+                    canvas.height = window.innerHeight;
+                };
+                window.addEventListener('resize', resize);
+                resize();
+
+                const itemsList = ["E=mc²", "🍕", "∑", "x²+y²", "👓", "Δx", "{ }", "y=mx+b", "∫", "π", "±"];
+                const numItems = 40;
+                const items = Array.from({ length: numItems }).map(() => ({
+                    text: itemsList[Math.floor(Math.random() * itemsList.length)],
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    speed: Math.random() * 0.3 + 0.1,
+                    fontSize: Math.random() * 20 + 20, // 20px to 40px
+                    rotation: (Math.random() - 0.5) * Math.PI / 2 // -45 to 45 deg
+                }));
+
+                const draw = () => {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = '#64748b'; // slate-500
+                    ctx.globalAlpha = 0.08; // very low opacity (8%)
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    
+                    items.forEach(item => {
+                        ctx.save();
+                        ctx.font = `bold ${item.fontSize}px monospace, sans-serif`;
+                        ctx.translate(item.x, item.y);
+                        ctx.rotate(item.rotation);
+                        ctx.fillText(item.text, 0, 0);
+                        ctx.restore();
+                        
+                        item.y -= item.speed;
+                        if (item.y < -50) {
+                            item.y = canvas.height + 50;
+                            item.x = Math.random() * canvas.width;
+                        }
+                    });
+                    animationFrameId = requestAnimationFrame(draw);
+                };
+                draw();
+
+                return () => {
+                    window.removeEventListener('resize', resize);
+                    cancelAnimationFrame(animationFrameId);
+                };
+            }, [isDark]);
+
             return (
                 <div className="fixed inset-0 overflow-hidden pointer-events-none transition-colors duration-500 bg-[#f8fafc] dark:bg-[#0f172a] -z-10">
                     <canvas 
-                        ref={canvasRef} 
+                        ref={darkCanvasRef} 
                         className={`absolute inset-0 transition-opacity duration-700 ${isDark ? 'opacity-100' : 'opacity-0'}`} 
                     />
-                    <div className={`absolute inset-0 transition-opacity duration-700 ${!isDark ? 'opacity-100' : 'opacity-0'}`}>
-                        <div className="absolute top-[10%] left-[20%] text-slate-800/10 font-mono text-3xl floating-math" style={{animationDelay: '0s'}}>y = mx + b</div>
-                        <div className="absolute top-[30%] right-[15%] text-slate-800/10 font-mono text-4xl floating-math" style={{animationDelay: '-3s'}}>🍕</div>
-                        <div className="absolute bottom-[20%] left-[10%] text-slate-800/10 font-mono text-4xl floating-math" style={{animationDelay: '-7s'}}>∞</div>
-                        <div className="absolute bottom-[15%] right-[25%] text-slate-800/10 font-mono text-3xl floating-math" style={{animationDelay: '-11s'}}>👓</div>
-                        <div className="absolute top-[60%] left-[40%] text-slate-800/5 font-mono text-5xl floating-math" style={{animationDelay: '-5s'}}>{`{ }`}</div>
-                        <div className="absolute top-[20%] left-[70%] text-slate-800/10 font-mono text-2xl floating-math" style={{animationDelay: '-2s'}}>Δx</div>
-                        <div className="absolute top-[80%] left-[60%] text-slate-800/10 font-mono text-2xl floating-math" style={{animationDelay: '-9s'}}>∑</div>
-                        <div className="absolute top-[40%] left-[5%] text-slate-800/10 font-mono text-3xl floating-math" style={{animationDelay: '-1s'}}>🍕</div>
-                    </div>
+                    <canvas 
+                        ref={lightCanvasRef} 
+                        className={`absolute inset-0 transition-opacity duration-700 ${!isDark ? 'opacity-100' : 'opacity-0'}`} 
+                    />
                 </div>
             );
         };

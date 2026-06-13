@@ -233,7 +233,28 @@ const translations = {
         "profile_tutorial_coming": "סרטון הדרכה בקרוב!",
         "profile_tutorial_desc": "כאן יופיע סרטון הדרכה שילמד אותך כיצד להשתמש באפליקציה.",
         "getFinancialTipBtn": "עוזר פיננסי חכם ✨",
-        "loadingThinking": "חושב..."
+        "loadingThinking": "חושב...",
+
+        // Step 7 - Groups Overhaul
+        "budget_type_daily": "יומי",
+        "budget_per_user": "תקציב לכל משתתף",
+        "budget_per_user_hint": "התקציב חל על כל משתתף בנפרד",
+        "budget_amount_label": "סכום תקציב",
+        "invite_tab_whatsapp": "וואטסאפ",
+        "invite_tab_email": "אימייל",
+        "invite_tab_guest": "אורח",
+        "invite_name_ph": "שם",
+        "invite_phone_ph": "מספר טלפון",
+        "invite_email_ph": "כתובת אימייל",
+        "invite_send_whatsapp": "שלח הזמנה בוואטסאפ",
+        "invite_send_email": "שלח הזמנה באימייל",
+        "invite_add_guest": "הוסף אורח",
+        "invite_whatsapp_note": "המשתמש יצטרף לקבוצה ברגע שילחץ על הקישור.",
+        "invite_email_sent": "הזמנה נשלחה באימייל!",
+        "invite_email_note": "ההזמנה תישלח לכתובת האימייל שהוזנה.",
+        "lobby_no_groups": "אין קבוצות עדיין. צור קבוצה חדשה!",
+        "members_count": "חברים",
+        "invite_members_title": "הזמן חברים"
     },
     en: {
         // General
@@ -469,7 +490,28 @@ const translations = {
         "profile_tutorial_coming": "Tutorial video coming soon!",
         "profile_tutorial_desc": "A tutorial video will appear here to help you learn how to use the app.",
         "getFinancialTipBtn": "Smart Financial Assistant ✨",
-        "loadingThinking": "Thinking..."
+        "loadingThinking": "Thinking...",
+
+        // Step 7 - Groups Overhaul
+        "budget_type_daily": "Daily",
+        "budget_per_user": "Budget per user",
+        "budget_per_user_hint": "Budget applies to each member individually",
+        "budget_amount_label": "Budget Amount",
+        "invite_tab_whatsapp": "WhatsApp",
+        "invite_tab_email": "Email",
+        "invite_tab_guest": "Guest",
+        "invite_name_ph": "Name",
+        "invite_phone_ph": "Phone number",
+        "invite_email_ph": "Email address",
+        "invite_send_whatsapp": "Send WhatsApp Invite",
+        "invite_send_email": "Send Email Invite",
+        "invite_add_guest": "Add Guest",
+        "invite_whatsapp_note": "User will join the group once they click the link.",
+        "invite_email_sent": "Email invite sent!",
+        "invite_email_note": "The invite will be sent to the email address provided.",
+        "lobby_no_groups": "No groups yet. Create a new group!",
+        "members_count": "members",
+        "invite_members_title": "Invite Members"
     }
 };
 

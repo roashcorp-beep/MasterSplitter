@@ -323,6 +323,9 @@ def init_db_updates():
         if 'budget_type' not in trips_cols:
             cursor.execute("ALTER TABLE Trips ADD COLUMN budget_type TEXT DEFAULT 'none'")
             logger.info("Migration: added 'budget_type' column to Trips")
+        if 'is_budget_per_user' not in trips_cols:
+            cursor.execute("ALTER TABLE Trips ADD COLUMN is_budget_per_user INTEGER DEFAULT 0")
+            logger.info("Migration: added 'is_budget_per_user' column to Trips")
     except sqlite3.Error as e:
         logger.error(f"Trips columns migration error: {e}")
 
@@ -1486,7 +1489,8 @@ def get_trips():
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT DISTINCT t.id, t.destination, t.budget, t.budget_type, t.owner_id,
+        SELECT DISTINCT t.id, t.destination, t.budget, t.budget_type,
+            COALESCE(t.is_budget_per_user, 0) as is_budget_per_user, t.owner_id,
             (SELECT GROUP_CONCAT(COALESCE(u.name, tm2.guest_name))
              FROM TripMembers tm2 
              LEFT JOIN Users u ON tm2.user_id = u.id 
@@ -1506,6 +1510,7 @@ def get_trips():
             'name': t['destination'],
             'budget': t['budget'] or 0,
             'budget_type': t['budget_type'] or 'none',
+            'is_budget_per_user': bool(t['is_budget_per_user']),
             'is_owner': t['owner_id'] == session['user_id'],
             'participants': participants
         })
@@ -1555,13 +1560,15 @@ def create_trip():
                     p['type'] = 'unregistered'
 
         budget_type = (data.get('budget_type') or 'none').strip().lower()
-        if budget_type not in ('none', 'monthly', 'yearly'):
+        if budget_type not in ('none', 'daily', 'monthly', 'yearly'):
             budget_type = 'none'
+
+        is_budget_per_user = 1 if data.get('is_budget_per_user') else 0
 
         participants_json = json.dumps([], ensure_ascii=False)
         cursor.execute(
-            "INSERT INTO Trips (destination, budget, budget_type, owner_id, local_participants) VALUES (?, ?, ?, ?, ?)",
-            (name, budget, budget_type, session['user_id'], participants_json)
+            "INSERT INTO Trips (destination, budget, budget_type, is_budget_per_user, owner_id, local_participants) VALUES (?, ?, ?, ?, ?, ?)",
+            (name, budget, budget_type, is_budget_per_user, session['user_id'], participants_json)
         )
         trip_id = cursor.lastrowid
 
@@ -1644,6 +1651,17 @@ def update_trip(trip_id):
                 budget = 0
             updates.append("budget = ?")
             params.append(budget)
+
+        if 'budget_type' in data:
+            bt = (data['budget_type'] or 'none').strip().lower()
+            if bt not in ('none', 'daily', 'monthly', 'yearly'):
+                bt = 'none'
+            updates.append("budget_type = ?")
+            params.append(bt)
+
+        if 'is_budget_per_user' in data:
+            updates.append("is_budget_per_user = ?")
+            params.append(1 if data['is_budget_per_user'] else 0)
 
         if 'participants' in data:
             raw_participants = data['participants']
@@ -2062,6 +2080,99 @@ def respond_invitation(invitation_id):
     except sqlite3.Error as e:
         logger.error(f"Respond invitation error: {e}")
         return jsonify({"error": "שגיאה בתגובה להזמנה."}), 500
+    finally:
+        conn.close()
+
+
+@app.route('/api/trips/<int:trip_id>/invite-email', methods=['POST'])
+@login_required
+@require_trip_access
+def invite_by_email(trip_id):
+    """Send an email invitation to join a group."""
+    data = request.json or {}
+    invite_name = (data.get('name') or '').strip()
+    invite_email = (data.get('email') or '').strip()
+
+    if not invite_name or not invite_email:
+        return jsonify({"error": "Name and email are required."}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Get trip info
+        cursor.execute("SELECT destination, invite_token FROM Trips WHERE id = ?", (trip_id,))
+        trip = cursor.fetchone()
+        if not trip:
+            return jsonify({"error": "Group not found."}), 404
+
+        # Ensure invite token exists
+        invite_token = trip['invite_token']
+        if not invite_token:
+            import uuid
+            invite_token = uuid.uuid4().hex[:12]
+            cursor.execute("UPDATE Trips SET invite_token = ? WHERE id = ?", (invite_token, trip_id))
+
+        # Record the invitation
+        cursor.execute(
+            "INSERT INTO trip_invitations (trip_id, inviter_id, invitee_phone_or_email, status) VALUES (?, ?, ?, 'PENDING')",
+            (trip_id, session['user_id'], invite_email)
+        )
+        conn.commit()
+
+        # Build join link
+        domain = os.environ.get('PA_DOMAIN', 'localhost:5000')
+        protocol = "https" if domain != "localhost:5000" else "http"
+        join_link = f"{protocol}://{domain}/join/{invite_token}"
+
+        # Get inviter name
+        cursor.execute("SELECT name FROM Users WHERE id = ?", (session['user_id'],))
+        inviter = cursor.fetchone()
+        inviter_name = inviter['name'] if inviter else 'Someone'
+
+        # Send email
+        smtp_server = os.environ.get('SMTP_SERVER')
+        smtp_port = os.environ.get('SMTP_PORT', 587)
+        smtp_username = os.environ.get('SMTP_USERNAME')
+        smtp_password = os.environ.get('SMTP_PASSWORD')
+
+        if smtp_server and smtp_username and smtp_password:
+            try:
+                msg = MIMEMultipart()
+                msg['From'] = f"MasterSplitter <{smtp_username}>"
+                msg['To'] = invite_email
+                msg['Subject'] = f"MasterSplitter — {inviter_name} invited you to {trip['destination']}"
+
+                body = f"""
+                <html>
+                  <body style="font-family: 'Heebo', Arial, sans-serif; background: #0a0a1a; color: #e2e8f0; padding: 40px 20px;">
+                    <div style="max-width: 420px; margin: 0 auto; background: #12122a; border-radius: 20px; padding: 32px; border: 1px solid rgba(255,255,255,0.08);">
+                      <h2 style="color: #a855f7; text-align: center;">You're Invited! 🎉</h2>
+                      <p style="text-align: center; color: #94a3b8;">Hi {invite_name},</p>
+                      <p style="text-align: center; color: #94a3b8;"><strong style="color: #facc15;">{inviter_name}</strong> has invited you to join the group <strong style="color: #facc15;">{trip['destination']}</strong> on MasterSplitter.</p>
+                      <p style="text-align: center; margin-top: 24px;"><a href="{join_link}" style="background: #a855f7; color: white; text-decoration: none; padding: 12px 32px; border-radius: 12px; font-weight: bold; display: inline-block;">Join Group</a></p>
+                      <p style="text-align: center; color: #64748b; font-size: 0.85rem; margin-top: 20px;">Or copy this link: {join_link}</p>
+                    </div>
+                  </body>
+                </html>
+                """
+                msg.attach(MIMEText(body, 'html'))
+
+                server = smtplib.SMTP(smtp_server, int(smtp_port))
+                server.starttls()
+                server.login(smtp_username, smtp_password)
+                server.send_message(msg)
+                server.quit()
+                logger.info(f"Email invite sent to {invite_email} for trip {trip_id}")
+            except Exception as e:
+                logger.error(f"Failed to send invite email to {invite_email}: {e}")
+                return jsonify({"success": True, "warning": "Invitation recorded but email could not be sent."})
+        else:
+            logger.warning(f"SMTP not configured. Invite link for {invite_email}: {join_link}")
+
+        return jsonify({"success": True})
+    except sqlite3.Error as e:
+        logger.error(f"Invite by email error: {e}")
+        return jsonify({"error": "Server error."}), 500
     finally:
         conn.close()
 

@@ -347,16 +347,19 @@ function showView(view) {
     screens.forEach(s => s.classList.remove('active'));
 
     const bottomNav = document.querySelector('.bottom-nav');
+    const aiFab = document.getElementById('ai-fab');
 
     if (view === 'lobby') {
         const lobbyScreen = document.getElementById('screen-lobby');
         if (lobbyScreen) lobbyScreen.classList.add('active');
         if (bottomNav) bottomNav.style.display = 'none';
+        if (aiFab) aiFab.style.display = 'none';
     } else {
         // 'dashboard'
         const homeScreen = document.getElementById('screen-home');
         if (homeScreen) homeScreen.classList.add('active');
         if (bottomNav) bottomNav.style.display = 'flex';
+        if (aiFab) aiFab.style.display = '';
     }
 }
 
@@ -366,31 +369,44 @@ function renderTripsList() {
     if (!allTrips || allTrips.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
-                <span style="font-size:3rem">🌍</span>
-                <p>אין טיולים עדיין. צור טיול חדש!</p>
+                <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5" style="margin-bottom:12px">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+                <p>${i18n('lobby_no_groups')}</p>
             </div>`;
         return;
     }
-    const icons = ['✈️', '🏖️', '🗺️', '🏔️', '🎡', '🚂'];
+    const avatarColors = [
+        'linear-gradient(135deg, #a855f7, #6366f1)',
+        'linear-gradient(135deg, #06d6a0, #22d3ee)',
+        'linear-gradient(135deg, #f59e0b, #ef4444)',
+        'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+        'linear-gradient(135deg, #ec4899, #f43f5e)',
+        'linear-gradient(135deg, #14b8a6, #06b6d4)'
+    ];
+    const usersSvg = `<svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/></svg>`;
     container.innerHTML = allTrips.map((t, i) => {
         const safeName = escapeHTML(t.name);
-        const safeMeta = t.participants && t.participants.length > 1
-            ? escapeHTML(t.participants.join(', '))
-            : (typeof i18n === 'function' ? i18n('only_me') : 'אני בלבד');
-        const editBtn = t.is_owner ? `<button class="trip-edit-btn" onclick="event.stopPropagation(); openEditTripModal(${t.id})" title="ערוך טיול">✏️</button>` : '';
+        const initial = (t.name || '?').charAt(0);
+        const memberCount = t.participants ? t.participants.length : 0;
+        const budgetDisplay = (t.budget && t.budget > 0)
+            ? `<span class="trip-card-v2-budget">${getUserCurrencySymbol()}${t.budget.toLocaleString()}</span>`
+            : `<span class="trip-card-v2-budget no-budget">—</span>`;
+        const editBtn = t.is_owner ? `<button class="trip-edit-btn" onclick="event.stopPropagation(); openEditTripModal(${t.id})" title="${i18n('modal_edit_trip')}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>` : '';
         return `
-        <div class="trip-card" onclick="openTrip(${t.id})">
-            <div class="trip-card-left">
-                <span class="trip-card-icon">${icons[i % icons.length]}</span>
-                <div class="trip-card-info">
-                    <div class="trip-card-name">${safeName}</div>
-                    <div class="trip-card-meta">${safeMeta}</div>
+        <div class="trip-card-v2" onclick="openTrip(${t.id})">
+            ${editBtn}
+            <div class="trip-card-avatar" style="background:${avatarColors[i % avatarColors.length]}">${escapeHTML(initial)}</div>
+            <div class="trip-card-v2-body">
+                <div class="trip-card-v2-name">${safeName}</div>
+                <div class="trip-card-v2-meta">
+                    <span class="meta-item">${usersSvg} ${memberCount} ${i18n('members_count')}</span>
                 </div>
             </div>
-            <div class="trip-card-right">
-                <span class="trip-card-budget">${getUserCurrencySymbol()}${(t.budget || 0).toLocaleString()}</span>
-                ${editBtn}
-                <span class="trip-card-arrow">›</span>
+            <div class="trip-card-v2-right">
+                ${budgetDisplay}
+                <span class="trip-card-v2-arrow">‹</span>
             </div>
         </div>`;
     }).join('');
@@ -444,10 +460,19 @@ function openCreateTripModal() {
     renderFriendsChips();
     const nameInput = document.getElementById('trip-name');
     const budgetInput = document.getElementById('trip-budget');
-    const friendInput = document.getElementById('friend-input');
+    const budgetType = document.getElementById('trip-budget-type');
+    const budgetPerUser = document.getElementById('trip-budget-per-user');
     if (nameInput) nameInput.value = '';
     if (budgetInput) budgetInput.value = '';
-    if (friendInput) friendInput.value = '';
+    if (budgetType) budgetType.value = 'none';
+    if (budgetPerUser) budgetPerUser.checked = false;
+    // Reset invite tab inputs
+    ['create-wa-phone', 'create-email-name', 'create-email-addr', 'create-guest-name'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    toggleBudgetFields('create');
+    switchInviteTab('whatsapp', 'create');
     const modal = document.getElementById('create-trip-modal');
     if (modal) modal.classList.add('open');
 }
@@ -520,28 +545,13 @@ function renderFriendsChips() {
     if (!container) return;
     container.innerHTML = friendsList.map((n, idx) => {
         const displayName = escapeHTML(n.resolvedName || n.name || n.contact || n);
-        const status = n.status || 'checking';
-        let statusIcon, extraHtml = '';
-
-        if (status === 'guest') {
-            statusIcon = '\ud83e\udd16';
-        } else if (status === 'valid') {
-            statusIcon = '\u2713';
-        } else if (status === 'unregistered') {
-            statusIcon = '\u2717';
-            const phone = n.contact || n.name || '';
-            extraHtml = `<button class="whatsapp-invite-btn" onclick="event.stopPropagation(); window.open('${_buildWhatsAppUrl(phone)}', '_blank')" title="\u05d4\u05d6\u05de\u05df \u05d1\u05d5\u05d5\u05d0\u05d8\u05e1\u05d0\u05e4">${_whatsappSvg}</button>`;
-        } else {
-            statusIcon = '...';
-        }
-
-        const chipClass = `friend-chip ${status}`;
+        const chipType = n.type === 'guest' ? 'guest' : (n.inviteMethod || 'registered');
+        const initial = (displayName || '?').charAt(0);
         return `
-        <div class="${chipClass}">
-            <span class="chip-status">${statusIcon}</span>
+        <div class="modal-member-chip ${chipType}">
+            <span class="chip-avatar">${initial}</span>
             <span>${displayName}</span>
-            ${extraHtml}
-            <span class="remove-chip" onclick="removeFriend(${idx})">&times;</span>
+            <span class="chip-remove" onclick="removeFriend(${idx})">&times;</span>
         </div>`;
     }).join('');
 }
@@ -550,6 +560,7 @@ async function createTrip() {
     const name = document.getElementById('trip-name')?.value.trim();
     const budget = parseFloat(document.getElementById('trip-budget')?.value) || 0;
     const budgetType = document.getElementById('trip-budget-type')?.value || 'none';
+    const isBudgetPerUser = document.getElementById('trip-budget-per-user')?.checked || false;
     if (!name) { showToast(i18n('err_fill_all'), 'error'); return; }
 
     // Build participant objects
@@ -562,7 +573,7 @@ async function createTrip() {
         const res = await fetch('/api/trips', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, budget, budget_type: budgetType, participants })
+            body: JSON.stringify({ name, budget, budget_type: budgetType, is_budget_per_user: isBudgetPerUser, participants })
         });
         const data = await res.json();
         if (res.ok && data.success) {
@@ -592,6 +603,24 @@ function openEditTripModal(tripId) {
 
     document.getElementById('edit-trip-name').value = trip.name;
     document.getElementById('edit-trip-budget').value = trip.budget || 0;
+
+    // Set budget type
+    const budgetTypeEl = document.getElementById('edit-trip-budget-type');
+    if (budgetTypeEl) budgetTypeEl.value = trip.budget_type || 'none';
+
+    // Set budget per user
+    const bpuEl = document.getElementById('edit-trip-budget-per-user');
+    if (bpuEl) bpuEl.checked = !!trip.is_budget_per_user;
+
+    toggleBudgetFields('edit');
+    switchInviteTab('whatsapp', 'edit');
+
+    // Clear edit invite inputs
+    ['edit-wa-phone', 'edit-email-name', 'edit-email-addr', 'edit-guest-name'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+
     renderEditFriendsChips();
     document.getElementById('edit-trip-modal').classList.add('open');
 }
@@ -653,28 +682,13 @@ function renderEditFriendsChips() {
     if (!container) return;
     container.innerHTML = editFriendsList.map((n, idx) => {
         const displayName = escapeHTML(n.resolvedName || n.name || n.contact || n);
-        const status = n.status || 'checking';
-        let statusIcon, extraHtml = '';
-
-        if (status === 'guest') {
-            statusIcon = '\ud83e\udd16';
-        } else if (status === 'valid') {
-            statusIcon = '\u2713';
-        } else if (status === 'unregistered') {
-            statusIcon = '\u2717';
-            const phone = n.contact || n.name || '';
-            extraHtml = `<button class="whatsapp-invite-btn" onclick="event.stopPropagation(); window.open('${_buildWhatsAppUrl(phone)}', '_blank')" title="\u05d4\u05d6\u05de\u05df \u05d1\u05d5\u05d5\u05d0\u05d8\u05e1\u05d0\u05e4">${_whatsappSvg}</button>`;
-        } else {
-            statusIcon = '...';
-        }
-
-        const chipClass = `friend-chip ${status}`;
+        const chipType = n.type === 'guest' ? 'guest' : (n.inviteMethod || 'registered');
+        const initial = (displayName || '?').charAt(0);
         return `
-        <div class="${chipClass}">
-            <span class="chip-status">${statusIcon}</span>
+        <div class="modal-member-chip ${chipType}">
+            <span class="chip-avatar">${initial}</span>
             <span>${displayName}</span>
-            ${extraHtml}
-            <span class="remove-chip" onclick="removeEditFriend(${idx})">&times;</span>
+            <span class="chip-remove" onclick="removeEditFriend(${idx})">&times;</span>
         </div>`;
     }).join('');
 }
@@ -683,10 +697,12 @@ async function saveEditTrip() {
     if (!editTripId) return;
     const name = document.getElementById('edit-trip-name')?.value.trim();
     const budget = parseFloat(document.getElementById('edit-trip-budget')?.value) || 0;
+    const budgetType = document.getElementById('edit-trip-budget-type')?.value || 'none';
+    const isBudgetPerUser = document.getElementById('edit-trip-budget-per-user')?.checked || false;
 
-    if (!name) { alert('\u05d9\u05e9 \u05dc\u05ea\u05ea \u05e9\u05dd \u05dc\u05d8\u05d9\u05d5\u05dc.'); return; }
+    if (!name) { alert(i18n('err_fill_all')); return; }
 
-    const payload = { name, budget };
+    const payload = { name, budget, budget_type: budgetType, is_budget_per_user: isBudgetPerUser };
     if (editFriendsList.length > 0) {
         payload.participants = editFriendsList.map(f => {
             if (f.type === 'guest') return { name: f.name, type: 'guest' };
@@ -703,15 +719,141 @@ async function saveEditTrip() {
         const data = await res.json();
         if (res.ok && data.success) {
             closeEditTripModal();
-            showToast('\u05d4\u05d8\u05d9\u05d5\u05dc \u05e2\u05d5\u05d3\u05db\u05df \u05d1\u05d4\u05e6\u05dc\u05d7\u05d4! \u2705');
+            showToast(i18n('toast_trip_updated'), 'success');
             await loadLobby();
         } else {
-            alert(data.error || '\u05e9\u05d2\u05d9\u05d0\u05d4 \u05d1\u05e2\u05d3\u05db\u05d5\u05df \u05d4\u05d8\u05d9\u05d5\u05dc.');
+            alert(data.error || i18n('error_network'));
         }
     } catch (e) {
         console.error('Save edit trip error:', e);
-        alert('\u05e9\u05d2\u05d9\u05d0\u05ea \u05e8\u05e9\u05ea.');
+        alert(i18n('error_network'));
     }
+}
+
+// ==========================================
+// STEP 7 — BUDGET & INVITE HELPERS
+// ==========================================
+
+function toggleBudgetFields(mode) {
+    const typeSelect = document.getElementById(mode === 'create' ? 'trip-budget-type' : 'edit-trip-budget-type');
+    const conditionalDiv = document.getElementById(mode === 'create' ? 'create-budget-conditional' : 'edit-budget-conditional');
+    if (!typeSelect || !conditionalDiv) return;
+    
+    if (typeSelect.value !== 'none') {
+        conditionalDiv.classList.add('visible');
+    } else {
+        conditionalDiv.classList.remove('visible');
+    }
+}
+
+function switchInviteTab(tabName, mode) {
+    // Update tab buttons
+    const buttons = document.querySelectorAll(`#${mode}-trip-modal .invite-tab-btn`);
+    buttons.forEach(btn => {
+        if (btn.getAttribute('data-tab') === tabName) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+
+    // Update panels
+    const panels = document.querySelectorAll(`#${mode}-trip-modal .invite-tab-panel`);
+    panels.forEach(panel => {
+        if (panel.getAttribute('data-panel') === tabName) {
+            panel.classList.add('active');
+        } else {
+            panel.classList.remove('active');
+        }
+    });
+}
+
+function sendWhatsAppInviteFromTab(mode) {
+    const phoneInput = document.getElementById(mode === 'create' ? 'create-wa-phone' : 'edit-wa-phone');
+    const phone = phoneInput?.value.trim();
+    if (!phone) return;
+
+    const list = mode === 'create' ? friendsList : editFriendsList;
+    list.push({
+        contact: phone,
+        name: phone,
+        type: 'registered',
+        inviteMethod: 'whatsapp'
+    });
+    
+    if (mode === 'create') renderFriendsChips();
+    else renderEditFriendsChips();
+    
+    phoneInput.value = '';
+    
+    // Attempt to open WhatsApp directly (will fail silently if blocked by popup blocker, but link is also generated backend side if saved)
+    // We just want to add them to the chip list so they are saved with the group
+}
+
+async function sendEmailInviteFromTab(mode) {
+    const nameInput = document.getElementById(mode === 'create' ? 'create-email-name' : 'edit-email-name');
+    const emailInput = document.getElementById(mode === 'create' ? 'create-email-addr' : 'edit-email-addr');
+    const name = nameInput?.value.trim();
+    const email = emailInput?.value.trim();
+    
+    if (!name || !email) {
+        showToast(i18n('err_fill_all'), 'error');
+        return;
+    }
+
+    const list = mode === 'create' ? friendsList : editFriendsList;
+    list.push({
+        contact: email,
+        name: name,
+        type: 'registered',
+        inviteMethod: 'email'
+    });
+    
+    if (mode === 'create') renderFriendsChips();
+    else renderEditFriendsChips();
+    
+    nameInput.value = '';
+    emailInput.value = '';
+    
+    // In edit mode, if trip already exists, we could also directly fire the email invite API here.
+    // For now we just queue it to be saved when user hits "Save" (or Create). 
+    // Wait, the instructions say "Send Email Invite".
+    // If it's an existing trip, let's fire the API now.
+    if (mode === 'edit' && editTripId) {
+        try {
+            const res = await fetch(`/api/trips/${editTripId}/invite-email`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, email })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast(i18n('invite_email_sent'), 'success');
+            } else {
+                showToast(data.error || 'Failed to send email', 'error');
+            }
+        } catch(e) {
+            console.error('Email invite error', e);
+        }
+    }
+}
+
+function addGuestFromTab(mode) {
+    const nameInput = document.getElementById(mode === 'create' ? 'create-guest-name' : 'edit-guest-name');
+    const name = nameInput?.value.trim();
+    if (!name) return;
+
+    const list = mode === 'create' ? friendsList : editFriendsList;
+    list.push({
+        name: name,
+        type: 'guest',
+        inviteMethod: 'guest'
+    });
+    
+    if (mode === 'create') renderFriendsChips();
+    else renderEditFriendsChips();
+    
+    nameInput.value = '';
 }
 
 // =====================

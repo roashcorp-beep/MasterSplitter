@@ -540,6 +540,37 @@ function _buildWhatsAppUrl(phone) {
 
 const _whatsappSvg = `<svg viewBox="0 0 24 24" width="14" height="14" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>`;
 
+function getBudgetInputsHtml(mode, idx, memberBudgets = {}) {
+    const isPerUser = document.getElementById(mode === 'create' ? 'trip-budget-per-user' : 'edit-trip-budget-per-user')?.checked;
+    if (!isPerUser) return '';
+
+    const daily = document.getElementById(`${mode}-budget-daily-cb`)?.checked;
+    const monthly = document.getElementById(`${mode}-budget-monthly-cb`)?.checked;
+    const yearly = document.getElementById(`${mode}-budget-yearly-cb`)?.checked;
+
+    let html = '<div class="chip-budgets" style="display:flex; gap:5px; margin-top:5px; width: 100%;" onclick="event.stopPropagation()">';
+    if (daily) {
+        html += `<input type="number" placeholder="יומי" style="flex:1; padding:4px; border-radius:4px; border:1px solid var(--border-color); font-size:12px; background:var(--card-bg); color:var(--text-dark);" 
+            onchange="updateMemberBudget('${mode}', ${idx}, 'daily', this.value)" value="${memberBudgets.daily || ''}">`;
+    }
+    if (monthly) {
+        html += `<input type="number" placeholder="חודשי" style="flex:1; padding:4px; border-radius:4px; border:1px solid var(--border-color); font-size:12px; background:var(--card-bg); color:var(--text-dark);" 
+            onchange="updateMemberBudget('${mode}', ${idx}, 'monthly', this.value)" value="${memberBudgets.monthly || ''}">`;
+    }
+    if (yearly) {
+        html += `<input type="number" placeholder="שנתי" style="flex:1; padding:4px; border-radius:4px; border:1px solid var(--border-color); font-size:12px; background:var(--card-bg); color:var(--text-dark);" 
+            onchange="updateMemberBudget('${mode}', ${idx}, 'yearly', this.value)" value="${memberBudgets.yearly || ''}">`;
+    }
+    html += '</div>';
+    return html;
+}
+
+function updateMemberBudget(mode, idx, type, val) {
+    const list = mode === 'create' ? friendsList : editFriendsList;
+    if (!list[idx].budgets_json) list[idx].budgets_json = {};
+    list[idx].budgets_json[type] = parseFloat(val) || 0;
+}
+
 function renderFriendsChips() {
     const container = document.getElementById('friends-chips');
     if (!container) return;
@@ -547,45 +578,67 @@ function renderFriendsChips() {
         const displayName = escapeHTML(n.resolvedName || n.name || n.contact || n);
         const chipType = n.type === 'guest' ? 'guest' : (n.inviteMethod || 'registered');
         const initial = (displayName || '?').charAt(0);
+        const budgetInputs = getBudgetInputsHtml('create', idx, n.budgets_json);
+        
         return `
-        <div class="modal-member-chip ${chipType}">
-            <span class="chip-avatar">${initial}</span>
-            <span>${displayName}</span>
-            <span class="chip-remove" onclick="removeFriend(${idx})">&times;</span>
+        <div class="modal-member-chip ${chipType}" style="flex-direction:column; align-items:flex-start;">
+            <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span class="chip-avatar">${initial}</span>
+                    <span>${displayName}</span>
+                </div>
+                <span class="chip-remove" onclick="removeFriend(${idx})">&times;</span>
+            </div>
+            ${budgetInputs}
         </div>`;
     }).join('');
 }
 
 async function createTrip() {
     const name = document.getElementById('trip-name')?.value.trim();
-    const budget = parseFloat(document.getElementById('trip-budget')?.value) || 0;
-    const budgetType = document.getElementById('trip-budget-type')?.value || 'none';
     const isBudgetPerUser = document.getElementById('trip-budget-per-user')?.checked || false;
-    if (!name) { showToast(i18n('err_fill_all'), 'error'); return; }
+    
+    // Collect budgets_json
+    const budgets_json = {};
+    if (document.getElementById('create-budget-daily-cb')?.checked) {
+        budgets_json.daily = parseFloat(document.getElementById('create-budget-daily-amt')?.value) || 0;
+    }
+    if (document.getElementById('create-budget-monthly-cb')?.checked) {
+        budgets_json.monthly = parseFloat(document.getElementById('create-budget-monthly-amt')?.value) || 0;
+    }
+    if (document.getElementById('create-budget-yearly-cb')?.checked) {
+        budgets_json.yearly = parseFloat(document.getElementById('create-budget-yearly-amt')?.value) || 0;
+    }
+
+    if (!name) { showToast(typeof i18n === 'function' ? i18n('err_fill_all') : 'אנא מלא את כל השדות', 'error'); return; }
 
     // Build participant objects
     const participants = friendsList.map(f => {
-        if (f.type === 'guest') return { name: f.name, type: 'guest' };
-        return { contact: f.contact || f.name, type: f.type || 'registered' };
+        return {
+            name: f.name || f.contact,
+            contact: f.contact || f.name,
+            type: f.type || 'registered',
+            budgets_json: isBudgetPerUser ? (f.budgets_json || {}) : {}
+        };
     });
 
     try {
         const res = await fetch('/api/trips', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, budget, budget_type: budgetType, is_budget_per_user: isBudgetPerUser, participants })
+            body: JSON.stringify({ name, budgets_json, is_budget_per_user: isBudgetPerUser, participants })
         });
         const data = await res.json();
         if (res.ok && data.success) {
             closeCreateTripModal();
-            showToast(i18n('toast_trip_created'), 'success');
+            showToast(typeof i18n === 'function' ? i18n('toast_trip_created') : 'Trip created', 'success');
             await loadLobby();
         } else {
-            showToast(data.error || i18n('error_network'), 'error');
+            showToast(data.error || 'Network error', 'error');
         }
     } catch (e) {
         console.error('Create trip error:', e);
-        showToast(i18n('error_network'), 'error');
+        showToast('Network error', 'error');
     }
 }
 
@@ -595,34 +648,56 @@ async function createTrip() {
 let editTripId = null;
 let editFriendsList = [];
 
-function openEditTripModal(tripId) {
+async function openEditTripModal(tripId) {
     editTripId = tripId;
     editFriendsList = [];
-    const trip = allTrips.find(t => t.id === tripId);
-    if (!trip) return;
-
-    document.getElementById('edit-trip-name').value = trip.name;
-    document.getElementById('edit-trip-budget').value = trip.budget || 0;
-
-    // Set budget type
-    const budgetTypeEl = document.getElementById('edit-trip-budget-type');
-    if (budgetTypeEl) budgetTypeEl.value = trip.budget_type || 'none';
-
-    // Set budget per user
-    const bpuEl = document.getElementById('edit-trip-budget-per-user');
-    if (bpuEl) bpuEl.checked = !!trip.is_budget_per_user;
-
-    toggleBudgetFields('edit');
-    switchInviteTab('whatsapp', 'edit');
-
-    // Clear edit invite inputs
-    ['edit-wa-phone', 'edit-email-name', 'edit-email-addr', 'edit-guest-name'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.value = '';
-    });
-
-    renderEditFriendsChips();
     document.getElementById('edit-trip-modal').classList.add('open');
+    
+    // Fetch full trip details including participants and budgets
+    try {
+        const res = await fetch(`/api/trips/${tripId}`);
+        const data = await res.json();
+        if (res.ok && data.success) {
+            const trip = data.trip;
+            document.getElementById('edit-trip-name').value = trip.name;
+            
+            // Set per-user toggle
+            const bpuEl = document.getElementById('edit-trip-budget-per-user');
+            if (bpuEl) bpuEl.checked = !!trip.is_budget_per_user;
+            
+            // Set checkboxes and global inputs based on budgets_json
+            const budgets = trip.budgets_json || {};
+            const dailyCb = document.getElementById('edit-budget-daily-cb');
+            const monthlyCb = document.getElementById('edit-budget-monthly-cb');
+            const yearlyCb = document.getElementById('edit-budget-yearly-cb');
+            
+            if (dailyCb) dailyCb.checked = budgets.hasOwnProperty('daily');
+            if (monthlyCb) monthlyCb.checked = budgets.hasOwnProperty('monthly');
+            if (yearlyCb) yearlyCb.checked = budgets.hasOwnProperty('yearly');
+            
+            document.getElementById('edit-budget-daily-amt').value = budgets.daily || '';
+            document.getElementById('edit-budget-monthly-amt').value = budgets.monthly || '';
+            document.getElementById('edit-budget-yearly-amt').value = budgets.yearly || '';
+            
+            toggleBudgetFields('edit');
+            
+            // Populate members
+            if (trip.participants) {
+                editFriendsList = trip.participants.map(p => ({
+                    id: p.id,
+                    name: p.name,
+                    contact: p.name,
+                    type: p.is_guest ? 'guest' : 'registered',
+                    budgets_json: p.budgets_json || {}
+                }));
+            }
+            renderEditFriendsChips();
+            switchInviteTab('whatsapp', 'edit');
+        }
+    } catch (e) {
+        console.error('Failed to load trip details', e);
+        closeEditTripModal();
+    }
 }
 
 function closeEditTripModal() {
@@ -684,11 +759,18 @@ function renderEditFriendsChips() {
         const displayName = escapeHTML(n.resolvedName || n.name || n.contact || n);
         const chipType = n.type === 'guest' ? 'guest' : (n.inviteMethod || 'registered');
         const initial = (displayName || '?').charAt(0);
+        const budgetInputs = getBudgetInputsHtml('edit', idx, n.budgets_json);
+        
         return `
-        <div class="modal-member-chip ${chipType}">
-            <span class="chip-avatar">${initial}</span>
-            <span>${displayName}</span>
-            <span class="chip-remove" onclick="removeEditFriend(${idx})">&times;</span>
+        <div class="modal-member-chip ${chipType}" style="flex-direction:column; align-items:flex-start;">
+            <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span class="chip-avatar">${initial}</span>
+                    <span>${displayName}</span>
+                </div>
+                <span class="chip-remove" onclick="removeEditFriend(${idx})">&times;</span>
+            </div>
+            ${budgetInputs}
         </div>`;
     }).join('');
 }
@@ -696,17 +778,32 @@ function renderEditFriendsChips() {
 async function saveEditTrip() {
     if (!editTripId) return;
     const name = document.getElementById('edit-trip-name')?.value.trim();
-    const budget = parseFloat(document.getElementById('edit-trip-budget')?.value) || 0;
-    const budgetType = document.getElementById('edit-trip-budget-type')?.value || 'none';
     const isBudgetPerUser = document.getElementById('edit-trip-budget-per-user')?.checked || false;
 
-    if (!name) { alert(i18n('err_fill_all')); return; }
+    // Collect budgets_json
+    const budgets_json = {};
+    if (document.getElementById('edit-budget-daily-cb')?.checked) {
+        budgets_json.daily = parseFloat(document.getElementById('edit-budget-daily-amt')?.value) || 0;
+    }
+    if (document.getElementById('edit-budget-monthly-cb')?.checked) {
+        budgets_json.monthly = parseFloat(document.getElementById('edit-budget-monthly-amt')?.value) || 0;
+    }
+    if (document.getElementById('edit-budget-yearly-cb')?.checked) {
+        budgets_json.yearly = parseFloat(document.getElementById('edit-budget-yearly-amt')?.value) || 0;
+    }
 
-    const payload = { name, budget, budget_type: budgetType, is_budget_per_user: isBudgetPerUser };
+    if (!name) { alert(typeof i18n === 'function' ? i18n('err_fill_all') : 'Missing fields'); return; }
+
+    const payload = { name, budgets_json, is_budget_per_user: isBudgetPerUser };
     if (editFriendsList.length > 0) {
         payload.participants = editFriendsList.map(f => {
-            if (f.type === 'guest') return { name: f.name, type: 'guest' };
-            return { contact: f.contact || f.name, type: f.type || 'registered' };
+            return {
+                id: f.id,
+                name: f.name || f.contact,
+                contact: f.contact || f.name,
+                type: f.type || 'registered',
+                budgets_json: isBudgetPerUser ? (f.budgets_json || {}) : {}
+            };
         });
     }
 
@@ -719,14 +816,14 @@ async function saveEditTrip() {
         const data = await res.json();
         if (res.ok && data.success) {
             closeEditTripModal();
-            showToast(i18n('toast_trip_updated'), 'success');
+            showToast(typeof i18n === 'function' ? i18n('toast_trip_updated') : 'Trip updated', 'success');
             await loadLobby();
         } else {
-            alert(data.error || i18n('error_network'));
+            alert(data.error || 'Network error');
         }
     } catch (e) {
         console.error('Save edit trip error:', e);
-        alert(i18n('error_network'));
+        alert('Network error');
     }
 }
 
@@ -734,15 +831,65 @@ async function saveEditTrip() {
 // STEP 7 — BUDGET & INVITE HELPERS
 // ==========================================
 
+async function pickContact(mode, type) {
+    if (!('contacts' in navigator && 'ContactsManager' in window)) {
+        showToast(typeof i18n === 'function' ? i18n('contacts_not_supported') || 'Contact picker is not supported on this browser.' : 'Contact picker is not supported on this browser.', 'error');
+        return;
+    }
+    try {
+        const props = ['name', 'tel', 'email'];
+        const contacts = await navigator.contacts.select(props, { multiple: false });
+        if (contacts && contacts.length > 0) {
+            const contact = contacts[0];
+            const name = contact.name ? contact.name[0] : '';
+            const phone = contact.tel ? contact.tel[0] : '';
+            const email = contact.email ? contact.email[0] : '';
+            
+            if (type === 'wa' && phone) {
+                document.getElementById(`${mode}-wa-phone`).value = phone;
+            } else if (type === 'email') {
+                if (name) document.getElementById(`${mode}-email-name`).value = name;
+                if (email) document.getElementById(`${mode}-email-addr`).value = email;
+            }
+        }
+    } catch (e) {
+        console.error('Contact picker error:', e);
+    }
+}
+
 function toggleBudgetFields(mode) {
-    const typeSelect = document.getElementById(mode === 'create' ? 'trip-budget-type' : 'edit-trip-budget-type');
-    const conditionalDiv = document.getElementById(mode === 'create' ? 'create-budget-conditional' : 'edit-budget-conditional');
-    if (!typeSelect || !conditionalDiv) return;
+    const isPerUser = document.getElementById(mode === 'create' ? 'trip-budget-per-user' : 'edit-trip-budget-per-user')?.checked;
     
-    if (typeSelect.value !== 'none') {
-        conditionalDiv.classList.add('visible');
+    const daily = document.getElementById(`${mode}-budget-daily-cb`)?.checked;
+    const monthly = document.getElementById(`${mode}-budget-monthly-cb`)?.checked;
+    const yearly = document.getElementById(`${mode}-budget-yearly-cb`)?.checked;
+    
+    const conditionalDiv = document.getElementById(mode === 'create' ? 'create-budget-conditional' : 'edit-budget-conditional');
+    if (!conditionalDiv) return;
+    
+    if (daily || monthly || yearly) {
+        conditionalDiv.style.display = 'block';
     } else {
-        conditionalDiv.classList.remove('visible');
+        conditionalDiv.style.display = 'none';
+        return;
+    }
+    
+    const globalBlock = document.getElementById(`${mode}-global-budgets`);
+    if (globalBlock) {
+        if (isPerUser) {
+            globalBlock.style.display = 'none';
+        } else {
+            globalBlock.style.display = 'block';
+            document.getElementById(`${mode}-budget-daily-group`).style.display = daily ? 'block' : 'none';
+            document.getElementById(`${mode}-budget-monthly-group`).style.display = monthly ? 'block' : 'none';
+            document.getElementById(`${mode}-budget-yearly-group`).style.display = yearly ? 'block' : 'none';
+        }
+    }
+
+    if (mode === 'create') {
+        renderFriendsChips();
+    } else {
+        renderEditFriendsChips();
     }
 }
 
@@ -1675,14 +1822,134 @@ function initTheme() {
         document.body.classList.remove('light-theme');
         if (btn) btn.textContent = '☀️';
     }
+    initDynamicBackground();
 }
 
 function toggleTheme() {
     document.body.classList.toggle('light-theme');
     const isLight = document.body.classList.contains('light-theme');
     localStorage.setItem('theme', isLight ? 'light' : 'dark');
+    
+    // Also toggle the 'dark' class on html for Tailwind compat
+    if (!isLight) {
+        document.documentElement.classList.add('dark');
+        document.documentElement.classList.remove('light');
+    } else {
+        document.documentElement.classList.add('light');
+        document.documentElement.classList.remove('dark');
+    }
+    
     const btn = document.getElementById('theme-toggle-btn');
     if (btn) btn.textContent = isLight ? '🌙' : '☀️';
+    initDynamicBackground();
+}
+
+let darkBgFrameId, lightBgFrameId;
+
+function initDynamicBackground() {
+    const isDark = !document.body.classList.contains('light-theme');
+    const darkCanvas = document.getElementById('bg-canvas-dark');
+    const lightCanvas = document.getElementById('bg-canvas-light');
+    
+    if (!darkCanvas || !lightCanvas) return;
+
+    if (isDark) {
+        darkCanvas.style.opacity = '1';
+        lightCanvas.style.opacity = '0';
+        startDarkBackground(darkCanvas);
+        cancelAnimationFrame(lightBgFrameId);
+    } else {
+        lightCanvas.style.opacity = '1';
+        darkCanvas.style.opacity = '0';
+        startLightBackground(lightCanvas);
+        cancelAnimationFrame(darkBgFrameId);
+    }
+}
+
+function startDarkBackground(canvas) {
+    const ctx = canvas.getContext('2d');
+    cancelAnimationFrame(darkBgFrameId);
+    
+    const resize = () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    };
+    window.addEventListener('resize', resize);
+    resize();
+
+    const numStars = 150;
+    const stars = Array.from({ length: numStars }).map(() => ({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        radius: Math.random() * 1.5,
+        speed: Math.random() * 0.5 + 0.1
+    }));
+
+    const draw = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = 'white';
+        stars.forEach(star => {
+            ctx.globalAlpha = Math.random() * 0.5 + 0.5;
+            ctx.beginPath();
+            ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+            ctx.fill();
+            star.y -= star.speed;
+            if (star.y < 0) {
+                star.y = canvas.height;
+                star.x = Math.random() * canvas.width;
+            }
+        });
+        darkBgFrameId = requestAnimationFrame(draw);
+    };
+    draw();
+}
+
+function startLightBackground(canvas) {
+    const ctx = canvas.getContext('2d');
+    cancelAnimationFrame(lightBgFrameId);
+
+    const resize = () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    };
+    window.addEventListener('resize', resize);
+    resize();
+
+    const itemsList = ["E=mc²", "🍕", "∑", "x²+y²", "👓", "Δx", "{ }", "y=mx+b", "∫", "π", "±"];
+    const numItems = 40;
+    const items = Array.from({ length: numItems }).map(() => ({
+        text: itemsList[Math.floor(Math.random() * itemsList.length)],
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        speed: Math.random() * 0.3 + 0.1,
+        fontSize: Math.random() * 20 + 20,
+        rotation: (Math.random() - 0.5) * Math.PI / 2
+    }));
+
+    const draw = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#64748b';
+        ctx.globalAlpha = 0.08;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        
+        items.forEach(item => {
+            ctx.save();
+            ctx.font = `bold ${item.fontSize}px monospace, sans-serif`;
+            ctx.translate(item.x, item.y);
+            ctx.rotate(item.rotation);
+            ctx.fillText(item.text, 0, 0);
+            ctx.restore();
+            
+            item.y -= item.speed;
+            if (item.y < -50) {
+                item.y = canvas.height + 50;
+                item.x = Math.random() * canvas.width;
+            }
+        });
+        lightBgFrameId = requestAnimationFrame(draw);
+    };
+    draw();
 }
 
 function toggleBudgetCard() {
@@ -2688,6 +2955,15 @@ async function generateInviteAndShareWA() {
 
 // Auto-join from invite link on page load
 document.addEventListener('DOMContentLoaded', () => {
+    // Sync i18n
+    if (typeof i18n !== 'undefined' && i18n.changeLanguage) {
+        const lang = localStorage.getItem('lang') || 'he';
+        i18n.changeLanguage(lang);
+    }
+    
+    // Init theme which includes dynamic background
+    initTheme();
+
     const params = new URLSearchParams(window.location.search);
     const inviteToken = params.get('invite');
     if (inviteToken) {

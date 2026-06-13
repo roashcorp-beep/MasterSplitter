@@ -38,10 +38,16 @@
 </head>
 
 <body>
+    <!-- Step 7.5 Dynamic Background Container -->
+    <div id="dynamic-bg-container" class="fixed inset-0 overflow-hidden pointer-events-none transition-colors duration-500 bg-[#f8fafc] dark:bg-[#0f172a]" style="z-index: -10; position: fixed; top: 0; left: 0; right: 0; bottom: 0;">
+        <canvas id="bg-canvas-dark" class="absolute inset-0 transition-opacity duration-700" style="opacity: 0; position: absolute; inset: 0;"></canvas>
+        <canvas id="bg-canvas-light" class="absolute inset-0 transition-opacity duration-700" style="opacity: 0; position: absolute; inset: 0;"></canvas>
+    </div>
+
     <div id="toast" class="toast"></div>
 
     <!-- MAIN APP CONTAINER -->
-    <div id="app-container" class="app-container">
+    <div id="app-container" class="app-container relative z-10">
 
         <!-- Top Header -->
         <header class="app-header">
@@ -322,29 +328,44 @@
             </div>
 
             <div class="form-group">
-                <label data-i18n="create_trip_budget_type">סוג תקציב</label>
-                <select id="trip-budget-type" class="form-select" onchange="toggleBudgetFields('create')">
-                    <option value="none" data-i18n="budget_type_none">ללא</option>
-                    <option value="daily" data-i18n="budget_type_daily">יומי</option>
-                    <option value="monthly" data-i18n="budget_type_monthly">חודשי</option>
-                    <option value="yearly" data-i18n="budget_type_yearly">שנתי</option>
-                </select>
+                <label data-i18n="create_trip_budget_type">סוגי תקציב (אפשר לבחור כמה)</label>
+                <div class="budget-checkboxes" style="display: flex; gap: 15px; margin-top: 5px;">
+                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; color: var(--text-dark);">
+                        <input type="checkbox" id="create-budget-daily-cb" onchange="toggleBudgetFields('create')"> <span data-i18n="budget_type_daily">יומי</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; color: var(--text-dark);">
+                        <input type="checkbox" id="create-budget-monthly-cb" onchange="toggleBudgetFields('create')"> <span data-i18n="budget_type_monthly">חודשי</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; color: var(--text-dark);">
+                        <input type="checkbox" id="create-budget-yearly-cb" onchange="toggleBudgetFields('create')"> <span data-i18n="budget_type_yearly">שנתי</span>
+                    </label>
+                </div>
             </div>
 
-            <div id="create-budget-conditional" class="budget-conditional">
-                <div class="form-group" style="margin-bottom:0">
-                    <label data-i18n="budget_amount_label">סכום תקציב</label>
-                    <input type="number" id="trip-budget" placeholder="0" min="0">
-                </div>
-                <div class="budget-per-user-row">
+            <div id="create-budget-conditional" class="budget-conditional" style="display: none; background: rgba(0,0,0,0.02); padding: 10px; border-radius: 8px; margin-bottom: 15px;">
+                <div class="budget-per-user-row" style="margin-bottom: 10px;">
                     <div>
                         <div class="toggle-label" data-i18n="budget_per_user">תקציב לכל משתתף</div>
-                        <div class="toggle-hint" data-i18n="budget_per_user_hint">התקציב חל על כל משתתף בנפרד</div>
+                        <div class="toggle-hint" data-i18n="budget_per_user_hint">התקציב חל על כל משתתף בנפרד (במקום תקציב קבוצתי)</div>
                     </div>
                     <label class="mini-toggle">
-                        <input type="checkbox" id="trip-budget-per-user">
+                        <input type="checkbox" id="trip-budget-per-user" onchange="toggleBudgetFields('create')">
                         <span class="mini-toggle-slider"></span>
                     </label>
+                </div>
+                <div id="create-global-budgets">
+                    <div class="form-group" id="create-budget-daily-group" style="display: none; margin-bottom: 10px;">
+                        <label>סכום תקציב יומי כללי</label>
+                        <input type="number" id="create-budget-daily-amt" placeholder="0" min="0">
+                    </div>
+                    <div class="form-group" id="create-budget-monthly-group" style="display: none; margin-bottom: 10px;">
+                        <label>סכום תקציב חודשי כללי</label>
+                        <input type="number" id="create-budget-monthly-amt" placeholder="0" min="0">
+                    </div>
+                    <div class="form-group" id="create-budget-yearly-group" style="display: none; margin-bottom: 10px;">
+                        <label>סכום תקציב שנתי כללי</label>
+                        <input type="number" id="create-budget-yearly-amt" placeholder="0" min="0">
+                    </div>
                 </div>
             </div>
 
@@ -369,8 +390,11 @@
 
                     <!-- WhatsApp Tab -->
                     <div class="invite-tab-panel active" data-panel="whatsapp" id="create-tab-whatsapp">
-                        <div class="invite-input-group">
-                            <input type="text" id="create-wa-phone" data-i18n="invite_phone_ph" placeholder="מספר טלפון">
+                        <div class="invite-input-group" style="display: flex; gap: 5px;">
+                            <input type="text" id="create-wa-phone" data-i18n="invite_phone_ph" placeholder="מספר טלפון" style="flex: 1;">
+                            <button type="button" class="icon-btn" onclick="pickContact('create', 'wa')" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; width: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-dark);" title="Phone Contacts">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 18a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2"></path><rect x="5" y="2" width="14" height="20" rx="2"></rect><circle cx="12" cy="8" r="2"></circle></svg>
+                            </button>
                         </div>
                         <button type="button" class="invite-action-btn whatsapp" onclick="sendWhatsAppInviteFromTab('create')">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
@@ -428,29 +452,44 @@
             </div>
 
             <div class="form-group">
-                <label data-i18n="create_trip_budget_type">סוג תקציב</label>
-                <select id="edit-trip-budget-type" class="form-select" onchange="toggleBudgetFields('edit')">
-                    <option value="none" data-i18n="budget_type_none">ללא</option>
-                    <option value="daily" data-i18n="budget_type_daily">יומי</option>
-                    <option value="monthly" data-i18n="budget_type_monthly">חודשי</option>
-                    <option value="yearly" data-i18n="budget_type_yearly">שנתי</option>
-                </select>
+                <label data-i18n="create_trip_budget_type">סוגי תקציב (אפשר לבחור כמה)</label>
+                <div class="budget-checkboxes" style="display: flex; gap: 15px; margin-top: 5px;">
+                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; color: var(--text-dark);">
+                        <input type="checkbox" id="edit-budget-daily-cb" onchange="toggleBudgetFields('edit')"> <span data-i18n="budget_type_daily">יומי</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; color: var(--text-dark);">
+                        <input type="checkbox" id="edit-budget-monthly-cb" onchange="toggleBudgetFields('edit')"> <span data-i18n="budget_type_monthly">חודשי</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; color: var(--text-dark);">
+                        <input type="checkbox" id="edit-budget-yearly-cb" onchange="toggleBudgetFields('edit')"> <span data-i18n="budget_type_yearly">שנתי</span>
+                    </label>
+                </div>
             </div>
 
-            <div id="edit-budget-conditional" class="budget-conditional">
-                <div class="form-group" style="margin-bottom:0">
-                    <label data-i18n="budget_amount_label">סכום תקציב</label>
-                    <input type="number" id="edit-trip-budget" placeholder="0" min="0">
-                </div>
-                <div class="budget-per-user-row">
+            <div id="edit-budget-conditional" class="budget-conditional" style="display: none; background: rgba(0,0,0,0.02); padding: 10px; border-radius: 8px; margin-bottom: 15px;">
+                <div class="budget-per-user-row" style="margin-bottom: 10px;">
                     <div>
                         <div class="toggle-label" data-i18n="budget_per_user">תקציב לכל משתתף</div>
-                        <div class="toggle-hint" data-i18n="budget_per_user_hint">התקציב חל על כל משתתף בנפרד</div>
+                        <div class="toggle-hint" data-i18n="budget_per_user_hint">התקציב חל על כל משתתף בנפרד (במקום תקציב קבוצתי)</div>
                     </div>
                     <label class="mini-toggle">
-                        <input type="checkbox" id="edit-trip-budget-per-user">
+                        <input type="checkbox" id="edit-trip-budget-per-user" onchange="toggleBudgetFields('edit')">
                         <span class="mini-toggle-slider"></span>
                     </label>
+                </div>
+                <div id="edit-global-budgets">
+                    <div class="form-group" id="edit-budget-daily-group" style="display: none; margin-bottom: 10px;">
+                        <label>סכום תקציב יומי כללי</label>
+                        <input type="number" id="edit-budget-daily-amt" placeholder="0" min="0">
+                    </div>
+                    <div class="form-group" id="edit-budget-monthly-group" style="display: none; margin-bottom: 10px;">
+                        <label>סכום תקציב חודשי כללי</label>
+                        <input type="number" id="edit-budget-monthly-amt" placeholder="0" min="0">
+                    </div>
+                    <div class="form-group" id="edit-budget-yearly-group" style="display: none; margin-bottom: 10px;">
+                        <label>סכום תקציב שנתי כללי</label>
+                        <input type="number" id="edit-budget-yearly-amt" placeholder="0" min="0">
+                    </div>
                 </div>
             </div>
 
@@ -474,8 +513,11 @@
                     </div>
 
                     <div class="invite-tab-panel active" data-panel="whatsapp" id="edit-tab-whatsapp">
-                        <div class="invite-input-group">
-                            <input type="text" id="edit-wa-phone" data-i18n="invite_phone_ph" placeholder="מספר טלפון">
+                        <div class="invite-input-group" style="display: flex; gap: 5px;">
+                            <input type="text" id="edit-wa-phone" data-i18n="invite_phone_ph" placeholder="מספר טלפון" style="flex: 1;">
+                            <button type="button" class="icon-btn" onclick="pickContact('edit', 'wa')" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; width: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-dark);" title="Phone Contacts">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 18a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2"></path><rect x="5" y="2" width="14" height="20" rx="2"></rect><circle cx="12" cy="8" r="2"></circle></svg>
+                            </button>
                         </div>
                         <button type="button" class="invite-action-btn whatsapp" onclick="sendWhatsAppInviteFromTab('edit')">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>

@@ -310,6 +310,10 @@ def init_db_updates():
                 )
             """)
             logger.info("Migration: added 'is_admin' column to TripMembers")
+            
+        if 'budgets_json' not in tm_cols2:
+            cursor.execute("ALTER TABLE TripMembers ADD COLUMN budgets_json TEXT DEFAULT '{}'")
+            logger.info("Migration: added 'budgets_json' column to TripMembers")
     except sqlite3.Error as e:
         logger.error(f"TripMembers is_admin migration error: {e}")
 
@@ -326,6 +330,9 @@ def init_db_updates():
         if 'is_budget_per_user' not in trips_cols:
             cursor.execute("ALTER TABLE Trips ADD COLUMN is_budget_per_user INTEGER DEFAULT 0")
             logger.info("Migration: added 'is_budget_per_user' column to Trips")
+        if 'budgets_json' not in trips_cols:
+            cursor.execute("ALTER TABLE Trips ADD COLUMN budgets_json TEXT DEFAULT '{}'")
+            logger.info("Migration: added 'budgets_json' column to Trips")
     except sqlite3.Error as e:
         logger.error(f"Trips columns migration error: {e}")
 
@@ -1564,11 +1571,13 @@ def create_trip():
             budget_type = 'none'
 
         is_budget_per_user = 1 if data.get('is_budget_per_user') else 0
+        global_budgets = data.get('budgets_json', {})
+        global_budgets_json = json.dumps(global_budgets)
 
         participants_json = json.dumps([], ensure_ascii=False)
         cursor.execute(
-            "INSERT INTO Trips (destination, budget, budget_type, is_budget_per_user, owner_id, local_participants) VALUES (?, ?, ?, ?, ?, ?)",
-            (name, budget, budget_type, is_budget_per_user, session['user_id'], participants_json)
+            "INSERT INTO Trips (destination, budget, budget_type, is_budget_per_user, budgets_json, owner_id, local_participants) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (name, budget, budget_type, is_budget_per_user, global_budgets_json, session['user_id'], participants_json)
         )
         trip_id = cursor.lastrowid
 
@@ -1581,13 +1590,14 @@ def create_trip():
         # Process each participant
         for p in participants:
             ptype = p.get('type', 'registered')
+            p_budgets = json.dumps(p.get('budgets_json', {}))
 
             if ptype == 'guest':
                 guest_name = str(p.get('name', '')).strip()
                 if guest_name:
                     cursor.execute(
-                        "INSERT OR IGNORE INTO TripMembers (trip_id, user_id, guest_name) VALUES (?, NULL, ?)",
-                        (trip_id, guest_name)
+                        "INSERT OR IGNORE INTO TripMembers (trip_id, user_id, guest_name, budgets_json) VALUES (?, NULL, ?, ?)",
+                        (trip_id, guest_name, p_budgets)
                     )
             elif ptype == 'registered':
                 contact = str(p.get('contact', '')).strip()
@@ -1597,8 +1607,8 @@ def create_trip():
                 found_user = cursor.fetchone()
                 if found_user:
                     cursor.execute(
-                        "INSERT OR IGNORE INTO TripMembers (trip_id, user_id) VALUES (?, ?)",
-                        (trip_id, found_user['id'])
+                        "INSERT OR IGNORE INTO TripMembers (trip_id, user_id, budgets_json) VALUES (?, ?, ?)",
+                        (trip_id, found_user['id'], p_budgets)
                     )
                     cursor.execute(
                         "INSERT INTO trip_invitations (trip_id, inviter_id, invitee_phone_or_email, status) VALUES (?, ?, ?, 'APPROVED')",
@@ -1612,6 +1622,56 @@ def create_trip():
     except sqlite3.Error as e:
         logger.error(f"Create trip error: {e}")
         return jsonify({"error": "שגיאה ביצירת הטיול."}), 500
+    finally:
+        conn.close()
+
+
+@app.route('/api/trips/<int:trip_id>', methods=['GET'])
+@login_required
+@require_trip_access
+def get_trip(trip_id):
+    """Get full details for a single trip, including members and budgets."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT * FROM Trips WHERE id = ?", (trip_id,))
+        trip = cursor.fetchone()
+        if not trip:
+            return jsonify({"error": "טיול לא נמצא."}), 404
+
+        # Get members
+        cursor.execute("""
+            SELECT tm.*, u.name, u.phone, u.email 
+            FROM TripMembers tm
+            LEFT JOIN Users u ON tm.user_id = u.id
+            WHERE tm.trip_id = ?
+        """, (trip_id,))
+        members = cursor.fetchall()
+        
+        participants = []
+        for m in members:
+            contact = m['email'] or m['phone'] or m['guest_name'] or ''
+            participants.append({
+                'id': m['user_id'],
+                'name': m['name'] or m['guest_name'],
+                'contact': contact,
+                'type': 'guest' if not m['user_id'] else 'registered',
+                'budgets_json': json.loads(m['budgets_json']) if m['budgets_json'] else {}
+            })
+
+        return jsonify({
+            'id': trip['id'],
+            'name': trip['destination'],
+            'budget': trip['budget'],
+            'budget_type': trip['budget_type'] or 'none',
+            'is_budget_per_user': bool(trip['is_budget_per_user']),
+            'budgets_json': json.loads(trip['budgets_json']) if trip['budgets_json'] else {},
+            'is_owner': trip['owner_id'] == session['user_id'],
+            'participants': participants
+        })
+    except sqlite3.Error as e:
+        logger.error(f"Get trip error: {e}")
+        return jsonify({"error": "שגיאה בטעינת הטיול."}), 500
     finally:
         conn.close()
 
@@ -1663,6 +1723,10 @@ def update_trip(trip_id):
             updates.append("is_budget_per_user = ?")
             params.append(1 if data['is_budget_per_user'] else 0)
 
+        if 'budgets_json' in data:
+            updates.append("budgets_json = ?")
+            params.append(json.dumps(data['budgets_json']))
+
         if 'participants' in data:
             raw_participants = data['participants']
             if not isinstance(raw_participants, list):
@@ -1681,14 +1745,17 @@ def update_trip(trip_id):
 
             for p in participants:
                 ptype = p.get('type', 'registered')
+                p_budgets = json.dumps(p.get('budgets_json', {}))
 
                 if ptype == 'guest':
                     guest_name = str(p.get('name', '')).strip()
                     if guest_name:
                         cursor.execute(
-                            "INSERT OR IGNORE INTO TripMembers (trip_id, user_id, guest_name) VALUES (?, NULL, ?)",
-                            (trip_id, guest_name)
+                            "INSERT OR IGNORE INTO TripMembers (trip_id, user_id, guest_name, budgets_json) VALUES (?, NULL, ?, ?)",
+                            (trip_id, guest_name, p_budgets)
                         )
+                        # Ensure budgets_json is updated if it already existed
+                        cursor.execute("UPDATE TripMembers SET budgets_json = ? WHERE trip_id = ? AND guest_name = ?", (p_budgets, trip_id, guest_name))
                 elif ptype == 'registered':
                     contact = str(p.get('contact', '')).strip()
                     if not contact:
@@ -1698,9 +1765,11 @@ def update_trip(trip_id):
                     if not user:
                         continue  # Skip unregistered — don't block
                     cursor.execute(
-                        "INSERT OR IGNORE INTO TripMembers (trip_id, user_id) VALUES (?, ?)",
-                        (trip_id, user['id'])
+                        "INSERT OR IGNORE INTO TripMembers (trip_id, user_id, budgets_json) VALUES (?, ?, ?)",
+                        (trip_id, user['id'], p_budgets)
                     )
+                    cursor.execute("UPDATE TripMembers SET budgets_json = ? WHERE trip_id = ? AND user_id = ?", (p_budgets, trip_id, user['id']))
+                    
                     cursor.execute("SELECT 1 FROM trip_invitations WHERE trip_id = ? AND invitee_phone_or_email = ?", (trip_id, contact))
                     if not cursor.fetchone():
                         cursor.execute(

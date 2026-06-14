@@ -647,9 +647,13 @@ async function openEditTripModal(tripId) {
         const data = await res.json();
         if (res.ok && data.success) {
             const trip = data.trip;
-            const nameEl = document.getElementById('edit-trip-name');
-            if (nameEl) nameEl.value = trip.name;
-            
+            const populateEditModal = () => {
+                const nameEl = document.getElementById('edit-trip-name');
+                if (!nameEl) {
+                    setTimeout(populateEditModal, 50);
+                    return;
+                }
+                nameEl.value = trip.name || '';
             // Set per-user toggle
             const bpuEl = document.getElementById('edit-trip-budget-per-user');
             if (bpuEl) bpuEl.checked = !!trip.is_budget_per_user;
@@ -685,6 +689,8 @@ async function openEditTripModal(tripId) {
             }
             renderEditFriendsChips();
             switchInviteTab('whatsapp', 'edit');
+            };
+            populateEditModal();
         }
     } catch (e) {
         console.error('Failed to load trip details', e);

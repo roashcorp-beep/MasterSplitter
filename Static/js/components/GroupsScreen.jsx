@@ -270,8 +270,7 @@ const GroupsScreen = () => {
                         </button>
                     </div>
 
-                    {editShowBudget && (
-                        <div id="advanced-budget-settings" className="mt-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700">
+                        <div id="advanced-budget-settings" className="mt-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700" style={{ display: editShowBudget ? 'block' : 'none' }}>
                             <div className="budget-per-user-row" style={{ marginBottom: 10 }}>
                                 <div>
                                     <div className="toggle-label">{i18n("budget_per_user") || "תקציב לכל משתתף"}</div>
@@ -301,7 +300,6 @@ const GroupsScreen = () => {
                                 </div>
                             </div>
                         </div>
-                    )}
 
                     <div className="form-group">
                         <label>{i18n("invite_members_title") || "הזמן חברים"}</label>

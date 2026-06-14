@@ -2050,7 +2050,7 @@ body.light-theme .list-item:hover {
    EDIT TRIP MODAL
    ============================================ */
 .modal-overlay {
-    position: absolute;
+    position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.7);
     backdrop-filter: blur(6px);
@@ -2059,6 +2059,8 @@ body.light-theme .list-item:hover {
     align-items: center;
     justify-content: center;
     animation: fadeIn 0.2s ease;
+    overflow-y: auto;
+    padding: 20px 0;
 }
 
 .modal-overlay.open {

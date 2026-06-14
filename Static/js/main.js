@@ -550,15 +550,15 @@ function getBudgetInputsHtml(mode, idx, memberBudgets = {}) {
 
     let html = '<div class="chip-budgets" style="display:flex; gap:5px; margin-top:5px; width: 100%;" onclick="event.stopPropagation()">';
     if (daily) {
-        html += `<input type="number" placeholder="יומי" style="flex:1; padding:4px; border-radius:4px; border:1px solid var(--border-color); font-size:12px; background:var(--card-bg); color:var(--text-dark);" 
+        html += `<input type="number" placeholder="${i18n('budget_type_daily')}" style="flex:1; padding:4px; border-radius:4px; border:1px solid var(--border); font-size:12px; background:var(--surface-card); color:var(--text-main);" 
             onchange="updateMemberBudget('${mode}', ${idx}, 'daily', this.value)" value="${memberBudgets.daily || ''}">`;
     }
     if (monthly) {
-        html += `<input type="number" placeholder="חודשי" style="flex:1; padding:4px; border-radius:4px; border:1px solid var(--border-color); font-size:12px; background:var(--card-bg); color:var(--text-dark);" 
+        html += `<input type="number" placeholder="${i18n('budget_type_monthly')}" style="flex:1; padding:4px; border-radius:4px; border:1px solid var(--border); font-size:12px; background:var(--surface-card); color:var(--text-main);" 
             onchange="updateMemberBudget('${mode}', ${idx}, 'monthly', this.value)" value="${memberBudgets.monthly || ''}">`;
     }
     if (yearly) {
-        html += `<input type="number" placeholder="שנתי" style="flex:1; padding:4px; border-radius:4px; border:1px solid var(--border-color); font-size:12px; background:var(--card-bg); color:var(--text-dark);" 
+        html += `<input type="number" placeholder="${i18n('budget_type_yearly')}" style="flex:1; padding:4px; border-radius:4px; border:1px solid var(--border); font-size:12px; background:var(--surface-card); color:var(--text-main);" 
             onchange="updateMemberBudget('${mode}', ${idx}, 'yearly', this.value)" value="${memberBudgets.yearly || ''}">`;
     }
     html += '</div>';
@@ -2482,6 +2482,26 @@ async function fetchActivity() {
 // Call initTheme on load
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();
+
+    // Register updateUI for i18n system to call when language changes
+    window.updateUI = function() {
+        // Re-render lobby if visible
+        if (document.getElementById('screen-lobby')?.classList.contains('active')) {
+            renderTripsList();
+        }
+    };
+
+    // Listen for storage events (language changed in another tab/Profile page)
+    window.addEventListener('storage', (e) => {
+        if (e.key === 'lang' && e.newValue) {
+            if (typeof setLanguage === 'function') {
+                setLanguage(e.newValue);
+            }
+        }
+        if (e.key === 'theme') {
+            initTheme();
+        }
+    });
 });
 
 // =====================

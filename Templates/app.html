@@ -8,7 +8,7 @@
     <title>MasterSplitter</title>
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800;900&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2.2">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2.3">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#0a0a1a">
     <link rel="apple-touch-icon" href="/static/icons/icon-192x192.png">
@@ -39,15 +39,15 @@
 
 <body>
     <!-- Step 7.5 Dynamic Background Container -->
-    <div id="dynamic-bg-container" class="fixed inset-0 overflow-hidden pointer-events-none transition-colors duration-500 bg-[#f8fafc] dark:bg-[#0f172a]" style="z-index: -10; position: fixed; top: 0; left: 0; right: 0; bottom: 0;">
-        <canvas id="bg-canvas-dark" class="absolute inset-0 transition-opacity duration-700" style="opacity: 0; position: absolute; inset: 0;"></canvas>
-        <canvas id="bg-canvas-light" class="absolute inset-0 transition-opacity duration-700" style="opacity: 0; position: absolute; inset: 0;"></canvas>
+    <div id="dynamic-bg-container" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 0; overflow: hidden; pointer-events: none; background: var(--bg-main);">
+        <canvas id="bg-canvas-dark" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 0.7s;"></canvas>
+        <canvas id="bg-canvas-light" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 0.7s;"></canvas>
     </div>
 
     <div id="toast" class="toast"></div>
 
     <!-- MAIN APP CONTAINER -->
-    <div id="app-container" class="app-container relative z-10">
+    <div id="app-container" class="app-container">
 
         <!-- Top Header -->
         <header class="app-header">
@@ -617,8 +617,8 @@
         </button>
     </div>
 
-    <script src="{{ url_for('static', filename='js/translations.js') }}?v=2.2"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=2.2"></script>
+    <script src="{{ url_for('static', filename='js/translations.js') }}?v=2.3"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=2.3"></script>
     <script>
         function checkCookieConsent() {
             if (!localStorage.getItem('cookieConsent')) {

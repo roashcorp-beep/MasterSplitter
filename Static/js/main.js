@@ -231,6 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function initApp() {
+    setTimeout(() => { const s = document.getElementById('screen-loading'); if(s) s.style.display='none'; }, 1500);
     try {
         const res = await fetch('/api/me');
         if (!res.ok) { window.location.href = '/'; return; }
@@ -384,10 +385,12 @@ function showView(view) {
     }
 }
 
-function renderTripsList() {
-    window.openEditModal = typeof openEditTripModal !== 'undefined' ? openEditTripModal : function(){};
-    if (typeof window.reactUpdateTrips === 'function') {
-        window.reactUpdateTrips(allTrips);
+function renderTripsList(tripsArray) {
+    const tripsToRender = tripsArray || currentUser?.trips || [];
+    if (window.reactUpdateTrips) {
+        window.reactUpdateTrips(tripsToRender);
+    } else {
+        console.warn("React GroupsScreen not yet mounted.");
     }
 }
 

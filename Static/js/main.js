@@ -232,6 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function initApp() {
     setTimeout(() => { const s = document.getElementById('screen-loading'); if(s) s.style.display='none'; }, 1500);
+    if (typeof window.applyGlobalTranslations === 'function') window.applyGlobalTranslations();
     try {
         const res = await fetch('/api/me');
         if (!res.ok) { window.location.href = '/'; return; }
@@ -337,6 +338,7 @@ async function loadLobby() {
         const res = await fetch('/api/trips');
         if (res.status === 401) { window.location.href = '/'; return; }
         allTrips = await res.json();
+        window.allTrips = allTrips;
 
         // Auto-open the most recent trip on first load
         if (!hasAutoOpenedTrip && allTrips.length > 0) {
@@ -346,7 +348,7 @@ async function loadLobby() {
         }
 
         showView('lobby');
-        renderTripsList();
+        renderTripsList(allTrips);
     } catch (e) { 
         console.error('Load lobby error:', e); 
         showView('lobby');
@@ -383,10 +385,13 @@ function showView(view) {
         if (bottomNav) bottomNav.style.display = 'flex';
         if (aiFab) aiFab.style.display = '';
     }
+    if (typeof window.applyGlobalTranslations === 'function') {
+        window.applyGlobalTranslations();
+    }
 }
 
 function renderTripsList(tripsArray) {
-    const tripsToRender = tripsArray || currentUser?.trips || [];
+    const tripsToRender = tripsArray || (typeof allTrips !== 'undefined' ? allTrips : []) || currentUser?.trips || [];
     if (window.reactUpdateTrips) {
         window.reactUpdateTrips(tripsToRender);
     } else {
@@ -2480,6 +2485,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof window.applyGlobalTranslations === 'function') {
             window.applyGlobalTranslations();
         }
+        window.dispatchEvent(new Event('languageChanged'));
     };
 
     // Listen for storage events (language changed in another tab/Profile page)

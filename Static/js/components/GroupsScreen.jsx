@@ -41,8 +41,18 @@ const GroupsScreen = () => {
     }, []);
 
     const i18n = (key) => {
-        if (typeof window.i18n === "function") return window.i18n(key);
-        return key; // Fallback
+        const lang = localStorage.getItem('lang') || 'he';
+        // Priority 1: Check translations.js dictionary
+        if (window.translations && window.translations[lang] && window.translations[lang][key]) {
+            return window.translations[lang][key];
+        }
+        // Priority 2: Check i18n.js dictionary
+        if (window.i18n && typeof window.i18n.getTranslation === "function") {
+            const val = window.i18n.getTranslation(key);
+            if (val !== key) return val;
+        }
+        // Priority 3: Fallback (returns null so the || "default" works in JSX)
+        return null;
     };
 
     const handleTripClick = (id) => {

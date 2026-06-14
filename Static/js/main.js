@@ -231,15 +231,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function initApp() {
-    let initComplete = false;
-    
-    const safetyTimeout = setTimeout(() => {
-        if (!initComplete) {
-            console.warn("initApp safety timeout triggered: hiding spinner.");
-            showView('lobby');
-        }
-    }, 3000);
-
     try {
         const res = await fetch('/api/me');
         if (!res.ok) { window.location.href = '/'; return; }
@@ -269,6 +260,11 @@ async function initApp() {
         const emailEl = document.getElementById('profile-email-display');
         if (emailEl) emailEl.textContent = currentUser.email || '';
         
+        if (document.getElementById('screen-loading')) {
+            document.getElementById('screen-loading').style.display = 'none';
+            document.getElementById('screen-loading').classList.remove('active');
+        }
+
         if (document.getElementById('screen-lobby')) {
             await loadLobby();
             fetchInvitations();
@@ -276,13 +272,6 @@ async function initApp() {
     } catch (e) {
         console.error('Init error:', e);
         window.location.href = '/';
-    } finally {
-        initComplete = true;
-        clearTimeout(safetyTimeout);
-        // Ensure spinner is hidden if loadLobby wasn't called or failed silently
-        if (document.getElementById('screen-loading')?.classList.contains('active')) {
-            showView('lobby');
-        }
     }
 }
 
@@ -404,6 +393,7 @@ function showView(view) {
 }
 
 function renderTripsList() {
+    window.openEditModal = typeof openEditTripModal !== 'undefined' ? openEditTripModal : function(){};
     const container = document.getElementById('trips-list');
     if (!container) return;
     if (!allTrips || allTrips.length === 0) {
@@ -413,45 +403,41 @@ function renderTripsList() {
                     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
                     <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                 </svg>
-                <p>${i18n('lobby_no_groups')}</p>
+                <p>${typeof i18n === 'function' ? i18n('lobby_no_groups') : 'No groups yet'}</p>
             </div>`;
         return;
     }
-    const avatarColors = [
-        'linear-gradient(135deg, #a855f7, #6366f1)',
-        'linear-gradient(135deg, #06d6a0, #22d3ee)',
-        'linear-gradient(135deg, #f59e0b, #ef4444)',
-        'linear-gradient(135deg, #3b82f6, #8b5cf6)',
-        'linear-gradient(135deg, #ec4899, #f43f5e)',
-        'linear-gradient(135deg, #14b8a6, #06b6d4)'
-    ];
-    const usersSvg = `<svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/></svg>`;
-    container.innerHTML = allTrips.map((t, i) => {
-        const safeName = escapeHTML(t.name);
-        const initial = (t.name || '?').charAt(0);
-        const memberCount = t.participants ? t.participants.length : 0;
-        const budgetDisplay = (t.budget && t.budget > 0)
-            ? `<span class="trip-card-v2-budget">${getUserCurrencySymbol()}${t.budget.toLocaleString()}</span>`
-            : `<span class="trip-card-v2-budget no-budget">—</span>`;
-        const editBtn = t.is_owner ? `<button class="trip-edit-btn" onclick="event.stopPropagation(); openEditTripModal(${t.id})" title="${i18n('modal_edit_trip')}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>` : '';
-        return `
-        <div class="trip-card-v2" onclick="openTrip(${t.id})" style="display:flex; justify-content:space-between; align-items:center;">
-            <div style="display:flex; align-items:center; gap:12px;">
-                <div class="trip-card-avatar" style="background:${avatarColors[i % avatarColors.length]}">${escapeHTML(initial)}</div>
-                ${editBtn}
-                <div class="trip-card-v2-body">
-                    <div class="trip-card-v2-name">${safeName}</div>
-                    <div class="trip-card-v2-meta">
-                        <span class="meta-item">${usersSvg} ${memberCount} ${typeof i18n === 'function' ? i18n('members_count') : 'Members'}</span>
-                    </div>
-                </div>
+    
+    let tripHtml = '';
+    for (let i = 0; i < allTrips.length; i++) {
+        const trip = allTrips[i];
+        if (trip.is_admin === undefined) trip.is_admin = trip.is_owner;
+        
+        tripHtml += `
+    <div class="trip-card-v2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md rounded-2xl p-4 shadow-lg border border-gray-100 dark:border-gray-700 flex justify-between items-center cursor-pointer hover:shadow-xl transition-all" onclick="window.location.hash = '#trip-${trip.id}'">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl shadow-inner">
+                ${trip.name.charAt(0).toUpperCase()}
             </div>
-            <div class="trip-card-v2-right">
-                ${budgetDisplay}
-                <span class="trip-card-v2-arrow">›</span>
+            ${trip.is_admin ? `<button onclick="event.stopPropagation(); openEditModal(${trip.id})" class="text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors p-2 rounded-full hover:bg-indigo-50 dark:hover:bg-indigo-900/30">✏️</button>` : ''}
+            <div>
+                <h3 class="font-bold text-gray-900 dark:text-white text-lg">${escapeHTML(trip.name)}</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                    <span class="inline-block w-2 h-2 rounded-full bg-green-500"></span>
+                    <span data-i18n="active_trip">Active</span>
+                </p>
             </div>
-        </div>`;
-    }).join('');
+        </div>
+        <div class="text-right">
+            <div class="text-xs text-gray-500 dark:text-gray-400 mb-1" data-i18n="total_budget">Total</div>
+            <div class="font-bold text-xl text-indigo-600 dark:text-indigo-400" dir="ltr">
+                 <span class="text-sm mr-1">${getUserCurrencySymbol()}</span>${trip.budget ? trip.budget.toLocaleString() : '0.00'}
+            </div>
+        </div>
+    </div>
+`;
+    }
+    container.innerHTML = tripHtml;
 }
 
 async function openTrip(tripId) {
@@ -3041,3 +3027,29 @@ async function getAITip() {
         btn.innerHTML = originalText;
     }
 }
+
+window.toggleAdvancedBudget = function() {
+    const budgetSettings = document.getElementById('advanced-budget-settings');
+    if (!budgetSettings) return;
+    if (budgetSettings.style.display === 'none' || budgetSettings.style.display === '') {
+        budgetSettings.style.display = 'block';
+    } else {
+        budgetSettings.style.display = 'none';
+    }
+};
+
+window.applyGlobalTranslations = function() {
+    const lang = localStorage.getItem('lang') || 'he';
+    if(typeof i18n === 'function' && window.translations) {
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            if (window.translations[lang] && window.translations[lang][key]) {
+                if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                    el.placeholder = window.translations[lang][key];
+                } else {
+                    el.textContent = window.translations[lang][key];
+                }
+            }
+        });
+    }
+};

@@ -99,8 +99,7 @@
             </div>
 
             <!-- LOBBY SCREEN -->
-            <div id="screen-lobby" class="screen relative min-h-screen">
-                <div class="relative z-10 w-full max-w-md mx-auto bg-white/40 dark:bg-gray-800/40 backdrop-blur-md rounded-[2.5rem] p-6 shadow-xl border border-white/30 dark:border-gray-700/50 mt-16">
+            <div id="screen-lobby" class="screen relative z-10 w-full max-w-4xl mx-auto p-4 pt-24 hidden">
                     <div class="lobby-header">
                         <h2 data-i18n="lobby_my_trips">הקבוצות שלי</h2>
                         <button class="primary-btn sm" onclick="openCreateTripModal()" data-i18n="lobby_btn_create">+ צור
@@ -110,7 +109,6 @@
                         <div class="loading-state" data-i18n="loading">טוען...</div>
                     </div>
                 </div>
-            </div>
 
             <!-- HOME DASHBOARD SCREEN -->
             <div id="screen-home" class="screen">
@@ -357,13 +355,10 @@
             </div>
 
             <div class="form-group">
-                <button type="button" class="advanced-budget-btn" onclick="toggleAdvancedBudget('create')" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--surface-card); border: 1px solid var(--border); padding: 12px; border-radius: 12px; cursor: pointer; color: var(--text-main); font-weight: 500; transition: all 0.2s;">
-                    <span>⚙️</span>
-                    <span data-i18n="advanced_budget_settings">הגדרות תקציב מתקדמות</span>
-                </button>
+                <button type="button" class="w-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 py-2 rounded-lg font-medium mt-4" onclick="window.toggleAdvancedBudget()">⚙️ <span data-i18n="advanced_budget">Advanced Budget Settings</span></button>
             </div>
 
-            <div id="create-budget-conditional" class="budget-conditional" style="display: none; background: rgba(0,0,0,0.02); padding: 10px; border-radius: 8px; margin-bottom: 15px;">
+            <div id="advanced-budget-settings" class="budget-conditional" style="display: none; background: rgba(0,0,0,0.02); padding: 10px; border-radius: 8px; margin-bottom: 15px;">
                 <div class="budget-per-user-row" style="margin-bottom: 10px;">
                     <div>
                         <div class="toggle-label" data-i18n="budget_per_user">תקציב לכל משתתף</div>
@@ -474,13 +469,10 @@
             </div>
 
             <div class="form-group">
-                <button type="button" class="advanced-budget-btn" onclick="toggleAdvancedBudget('edit')" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--surface-card); border: 1px solid var(--border); padding: 12px; border-radius: 12px; cursor: pointer; color: var(--text-main); font-weight: 500; transition: all 0.2s;">
-                    <span>⚙️</span>
-                    <span data-i18n="advanced_budget_settings">הגדרות תקציב מתקדמות</span>
-                </button>
+                <button type="button" class="w-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 py-2 rounded-lg font-medium mt-4" onclick="window.toggleAdvancedBudget()">⚙️ <span data-i18n="advanced_budget">Advanced Budget Settings</span></button>
             </div>
 
-            <div id="edit-budget-conditional" class="budget-conditional" style="display: none; background: rgba(0,0,0,0.02); padding: 10px; border-radius: 8px; margin-bottom: 15px;">
+            <div id="advanced-budget-settings" class="budget-conditional" style="display: none; background: rgba(0,0,0,0.02); padding: 10px; border-radius: 8px; margin-bottom: 15px;">
                 <div class="budget-per-user-row" style="margin-bottom: 10px;">
                     <div>
                         <div class="toggle-label" data-i18n="budget_per_user">תקציב לכל משתתף</div>
@@ -823,9 +815,7 @@
           const handleStorage = (e) => {
             if (e.key === 'lang' && e.newValue) {
               setLang(e.newValue);
-              if (typeof setLanguage === 'function') setLanguage(e.newValue);
-              if (typeof renderTripsList === 'function') renderTripsList();
-              if (typeof renderDashboard === 'function' && document.getElementById('screen-dashboard')?.classList.contains('active')) renderDashboard();
+              if (typeof window.applyGlobalTranslations === 'function') window.applyGlobalTranslations();
             }
           };
           window.addEventListener('storage', handleStorage);

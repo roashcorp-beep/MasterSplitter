@@ -3319,11 +3319,7 @@ body.light-theme .social-btn:hover {
 
 /* Light theme: travel watermark inside app-container */
 body.light-theme .app-container {
-    background:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='400' viewBox='0 0 600 400' fill='none' stroke='%233b82f6' stroke-width='1' opacity='0.04'%3E%3Cpath d='M50 350 L80 200 L65 120 L65 80 L65 50'/%3E%3Cpath d='M80 350 L50 200'/%3E%3Cpath d='M56 200 L74 200 M58 120 L72 120'/%3E%3Ccircle cx='300' cy='200' r='60'/%3E%3Cellipse cx='300' cy='200' rx='25' ry='60'/%3E%3Cpath d='M240 200 L360 200 M255 170 L345 170 M255 230 L345 230'/%3E%3Crect x='460' y='260' width='50' height='40' rx='4'/%3E%3Cpath d='M473 260 L473 252 L497 252 L497 260'/%3E%3Cpath d='M420 120 L480 100 L500 95 L480 100 L470 130 M480 100 L450 105 L440 120'/%3E%3Cpath d='M150 350 L190 250 L230 350 M170 350 L200 270 L230 350'/%3E%3Ccircle cx='530' cy='80' r='25'/%3E%3Cpath d='M530 55 L530 58 M530 102 L530 105 M505 80 L508 80 M552 80 L555 80'/%3E%3Cpath d='M530 68 L536 80 L530 92 L524 80 Z'/%3E%3C/svg%3E")
-        no-repeat center center,
-        var(--bg-main);
-    background-size: 100% auto;
+    background-color: transparent !important;
 }
 
 /* Light theme cards: glassmorphism with slight transparency */

@@ -325,7 +325,7 @@ async function respondInvitation(id, action) {
 let hasAutoOpenedTrip = false;
 
 async function loadLobby() {
-    showView('lobby');
+    showView('loading');
     try {
         const res = await fetch('/api/trips');
         if (res.status === 401) { window.location.href = '/'; return; }
@@ -338,6 +338,7 @@ async function loadLobby() {
             return;
         }
 
+        showView('lobby');
         renderTripsList();
     } catch (e) { console.error('Load lobby error:', e); }
 }
@@ -352,6 +353,11 @@ function showView(view) {
     if (view === 'lobby') {
         const lobbyScreen = document.getElementById('screen-lobby');
         if (lobbyScreen) lobbyScreen.classList.add('active');
+        if (bottomNav) bottomNav.style.display = 'none';
+        if (aiFab) aiFab.style.display = 'none';
+    } else if (view === 'loading') {
+        const loadingScreen = document.getElementById('screen-loading');
+        if (loadingScreen) loadingScreen.classList.add('active');
         if (bottomNav) bottomNav.style.display = 'none';
         if (aiFab) aiFab.style.display = 'none';
     } else {
@@ -544,23 +550,17 @@ function getBudgetInputsHtml(mode, idx, memberBudgets = {}) {
     const isPerUser = document.getElementById(mode === 'create' ? 'trip-budget-per-user' : 'edit-trip-budget-per-user')?.checked;
     if (!isPerUser) return '';
 
-    const daily = document.getElementById(`${mode}-budget-daily-cb`)?.checked;
-    const monthly = document.getElementById(`${mode}-budget-monthly-cb`)?.checked;
-    const yearly = document.getElementById(`${mode}-budget-yearly-cb`)?.checked;
-
     let html = '<div class="chip-budgets" style="display:flex; gap:5px; margin-top:5px; width: 100%;" onclick="event.stopPropagation()">';
-    if (daily) {
-        html += `<input type="number" placeholder="${i18n('budget_type_daily')}" style="flex:1; padding:4px; border-radius:4px; border:1px solid var(--border); font-size:12px; background:var(--surface-card); color:var(--text-main);" 
-            onchange="updateMemberBudget('${mode}', ${idx}, 'daily', this.value)" value="${memberBudgets.daily || ''}">`;
-    }
-    if (monthly) {
-        html += `<input type="number" placeholder="${i18n('budget_type_monthly')}" style="flex:1; padding:4px; border-radius:4px; border:1px solid var(--border); font-size:12px; background:var(--surface-card); color:var(--text-main);" 
-            onchange="updateMemberBudget('${mode}', ${idx}, 'monthly', this.value)" value="${memberBudgets.monthly || ''}">`;
-    }
-    if (yearly) {
-        html += `<input type="number" placeholder="${i18n('budget_type_yearly')}" style="flex:1; padding:4px; border-radius:4px; border:1px solid var(--border); font-size:12px; background:var(--surface-card); color:var(--text-main);" 
-            onchange="updateMemberBudget('${mode}', ${idx}, 'yearly', this.value)" value="${memberBudgets.yearly || ''}">`;
-    }
+    
+    html += `<input type="number" placeholder="${typeof i18n === 'function' ? i18n('budget_type_daily') : 'Daily'}" style="flex:1; padding:4px; border-radius:4px; border:1px solid var(--border); font-size:12px; background:var(--surface-card); color:var(--text-main);" 
+        onchange="updateMemberBudget('${mode}', ${idx}, 'daily', this.value)" value="${memberBudgets.daily || ''}">`;
+        
+    html += `<input type="number" placeholder="${typeof i18n === 'function' ? i18n('budget_type_monthly') : 'Monthly'}" style="flex:1; padding:4px; border-radius:4px; border:1px solid var(--border); font-size:12px; background:var(--surface-card); color:var(--text-main);" 
+        onchange="updateMemberBudget('${mode}', ${idx}, 'monthly', this.value)" value="${memberBudgets.monthly || ''}">`;
+        
+    html += `<input type="number" placeholder="${typeof i18n === 'function' ? i18n('budget_type_yearly') : 'Yearly'}" style="flex:1; padding:4px; border-radius:4px; border:1px solid var(--border); font-size:12px; background:var(--surface-card); color:var(--text-main);" 
+        onchange="updateMemberBudget('${mode}', ${idx}, 'yearly', this.value)" value="${memberBudgets.yearly || ''}">`;
+
     html += '</div>';
     return html;
 }
@@ -600,15 +600,14 @@ async function createTrip() {
     
     // Collect budgets_json
     const budgets_json = {};
-    if (document.getElementById('create-budget-daily-cb')?.checked) {
-        budgets_json.daily = parseFloat(document.getElementById('create-budget-daily-amt')?.value) || 0;
-    }
-    if (document.getElementById('create-budget-monthly-cb')?.checked) {
-        budgets_json.monthly = parseFloat(document.getElementById('create-budget-monthly-amt')?.value) || 0;
-    }
-    if (document.getElementById('create-budget-yearly-cb')?.checked) {
-        budgets_json.yearly = parseFloat(document.getElementById('create-budget-yearly-amt')?.value) || 0;
-    }
+    const dVal = parseFloat(document.getElementById('create-budget-daily-amt')?.value);
+    if (dVal > 0) budgets_json.daily = dVal;
+
+    const mVal = parseFloat(document.getElementById('create-budget-monthly-amt')?.value);
+    if (mVal > 0) budgets_json.monthly = mVal;
+
+    const yVal = parseFloat(document.getElementById('create-budget-yearly-amt')?.value);
+    if (yVal > 0) budgets_json.yearly = yVal;
 
     if (!name) { showToast(typeof i18n === 'function' ? i18n('err_fill_all') : 'אנא מלא את כל השדות', 'error'); return; }
 
@@ -782,15 +781,14 @@ async function saveEditTrip() {
 
     // Collect budgets_json
     const budgets_json = {};
-    if (document.getElementById('edit-budget-daily-cb')?.checked) {
-        budgets_json.daily = parseFloat(document.getElementById('edit-budget-daily-amt')?.value) || 0;
-    }
-    if (document.getElementById('edit-budget-monthly-cb')?.checked) {
-        budgets_json.monthly = parseFloat(document.getElementById('edit-budget-monthly-amt')?.value) || 0;
-    }
-    if (document.getElementById('edit-budget-yearly-cb')?.checked) {
-        budgets_json.yearly = parseFloat(document.getElementById('edit-budget-yearly-amt')?.value) || 0;
-    }
+    const dVal = parseFloat(document.getElementById('edit-budget-daily-amt')?.value);
+    if (dVal > 0) budgets_json.daily = dVal;
+
+    const mVal = parseFloat(document.getElementById('edit-budget-monthly-amt')?.value);
+    if (mVal > 0) budgets_json.monthly = mVal;
+
+    const yVal = parseFloat(document.getElementById('edit-budget-yearly-amt')?.value);
+    if (yVal > 0) budgets_json.yearly = yVal;
 
     if (!name) { alert(typeof i18n === 'function' ? i18n('err_fill_all') : 'Missing fields'); return; }
 
@@ -842,14 +840,16 @@ async function pickContact(mode, type) {
         if (contacts && contacts.length > 0) {
             const contact = contacts[0];
             const name = contact.name ? contact.name[0] : '';
-            const phone = contact.tel ? contact.tel[0] : '';
+            const phone = contact.tel ? contact.tel[0].replace(/[\s\-\(\)]/g, '') : '';
             const email = contact.email ? contact.email[0] : '';
             
             if (type === 'wa' && phone) {
                 document.getElementById(`${mode}-wa-phone`).value = phone;
+                sendWhatsAppInviteFromTab(mode);
             } else if (type === 'email') {
                 if (name) document.getElementById(`${mode}-email-name`).value = name;
                 if (email) document.getElementById(`${mode}-email-addr`).value = email;
+                sendEmailInviteFromTab(mode);
             }
         }
     } catch (e) {
@@ -860,29 +860,12 @@ async function pickContact(mode, type) {
 function toggleBudgetFields(mode) {
     const isPerUser = document.getElementById(mode === 'create' ? 'trip-budget-per-user' : 'edit-trip-budget-per-user')?.checked;
     
-    const daily = document.getElementById(`${mode}-budget-daily-cb`)?.checked;
-    const monthly = document.getElementById(`${mode}-budget-monthly-cb`)?.checked;
-    const yearly = document.getElementById(`${mode}-budget-yearly-cb`)?.checked;
-    
-    const conditionalDiv = document.getElementById(mode === 'create' ? 'create-budget-conditional' : 'edit-budget-conditional');
-    if (!conditionalDiv) return;
-    
-    if (daily || monthly || yearly) {
-        conditionalDiv.style.display = 'block';
-    } else {
-        conditionalDiv.style.display = 'none';
-        return;
-    }
-    
     const globalBlock = document.getElementById(`${mode}-global-budgets`);
     if (globalBlock) {
         if (isPerUser) {
             globalBlock.style.display = 'none';
         } else {
             globalBlock.style.display = 'block';
-            document.getElementById(`${mode}-budget-daily-group`).style.display = daily ? 'block' : 'none';
-            document.getElementById(`${mode}-budget-monthly-group`).style.display = monthly ? 'block' : 'none';
-            document.getElementById(`${mode}-budget-yearly-group`).style.display = yearly ? 'block' : 'none';
         }
     }
 
@@ -2814,66 +2797,7 @@ document.addEventListener('DOMContentLoaded', setupCustomDropdowns);
 // =====================
 //  CONTACT PICKER API
 // =====================
-async function pickContact() {
-    if (!('contacts' in navigator && 'ContactsManager' in window)) {
-        alert('Contact Picker is not supported in this browser.');
-        return;
-    }
-    try {
-        const contacts = await navigator.contacts.select(['name', 'tel'], { multiple: false });
-        if (contacts && contacts.length > 0) {
-            const contact = contacts[0];
-            let phone = '';
-            if (contact.tel && contact.tel.length > 0) {
-                phone = contact.tel[0].replace(/[\s\-\(\)]/g, '');
-            }
-            if (phone) {
-                const input = document.getElementById('friend-input');
-                if (input) { input.value = phone; }
-                addFriend();
-            } else if (contact.name && contact.name.length > 0) {
-                // No phone — add as guest
-                const name = contact.name[0];
-                if (name && !friendsList.some(f => (f.name || f) === name)) {
-                    friendsList.push({ name: name, type: 'guest', status: 'guest' });
-                    renderFriendsChips();
-                }
-            }
-        }
-    } catch (e) {
-        console.error('Contact picker error:', e);
-    }
-}
 
-async function pickEditContact() {
-    if (!('contacts' in navigator && 'ContactsManager' in window)) {
-        alert('Contact Picker is not supported in this browser.');
-        return;
-    }
-    try {
-        const contacts = await navigator.contacts.select(['name', 'tel'], { multiple: false });
-        if (contacts && contacts.length > 0) {
-            const contact = contacts[0];
-            let phone = '';
-            if (contact.tel && contact.tel.length > 0) {
-                phone = contact.tel[0].replace(/[\s\-\(\)]/g, '');
-            }
-            if (phone) {
-                const input = document.getElementById('edit-friend-input');
-                if (input) { input.value = phone; }
-                addEditFriend();
-            } else if (contact.name && contact.name.length > 0) {
-                const name = contact.name[0];
-                if (name && !editFriendsList.some(f => (f.name || f) === name)) {
-                    editFriendsList.push({ name: name, type: 'guest', status: 'guest' });
-                    renderEditFriendsChips();
-                }
-            }
-        }
-    } catch (e) {
-        console.error('Contact picker error:', e);
-    }
-}
 
 // Show contact picker buttons if supported
 document.addEventListener('DOMContentLoaded', () => {

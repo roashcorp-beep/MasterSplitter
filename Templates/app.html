@@ -72,7 +72,7 @@
     <div id="app-container" class="app-container">
 
         <!-- Top Header -->
-        <header class="app-header">
+        <header class="app-header bg-white/10 dark:bg-black/20 backdrop-blur-md border-b border-white/20 z-50 relative">
             <div class="header-left">
                 <button class="hamburger-btn" onclick="openHamburgerMenu()">☰</button>
                 <div class="user-greeting">
@@ -93,8 +93,13 @@
         <!-- SCREENS -->
         <div class="screens-container">
 
+            <!-- LOADING SCREEN -->
+            <div id="screen-loading" class="screen active relative min-h-screen flex items-center justify-center">
+                <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-purple-500"></div>
+            </div>
+
             <!-- LOBBY SCREEN -->
-            <div id="screen-lobby" class="screen active relative min-h-screen">
+            <div id="screen-lobby" class="screen relative min-h-screen">
                 <div class="relative z-10 w-full max-w-md mx-auto bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-[2.5rem] p-6 shadow-2xl border border-white/50 dark:border-gray-700/50 mt-16">
                     <div class="lobby-header">
                         <h2 data-i18n="lobby_my_trips">הקבוצות שלי</h2>
@@ -352,18 +357,10 @@
             </div>
 
             <div class="form-group">
-                <label data-i18n="create_trip_budget_type">סוגי תקציב (אפשר לבחור כמה)</label>
-                <div class="budget-checkboxes" style="display: flex; gap: 15px; margin-top: 5px;">
-                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; color: var(--text-dark);">
-                        <input type="checkbox" id="create-budget-daily-cb" onchange="toggleBudgetFields('create')"> <span data-i18n="budget_type_daily">יומי</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; color: var(--text-dark);">
-                        <input type="checkbox" id="create-budget-monthly-cb" onchange="toggleBudgetFields('create')"> <span data-i18n="budget_type_monthly">חודשי</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; color: var(--text-dark);">
-                        <input type="checkbox" id="create-budget-yearly-cb" onchange="toggleBudgetFields('create')"> <span data-i18n="budget_type_yearly">שנתי</span>
-                    </label>
-                </div>
+                <button type="button" class="advanced-budget-btn" onclick="document.getElementById('create-budget-conditional').style.display = document.getElementById('create-budget-conditional').style.display === 'none' ? 'block' : 'none'" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--surface-card); border: 1px solid var(--border); padding: 12px; border-radius: 12px; cursor: pointer; color: var(--text-main); font-weight: 500; transition: all 0.2s;">
+                    <span>⚙️</span>
+                    <span data-i18n="advanced_budget_settings">הגדרות תקציב מתקדמות</span>
+                </button>
             </div>
 
             <div id="create-budget-conditional" class="budget-conditional" style="display: none; background: rgba(0,0,0,0.02); padding: 10px; border-radius: 8px; margin-bottom: 15px;">
@@ -378,15 +375,15 @@
                     </label>
                 </div>
                 <div id="create-global-budgets">
-                    <div class="form-group" id="create-budget-daily-group" style="display: none; margin-bottom: 10px;">
+                    <div class="form-group" id="create-budget-daily-group" style="margin-bottom: 10px;">
                         <label>סכום תקציב יומי כללי</label>
                         <input type="number" id="create-budget-daily-amt" placeholder="0" min="0">
                     </div>
-                    <div class="form-group" id="create-budget-monthly-group" style="display: none; margin-bottom: 10px;">
+                    <div class="form-group" id="create-budget-monthly-group" style="margin-bottom: 10px;">
                         <label>סכום תקציב חודשי כללי</label>
                         <input type="number" id="create-budget-monthly-amt" placeholder="0" min="0">
                     </div>
-                    <div class="form-group" id="create-budget-yearly-group" style="display: none; margin-bottom: 10px;">
+                    <div class="form-group" id="create-budget-yearly-group" style="margin-bottom: 10px;">
                         <label>סכום תקציב שנתי כללי</label>
                         <input type="number" id="create-budget-yearly-amt" placeholder="0" min="0">
                     </div>
@@ -477,18 +474,10 @@
             </div>
 
             <div class="form-group">
-                <label data-i18n="create_trip_budget_type">סוגי תקציב (אפשר לבחור כמה)</label>
-                <div class="budget-checkboxes" style="display: flex; gap: 15px; margin-top: 5px;">
-                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; color: var(--text-dark);">
-                        <input type="checkbox" id="edit-budget-daily-cb" onchange="toggleBudgetFields('edit')"> <span data-i18n="budget_type_daily">יומי</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; color: var(--text-dark);">
-                        <input type="checkbox" id="edit-budget-monthly-cb" onchange="toggleBudgetFields('edit')"> <span data-i18n="budget_type_monthly">חודשי</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; color: var(--text-dark);">
-                        <input type="checkbox" id="edit-budget-yearly-cb" onchange="toggleBudgetFields('edit')"> <span data-i18n="budget_type_yearly">שנתי</span>
-                    </label>
-                </div>
+                <button type="button" class="advanced-budget-btn" onclick="document.getElementById('edit-budget-conditional').style.display = document.getElementById('edit-budget-conditional').style.display === 'none' ? 'block' : 'none'" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--surface-card); border: 1px solid var(--border); padding: 12px; border-radius: 12px; cursor: pointer; color: var(--text-main); font-weight: 500; transition: all 0.2s;">
+                    <span>⚙️</span>
+                    <span data-i18n="advanced_budget_settings">הגדרות תקציב מתקדמות</span>
+                </button>
             </div>
 
             <div id="edit-budget-conditional" class="budget-conditional" style="display: none; background: rgba(0,0,0,0.02); padding: 10px; border-radius: 8px; margin-bottom: 15px;">
@@ -503,15 +492,15 @@
                     </label>
                 </div>
                 <div id="edit-global-budgets">
-                    <div class="form-group" id="edit-budget-daily-group" style="display: none; margin-bottom: 10px;">
+                    <div class="form-group" id="edit-budget-daily-group" style="margin-bottom: 10px;">
                         <label>סכום תקציב יומי כללי</label>
                         <input type="number" id="edit-budget-daily-amt" placeholder="0" min="0">
                     </div>
-                    <div class="form-group" id="edit-budget-monthly-group" style="display: none; margin-bottom: 10px;">
+                    <div class="form-group" id="edit-budget-monthly-group" style="margin-bottom: 10px;">
                         <label>סכום תקציב חודשי כללי</label>
                         <input type="number" id="edit-budget-monthly-amt" placeholder="0" min="0">
                     </div>
-                    <div class="form-group" id="edit-budget-yearly-group" style="display: none; margin-bottom: 10px;">
+                    <div class="form-group" id="edit-budget-yearly-group" style="margin-bottom: 10px;">
                         <label>סכום תקציב שנתי כללי</label>
                         <input type="number" id="edit-budget-yearly-amt" placeholder="0" min="0">
                     </div>

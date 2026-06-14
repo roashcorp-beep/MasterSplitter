@@ -1,0 +1,88 @@
+<span data-i18n="lobby_hello">שלום, </span>
+<span class="trip-dates" id="trip-participants-label" data-i18n="loading">טוען...</span>
+<span class="budget-label" data-i18n="home_total_budget">סה"כ תקציב</span>
+<span class="circle-label" data-i18n="home_spent">הוצא</span>
+<span class="budget-label" data-i18n="home_spent">הוצא</span>
+<span class="budget-label" data-i18n="home_left">נותר</span>
+<h4 style="text-align:center; margin-bottom: 15px; color: var(--text-dark);"
+                                data-i18n="expenses_title">הוצאות לפי קטגוריה</h4>
+<button class="primary-btn" id="get-ai-tip-btn" style="width: 100%; background: linear-gradient(135deg, #8b5cf6, #3b82f6); border: none; padding: 15px; border-radius: 12px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3); cursor: pointer; color: white;" onclick="getAITip()" data-i18n="getFinancialTipBtn" aria-label="Get Financial Tip">
+                        עוזר פיננסי חכם ✨
+                    </button>
+<h3 data-i18n="home_recent_expenses">הוצאות אחרונות</h3>
+<a href="#" class="view-all-link" onclick="switchTab('expenses'); return false;"
+                        data-i18n="home_view_all">הצג הכל</a>
+<div class="loading-state" data-i18n="loading">טוען...</div>
+<h3 class="screen-title" data-i18n="expenses_title">כל ההוצאות</h3>
+<div class="loading-state" data-i18n="loading">טוען...</div>
+<h3 class="screen-title" data-i18n="expense_add_title">הוספת הוצאה</h3>
+<span class="scan-text" data-i18n="scan_receipt" style="text-align: center; width: 100%;">📸 סרוק קבלה</span>
+<label data-i18n="expense_what">על מה היה?</label>
+<label style="margin-top:16px;" data-i18n="expense_amount">סכום</label>
+<label style="margin-top:16px;" data-i18n="expense_category">קטגוריה</label>
+<option value="אוכל" data-i18n="cat_food">🍕 אוכל</option>
+<option value="לינה" data-i18n="cat_lodging">🛏️ לינה</option>
+<option value="תחבורה" data-i18n="cat_transport">🚕 תחבורה</option>
+<option value="אטרקציות" data-i18n="cat_attractions">🎟️ אטרקציות</option>
+<option value="כללי" selected data-i18n="cat_general">💡 כללי</option>
+<label style="margin-top:16px;" data-i18n="expense_for_who">עבור מי?</label>
+<span class="split-toggle-text" data-i18n="split_custom">סכומים מותאמים</span>
+<button id="split-type-amount" class="split-type-btn active" onclick="setSplitType('amount')" style="background:var(--primary); color:#fff; border:none; padding:4px 10px; border-radius:6px; cursor:pointer; font-size:0.8rem;" data-i18n="split_amounts">סכומים</button>
+<button id="split-type-item" class="split-type-btn" onclick="setSplitType('item')" style="background:transparent; color:var(--text-muted); border:none; padding:4px 10px; border-radius:6px; cursor:pointer; font-size:0.8rem;" data-i18n="split_items">יחס/פריטים</button>
+<button class="primary-btn full-width" style="margin-top:20px;" onclick="addExpense()"
+                        data-i18n="expense_btn_save">שמור הוצאה</button>
+<h3 class="screen-title" style="margin:0;" data-i18n="balances_title">סיכומים ויתרות</h3>
+<span data-i18n="tab_home">בית</span>
+<span data-i18n="tab_expenses">הוצאות</span>
+<span class="nav-add-label" data-i18n="tab_add">הוסף</span>
+<span data-i18n="tab_balances">סיכומים</span>
+<span data-i18n="tab_profile">פרופיל</span>
+<p class="ai-modal-hint" data-i18n="ai_modal_hint">תאר את ההוצאה בשפה חופשית וה-AI ימלא את הטופס אוטומטית</p>
+<div id="voice-indicator" style="display:none; color:var(--accent-yellow); font-size:0.85rem; margin-top:8px; text-align:center;">מקשיב... 🎙️</div>
+<span class="ai-analyze-text" data-i18n="ai_analyze">נתח</span>
+<h3 data-i18n="modal_edit_expense">עריכת הוצאה</h3>
+<label data-i18n="expense_what">על מה היה?</label>
+<label data-i18n="expense_amount">סכום</label>
+<label data-i18n="expense_category">קטגוריה</label>
+<option value="אוכל" data-i18n="cat_food">אוכל</option>
+<option value="לינה" data-i18n="cat_lodging">לינה</option>
+<option value="תחבורה" data-i18n="cat_transport">תחבורה</option>
+<option value="אטרקציות" data-i18n="cat_attractions">אטרקציות</option>
+<option value="כללי" data-i18n="cat_general">כללי</option>
+<button class="secondary-btn" onclick="closeEditExpenseModal()" data-i18n="btn_cancel">ביטול</button>
+<button class="primary-btn" onclick="saveEditExpense()" data-i18n="btn_save">שמור</button>
+<p style="margin: 0; font-size: 0.9rem; color: var(--text-dark); flex: 1;" data-i18n="cookieConsentText">
+            אפליקציה זו משתמשת באחסון מקומי עבור הפעלות, שפה והגדרות ערכת נושא כדי להבטיח את החוויה הטובה ביותר.
+        </p>
+<button onclick="acceptCookies()" aria-label="Accept Cookies" style="white-space: nowrap; padding: 10px 24px; background: #2563eb; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" data-i18n="cookieConsentBtn">
+            הבנתי
+        </button>
+<span class="scan-text" data-i18n="scan_scanning">סורק...</span>
+<span data-i18n="menu_my_trips">הקבוצות שלי</span>
+<span data-i18n="tab_home">בית</span>
+<span data-i18n="menu_profile">פרופיל</span>
+<span data-i18n="menu_activity">יומן פעולות</span>
+<span data-i18n="menu_stats">סטטיסטיקה</span>
+<span>התקן אפליקציה</span>
+<span data-i18n="menu_logout">התנתק</span>
+<h3 data-i18n="activity_title">פעילות</h3>
+<div class="loading-state" data-i18n="loading">טוען...</div>
+<h3 data-i18n="group_info_title">פרטי קבוצה</h3>
+<span data-i18n="group_info_public_expenses">הצג הוצאות לכולם</span>
+<p class="toggle-hint" data-i18n="group_info_public_hint">כשכבוי, חברים רואים רק הוצאות ששילמו או שהם חלק מהן.</p>
+<span data-i18n="group_info_allow_delete">אפשר לחברים למחוק הוצאות</span>
+<p class="toggle-hint" data-i18n="group_info_allow_delete_hint">כשכבוי, רק מנהלים יכולו למחוק הוצאות.</p>
+<h4 class="settings-section-title" data-i18n="group_info_members">חברי קבוצה</h4>
+<span data-i18n="invite_link_btn">צור קישור הזמנה</span>
+<button class="leave-group-btn" onclick="leaveGroup()" data-i18n="group_info_leave">צא מהקבוצה</button>
+<h3 data-i18n="menu_stats">סטטיסטיקה</h3>
+<h3 data-i18n="modal_join_title">הצטרפות לקבוצה</h3>
+<p data-i18n="modal_join_prompt">האם אתה בטוח שברצונך להצטרף לקבוצה זו?</p>
+<button class="secondary-btn" onclick="closeJoinConfirmModal()" data-i18n="btn_cancel">ביטול</button>
+<button class="primary-btn" id="confirm-join-btn" data-i18n="btn_join">הצטרף</button>
+<h3>🧾 שיוך פריטים</h3>
+<p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:16px; flex-shrink:0;">
+                בחר מי משתתף בכל פריט. (ההפרש יתחלק יחסית למשתתפים)
+            </p>
+<span>סה"כ זוהה:</span>
+<button class="primary-btn full-width" onclick="submitAssignItems()">סיים ושייך סכומים</button>

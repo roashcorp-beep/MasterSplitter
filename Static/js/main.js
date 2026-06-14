@@ -260,18 +260,19 @@ async function initApp() {
         const emailEl = document.getElementById('profile-email-display');
         if (emailEl) emailEl.textContent = currentUser.email || '';
         
-        if (document.getElementById('screen-loading')) {
-            document.getElementById('screen-loading').style.display = 'none';
-            document.getElementById('screen-loading').classList.remove('active');
-        }
+        // Unconditionally load lobby and fetch invitations since React DOM might not exist yet
+        await loadLobby();
+        fetchInvitations();
 
-        if (document.getElementById('screen-lobby')) {
-            await loadLobby();
-            fetchInvitations();
-        }
     } catch (e) {
         console.error('Init error:', e);
         window.location.href = '/';
+    } finally {
+        const spinner = document.getElementById('screen-loading');
+        if (spinner) {
+            spinner.style.display = 'none';
+            spinner.classList.remove('active');
+        }
     }
 }
 
@@ -348,6 +349,12 @@ async function loadLobby() {
     } catch (e) { 
         console.error('Load lobby error:', e); 
         showView('lobby');
+    } finally {
+        const spinner = document.getElementById('screen-loading');
+        if (spinner) {
+            spinner.style.display = 'none';
+            spinner.classList.remove('active');
+        }
     }
 }
 
@@ -632,7 +639,8 @@ async function openEditTripModal(tripId) {
         const data = await res.json();
         if (res.ok && data.success) {
             const trip = data.trip;
-            document.getElementById('edit-trip-name').value = trip.name;
+            const nameEl = document.getElementById('edit-trip-name');
+            if (nameEl) nameEl.value = trip.name;
             
             // Set per-user toggle
             const bpuEl = document.getElementById('edit-trip-budget-per-user');
@@ -648,9 +656,12 @@ async function openEditTripModal(tripId) {
             if (monthlyCb) monthlyCb.checked = budgets.hasOwnProperty('monthly');
             if (yearlyCb) yearlyCb.checked = budgets.hasOwnProperty('yearly');
             
-            document.getElementById('edit-budget-daily-amt').value = budgets.daily || '';
-            document.getElementById('edit-budget-monthly-amt').value = budgets.monthly || '';
-            document.getElementById('edit-budget-yearly-amt').value = budgets.yearly || '';
+            const dbAmt = document.getElementById('edit-budget-daily-amt');
+            if (dbAmt) dbAmt.value = budgets.daily || '';
+            const mbAmt = document.getElementById('edit-budget-monthly-amt');
+            if (mbAmt) mbAmt.value = budgets.monthly || '';
+            const ybAmt = document.getElementById('edit-budget-yearly-amt');
+            if (ybAmt) ybAmt.value = budgets.yearly || '';
             
             toggleBudgetFields('edit');
             

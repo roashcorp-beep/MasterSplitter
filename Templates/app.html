@@ -100,7 +100,7 @@
 
             <!-- LOBBY SCREEN -->
             <div id="screen-lobby" class="screen relative min-h-screen">
-                <div class="relative z-10 w-full max-w-md mx-auto bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-[2.5rem] p-6 shadow-2xl border border-white/50 dark:border-gray-700/50 mt-16">
+                <div class="relative z-10 w-full max-w-md mx-auto bg-white/40 dark:bg-gray-800/40 backdrop-blur-md rounded-[2.5rem] p-6 shadow-xl border border-white/30 dark:border-gray-700/50 mt-16">
                     <div class="lobby-header">
                         <h2 data-i18n="lobby_my_trips">הקבוצות שלי</h2>
                         <button class="primary-btn sm" onclick="openCreateTripModal()" data-i18n="lobby_btn_create">+ צור
@@ -357,7 +357,7 @@
             </div>
 
             <div class="form-group">
-                <button type="button" class="advanced-budget-btn" onclick="document.getElementById('create-budget-conditional').style.display = document.getElementById('create-budget-conditional').style.display === 'none' ? 'block' : 'none'" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--surface-card); border: 1px solid var(--border); padding: 12px; border-radius: 12px; cursor: pointer; color: var(--text-main); font-weight: 500; transition: all 0.2s;">
+                <button type="button" class="advanced-budget-btn" onclick="toggleAdvancedBudget('create')" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--surface-card); border: 1px solid var(--border); padding: 12px; border-radius: 12px; cursor: pointer; color: var(--text-main); font-weight: 500; transition: all 0.2s;">
                     <span>⚙️</span>
                     <span data-i18n="advanced_budget_settings">הגדרות תקציב מתקדמות</span>
                 </button>
@@ -474,7 +474,7 @@
             </div>
 
             <div class="form-group">
-                <button type="button" class="advanced-budget-btn" onclick="document.getElementById('edit-budget-conditional').style.display = document.getElementById('edit-budget-conditional').style.display === 'none' ? 'block' : 'none'" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--surface-card); border: 1px solid var(--border); padding: 12px; border-radius: 12px; cursor: pointer; color: var(--text-main); font-weight: 500; transition: all 0.2s;">
+                <button type="button" class="advanced-budget-btn" onclick="toggleAdvancedBudget('edit')" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--surface-card); border: 1px solid var(--border); padding: 12px; border-radius: 12px; cursor: pointer; color: var(--text-main); font-weight: 500; transition: all 0.2s;">
                     <span>⚙️</span>
                     <span data-i18n="advanced_budget_settings">הגדרות תקציב מתקדמות</span>
                 </button>

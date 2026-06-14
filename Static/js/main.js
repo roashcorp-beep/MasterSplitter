@@ -231,6 +231,15 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function initApp() {
+    let initComplete = false;
+    
+    const safetyTimeout = setTimeout(() => {
+        if (!initComplete) {
+            console.warn("initApp safety timeout triggered: hiding spinner.");
+            showView('lobby');
+        }
+    }, 3000);
+
     try {
         const res = await fetch('/api/me');
         if (!res.ok) { window.location.href = '/'; return; }
@@ -267,6 +276,13 @@ async function initApp() {
     } catch (e) {
         console.error('Init error:', e);
         window.location.href = '/';
+    } finally {
+        initComplete = true;
+        clearTimeout(safetyTimeout);
+        // Ensure spinner is hidden if loadLobby wasn't called or failed silently
+        if (document.getElementById('screen-loading')?.classList.contains('active')) {
+            showView('lobby');
+        }
     }
 }
 
@@ -326,10 +342,23 @@ let hasAutoOpenedTrip = false;
 
 async function loadLobby() {
     showView('loading');
+    let loaded = false;
+    
+    // Safety timeout: hide loading after 3s if stuck
+    const safetyTimeout = setTimeout(() => {
+        if (!loaded) {
+            console.warn("Safety timeout triggered: hiding spinner.");
+            showView('lobby');
+        }
+    }, 3000);
+
     try {
         const res = await fetch('/api/trips');
         if (res.status === 401) { window.location.href = '/'; return; }
         allTrips = await res.json();
+
+        loaded = true;
+        clearTimeout(safetyTimeout);
 
         // Auto-open the most recent trip on first load
         if (!hasAutoOpenedTrip && allTrips.length > 0) {
@@ -340,7 +369,12 @@ async function loadLobby() {
 
         showView('lobby');
         renderTripsList();
-    } catch (e) { console.error('Load lobby error:', e); }
+    } catch (e) { 
+        console.error('Load lobby error:', e); 
+        loaded = true;
+        clearTimeout(safetyTimeout);
+        showView('lobby');
+    }
 }
 
 function showView(view) {
@@ -401,18 +435,20 @@ function renderTripsList() {
             : `<span class="trip-card-v2-budget no-budget">—</span>`;
         const editBtn = t.is_owner ? `<button class="trip-edit-btn" onclick="event.stopPropagation(); openEditTripModal(${t.id})" title="${i18n('modal_edit_trip')}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>` : '';
         return `
-        <div class="trip-card-v2" onclick="openTrip(${t.id})">
-            ${editBtn}
-            <div class="trip-card-avatar" style="background:${avatarColors[i % avatarColors.length]}">${escapeHTML(initial)}</div>
-            <div class="trip-card-v2-body">
-                <div class="trip-card-v2-name">${safeName}</div>
-                <div class="trip-card-v2-meta">
-                    <span class="meta-item">${usersSvg} ${memberCount} ${i18n('members_count')}</span>
+        <div class="trip-card-v2" onclick="openTrip(${t.id})" style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <div class="trip-card-avatar" style="background:${avatarColors[i % avatarColors.length]}">${escapeHTML(initial)}</div>
+                ${editBtn}
+                <div class="trip-card-v2-body">
+                    <div class="trip-card-v2-name">${safeName}</div>
+                    <div class="trip-card-v2-meta">
+                        <span class="meta-item">${usersSvg} ${memberCount} ${typeof i18n === 'function' ? i18n('members_count') : 'Members'}</span>
+                    </div>
                 </div>
             </div>
             <div class="trip-card-v2-right">
                 ${budgetDisplay}
-                <span class="trip-card-v2-arrow">‹</span>
+                <span class="trip-card-v2-arrow">›</span>
             </div>
         </div>`;
     }).join('');
@@ -845,7 +881,7 @@ async function pickContact(mode, type) {
             
             if (type === 'wa' && phone) {
                 document.getElementById(`${mode}-wa-phone`).value = phone;
-                sendWhatsAppInviteFromTab(mode);
+                sendWhatsAppInviteFromTab(mode, name);
             } else if (type === 'email') {
                 if (name) document.getElementById(`${mode}-email-name`).value = name;
                 if (email) document.getElementById(`${mode}-email-addr`).value = email;
@@ -854,6 +890,17 @@ async function pickContact(mode, type) {
         }
     } catch (e) {
         console.error('Contact picker error:', e);
+    }
+}
+
+function toggleAdvancedBudget(mode) {
+    const el = document.getElementById(`${mode}-budget-conditional`);
+    if (el) {
+        if (window.getComputedStyle(el).display === 'none') {
+            el.style.display = 'block';
+        } else {
+            el.style.display = 'none';
+        }
     }
 }
 
@@ -898,7 +945,7 @@ function switchInviteTab(tabName, mode) {
     });
 }
 
-function sendWhatsAppInviteFromTab(mode) {
+function sendWhatsAppInviteFromTab(mode, providedName = null) {
     const phoneInput = document.getElementById(mode === 'create' ? 'create-wa-phone' : 'edit-wa-phone');
     const phone = phoneInput?.value.trim();
     if (!phone) return;
@@ -906,7 +953,7 @@ function sendWhatsAppInviteFromTab(mode) {
     const list = mode === 'create' ? friendsList : editFriendsList;
     list.push({
         contact: phone,
-        name: phone,
+        name: providedName || phone,
         type: 'registered',
         inviteMethod: 'whatsapp'
     });
@@ -2466,20 +2513,32 @@ async function fetchActivity() {
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();
 
+    // Global function to apply translations to DOM and trigger re-renders
+    window.applyGlobalTranslations = function(lang) {
+        if (typeof setLanguage === 'function') {
+            setLanguage(lang);
+        }
+        if (typeof renderTripsList === 'function') renderTripsList();
+        if (typeof renderFriendsChips === 'function') renderFriendsChips();
+        if (typeof renderEditFriendsChips === 'function') renderEditFriendsChips();
+        if (document.getElementById('screen-dashboard')?.classList.contains('active')) {
+            if (typeof fetchBalances === 'function') fetchBalances();
+            if (typeof fetchExpenses === 'function') fetchExpenses();
+            if (typeof fetchActivity === 'function') fetchActivity();
+        }
+    };
+
     // Register updateUI for i18n system to call when language changes
     window.updateUI = function() {
-        // Re-render lobby if visible
-        if (document.getElementById('screen-lobby')?.classList.contains('active')) {
-            renderTripsList();
+        if (typeof currentLang !== 'undefined') {
+            window.applyGlobalTranslations(currentLang);
         }
     };
 
     // Listen for storage events (language changed in another tab/Profile page)
     window.addEventListener('storage', (e) => {
         if (e.key === 'lang' && e.newValue) {
-            if (typeof setLanguage === 'function') {
-                setLanguage(e.newValue);
-            }
+            window.applyGlobalTranslations(e.newValue);
         }
         if (e.key === 'theme') {
             initTheme();

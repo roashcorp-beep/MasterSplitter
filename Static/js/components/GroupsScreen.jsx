@@ -20,7 +20,11 @@ const GroupsScreen = () => {
         const i18nSync = (e) => {
             if (e.key === "lang" && e.newValue) setLang(e.newValue);
         };
+        const handleLangChanged = () => {
+            setLang(localStorage.getItem("lang") || "he");
+        };
         window.addEventListener("storage", i18nSync);
+        window.addEventListener("languageChanged", handleLangChanged);
 
         window.reactUpdateTrips = (newTrips) => setTrips([...newTrips]);
         window.reactOpenCreateModal = () => {
@@ -92,7 +96,7 @@ const GroupsScreen = () => {
                     trips.map((trip, i) => {
                         const initial = (trip.name || "?").charAt(0).toUpperCase();
                         const isAdmin = trip.is_admin !== undefined ? trip.is_admin : trip.is_owner;
-                        const currency = typeof window.getUserCurrencySymbol === "function" ? window.getUserCurrencySymbol() : "₪";
+                        const currency = typeof window.getTripCurrencySymbol === "function" ? window.getTripCurrencySymbol() : "₪";
                         
                         return (
                             <div key={trip.id} className="trip-card-v2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md rounded-2xl p-4 shadow-lg border border-gray-100 dark:border-gray-700 flex justify-between items-center cursor-pointer hover:shadow-xl transition-all" onClick={() => handleTripClick(trip.id)}>
@@ -121,7 +125,7 @@ const GroupsScreen = () => {
                                 <div className="text-right">
                                     <div className="text-xs text-gray-500 dark:text-gray-400 mb-1" data-i18n="total_budget">{i18n("total_budget") || "Total"}</div>
                                     <div className="font-bold text-xl text-indigo-600 dark:text-indigo-400" dir="ltr">
-                                        <span className="text-sm mr-1">{currency}</span>{trip.budget ? trip.budget.toLocaleString() : "0.00"}
+                                        <span className="text-sm mr-1">{currency}</span>{trip.budget ? window.formatNumber(trip.budget) : "0.00"}
                                     </div>
                                 </div>
                             </div>

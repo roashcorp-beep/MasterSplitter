@@ -254,7 +254,17 @@ const translations = {
         "invite_email_note": "ההזמנה תישלח לכתובת האימייל שהוזנה.",
         "lobby_no_groups": "אין קבוצות עדיין. צור קבוצה חדשה!",
         "members_count": "חברים",
-        "invite_members_title": "הזמן חברים"
+        "invite_members_title": "הזמן חברים",
+        "budget_currency": "מטבע הקבוצה",
+        "btn_add_participant": "הוסף חבר",
+        "invite_name_placeholder": "שם",
+        "invite_phone_placeholder": "מספר טלפון",
+        "invite_email_placeholder": "כתובת אימייל",
+        "btn_send_email": "שלח הזמנה באימייל",
+        "btn_add_guest": "הוסף אורח",
+        "total_budget": 'סה"כ תקציב',
+        "members_count_label": "משתתפים",
+        "edit_group": "ערוך קבוצה"
     },
     en: {
         // General
@@ -511,7 +521,17 @@ const translations = {
         "invite_email_note": "The invite will be sent to the email address provided.",
         "lobby_no_groups": "No groups yet. Create a new group!",
         "members_count": "members",
-        "invite_members_title": "Invite Members"
+        "invite_members_title": "Invite Members",
+        "budget_currency": "Group Currency",
+        "btn_add_participant": "Add Participant",
+        "invite_name_placeholder": "Name",
+        "invite_phone_placeholder": "Phone Number",
+        "invite_email_placeholder": "Email Address",
+        "btn_send_email": "Send Email Invite",
+        "btn_add_guest": "Add Guest",
+        "total_budget": "Total Budget",
+        "members_count_label": "Members",
+        "edit_group": "Edit Group"
     }
 };
 
@@ -545,6 +565,7 @@ function setLanguage(lang) {
     document.body.style.direction = (lang === 'he') ? 'rtl' : 'ltr';
     applyTranslations();
     if (typeof window.updateUI === 'function') window.updateUI();
+    window.dispatchEvent(new Event('languageChanged'));
 }
 
 function i18n(key) {

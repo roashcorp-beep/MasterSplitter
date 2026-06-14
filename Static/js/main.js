@@ -22,10 +22,31 @@ const CURRENCY_SYMBOLS = {
 function getCurrencySymbol(code) {
     return CURRENCY_SYMBOLS[code] || code;
 }
-function getUserCurrencySymbol() {
-    const code = currentUser?.default_currency || 'ILS';
+function getTripCurrencySymbol(tripId = null) {
+    const tid = tripId || window.currentTripId;
+    let code = 'ILS';
+    if (tid && window.allTrips) {
+        const trip = window.allTrips.find(t => t.id === tid);
+        if (trip && trip.budgets_json && trip.budgets_json.currency) {
+            code = trip.budgets_json.currency;
+        }
+    } else if (currentUser && currentUser.default_currency) {
+        code = currentUser.default_currency;
+    }
     return CURRENCY_SYMBOLS[code] || code;
 }
+
+window.getTripCurrencySymbol = getTripCurrencySymbol;
+
+function formatNumber(num) {
+    if (num == null) return "0";
+    const val = Number(num);
+    if (isNaN(val)) return "0";
+    if (val >= 1000000) return (val / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (val >= 1000) return (val / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+    return Number.isInteger(val) ? val.toString() : val.toFixed(2);
+}
+window.formatNumber = formatNumber;
 
 // =====================
 //  AUTH (Login Page)
@@ -1344,14 +1365,14 @@ async function fetchExpenses() {
 
                 // Currency display: show original currency prominently, converted in parens
                 let amountDisplay = '';
-                const userSym = getUserCurrencySymbol();
+                const userSym = getTripCurrencySymbol();
                 if (exp.original_amount && exp.currency && exp.currency !== (currentUser?.default_currency || 'ILS')) {
                     // Foreign currency: show original first, converted in parens
                     const origSym = getCurrencySymbol(exp.currency);
                     amountDisplay = `<span class="primary-amount">${origSym}${parseFloat(exp.original_amount).toFixed(0)}</span>
-                        <span class="original-currency">(~${userSym}${parseFloat(exp.amount).toFixed(0)})</span>`;
+                        <span class="original-currency">(~${userSym}${formatNumber(exp.amount)})</span>`;
                 } else {
-                    amountDisplay = `${userSym}${parseFloat(exp.amount).toFixed(0)}`;
+                    amountDisplay = `${userSym}${formatNumber(exp.amount)}`;
                 }
 
                 const canEdit = currentUser && exp.user_id === currentUser.id;
@@ -1445,7 +1466,7 @@ async function deleteExpense(expenseId) {
         if (res.status === 401) { window.location.href = '/'; return; }
         const data = await res.json();
         if (res.ok && data.success) {
-            showToast('ההוצאה נמחקה 🗑️');
+            showToast(typeof i18n === 'function' ? i18n('toast_expense_deleted') : 'ההוצאה נמחקה 🗑️');
             fetchExpenses();
             fetchBalances();
         } else {
@@ -1536,7 +1557,7 @@ async function addExpense() {
             const personalToggle = document.getElementById('personal-expense-toggle');
             if (personalToggle) personalToggle.checked = false;
             toggleSplitMode();
-            showToast('ההוצאה נוספה! 💸');
+            showToast(typeof i18n === 'function' ? i18n('toast_expense_added') : 'ההוצאה נוספה! 💸');
             switchTab('expenses');
         } else {
             alert(data.error || 'שגיאה בהוספת ההוצאה.');
@@ -1621,10 +1642,10 @@ async function fetchBalances() {
         const elBudget = document.getElementById('total-budget');
         const elLeft = document.getElementById('budget-left');
         const elPct = document.getElementById('circle-percent');
-        const userSym = getUserCurrencySymbol();
-        if (elSpent) elSpent.textContent = `${userSym}${spent.toFixed(0)}`;
+        const userSym = getTripCurrencySymbol();
+        if (elSpent) elSpent.textContent = `${userSym}${formatNumber(spent)}`;
         if (elBudget) elBudget.textContent = `${userSym}${budget}`;
-        if (elLeft) elLeft.textContent = `${userSym}${Math.max(0, left).toFixed(0)}`;
+        if (elLeft) elLeft.textContent = `${userSym}${formatNumber(Math.max(0, left))}`;
         if (elPct) elPct.textContent = `${pct}%`;
 
         const list = document.getElementById('balances-list');
@@ -1670,7 +1691,7 @@ async function fetchBalances() {
                             <span>${safeFrom}</span>
                             <span class="debt-arrow">←</span>
                             <span>${safeTo}</span>
-                            <span class="debt-amount">${userSym}${s.amount.toFixed(0)}</span>
+                            <span class="debt-amount">${userSym}${formatNumber(s.amount)}</span>
                         </div>
                         ${settleBtn}
                     </div>`;
@@ -1688,12 +1709,12 @@ async function fetchBalances() {
                         <div class="avatar bg-purple" style="width:40px;height:40px;font-size:1.2rem;">${escapeHTML(b.name.charAt(0))}</div>
                         <div class="item-details">
                             <h4>${safeName}${me}</h4>
-                            <p>${paidTxt}${userSym}${b.paid.toFixed(0)}</p>
+                            <p>${paidTxt}${userSym}${formatNumber(b.paid)}</p>
                         </div>
                     </div>
                     <div class="item-right">
                         <span class="balance-badge ${badgeCls}">${badgeTxt}</span>
-                        <div class="item-amount ${amtCls}">${userSym}${Math.abs(b.balance).toFixed(0)}</div>
+                        <div class="item-amount ${amtCls}">${userSym}${formatNumber(Math.abs(b.balance))}</div>
                         <span class="accordion-arrow">▼</span>
                     </div>
                 </div>
@@ -1752,7 +1773,7 @@ async function loadOptimizedBalances() {
 
 async function triggerSettleUp(payerId, payeeId, amount) {
     const msg = typeof i18n === 'function' ? i18n('settle_confirm') : 'לסלק חוב?';
-    if (!confirm(`${msg} (${getUserCurrencySymbol()}${amount.toFixed(0)})`)) return;
+    if (!confirm(`${msg} (${getTripCurrencySymbol()}${formatNumber(amount)})`)) return;
 
     try {
         const res = await fetch('/api/settlements', {
@@ -2006,7 +2027,7 @@ function renderCategoryChart(expenses) {
         if (val > 0) {
             html += `
             <div class="chart-bar-wrapper">
-                <div class="chart-bar" style="height: ${heightPct}%; background: ${c.color};" data-tooltip="${translateCategory(c.name)}: ${getUserCurrencySymbol()}${val.toFixed(0)}"></div>
+                <div class="chart-bar" style="height: ${heightPct}%; background: ${c.color};" data-tooltip="${translateCategory(c.name)}: ${getTripCurrencySymbol()}${val.toFixed(0)}"></div>
                 <div class="chart-icon">${c.icon}</div>
             </div>`;
         }
@@ -2357,7 +2378,7 @@ function showStatsView() {
     if (!chartArea || !summaryArea) return;
 
     // Render category chart into modal
-    const userSym = getUserCurrencySymbol();
+    const userSym = getTripCurrencySymbol();
     const expenseItems = document.querySelectorAll('.list-item');
 
     // Use cached expenses data if available
@@ -2409,8 +2430,8 @@ function showStatsView() {
         const expLabel = typeof currentLang !== 'undefined' && currentLang === 'he' ? '\u05d4\u05d5\u05e6\u05d0\u05d5\u05ea' : 'Expenses';
 
         summaryArea.innerHTML = `
-            <div class="stats-summary-card"><div class="stats-value">${userSym}${total.toFixed(0)}</div><div class="stats-label">${totalLabel}</div></div>
-            <div class="stats-summary-card"><div class="stats-value">${userSym}${avg.toFixed(0)}</div><div class="stats-label">${avgLabel}</div></div>
+            <div class="stats-summary-card"><div class="stats-value">${userSym}${formatNumber(total)}</div><div class="stats-label">${totalLabel}</div></div>
+            <div class="stats-summary-card"><div class="stats-value">${userSym}${formatNumber(avg)}</div><div class="stats-label">${avgLabel}</div></div>
             <div class="stats-summary-card"><div class="stats-value">${catCount}</div><div class="stats-label">${catLabel}</div></div>
             <div class="stats-summary-card"><div class="stats-value">${expCount}</div><div class="stats-label">${expLabel}</div></div>
         `;
@@ -2463,7 +2484,7 @@ async function fetchActivity() {
             const actionText = typeof i18n === 'function' ? (i18n(`activity_${item.action}`) || item.action) : item.action;
             let detailText = item.detail ? escapeHTML(item.detail) : '';
             if (detailText) {
-                const sym = getUserCurrencySymbol();
+                const sym = getTripCurrencySymbol();
                 detailText = detailText.replace(/₪|\$/g, sym);
                 detailText = ` (${detailText})`;
             }

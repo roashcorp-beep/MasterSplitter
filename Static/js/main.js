@@ -379,53 +379,8 @@ function showView(view) {
 
 function renderTripsList() {
     window.openEditModal = typeof openEditTripModal !== 'undefined' ? openEditTripModal : function(){};
-    const container = document.getElementById('trips-list');
-    if (!container) return;
-    if (!allTrips || allTrips.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state">
-                <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5" style="margin-bottom:12px">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                </svg>
-                <p>${typeof i18n === 'function' ? i18n('lobby_no_groups') : 'No groups yet'}</p>
-            </div>`;
-        return;
-    }
-    
-    let tripHtml = '';
-    for (let i = 0; i < allTrips.length; i++) {
-        const trip = allTrips[i];
-        if (trip.is_admin === undefined) trip.is_admin = trip.is_owner;
-        
-        tripHtml += `
-    <div class="trip-card-v2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md rounded-2xl p-4 shadow-lg border border-gray-100 dark:border-gray-700 flex justify-between items-center cursor-pointer hover:shadow-xl transition-all" onclick="window.location.hash = '#trip-${trip.id}'">
-        <div class="flex items-center gap-4">
-            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl shadow-inner">
-                ${trip.name.charAt(0).toUpperCase()}
-            </div>
-            ${trip.is_admin ? `<button onclick="event.stopPropagation(); openEditModal(${trip.id})" class="text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors p-2 rounded-full hover:bg-indigo-50 dark:hover:bg-indigo-900/30"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-500 hover:text-blue-500 transition-colors"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg></button>` : ''}
-            <div>
-                <h3 class="font-bold text-gray-900 dark:text-white text-lg">${escapeHTML(trip.name)}</h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                    <span class="inline-block w-2 h-2 rounded-full bg-green-500"></span>
-                    <span data-i18n="active_trip">Active</span>
-                </p>
-            </div>
-        </div>
-        <div class="text-right">
-            <div class="text-xs text-gray-500 dark:text-gray-400 mb-1" data-i18n="total_budget">Total</div>
-            <div class="font-bold text-xl text-indigo-600 dark:text-indigo-400" dir="ltr">
-                 <span class="text-sm mr-1">${getUserCurrencySymbol()}</span>${trip.budget ? trip.budget.toLocaleString() : '0.00'}
-            </div>
-        </div>
-    </div>
-`;
-    }
-    container.innerHTML = tripHtml;
-    
-    if (typeof window.applyGlobalTranslations === 'function') {
-        window.applyGlobalTranslations();
+    if (typeof window.reactUpdateTrips === 'function') {
+        window.reactUpdateTrips(allTrips);
     }
 }
 
@@ -490,8 +445,9 @@ function openCreateTripModal() {
     });
     toggleBudgetFields('create');
     switchInviteTab('whatsapp', 'create');
-    const modal = document.getElementById('create-trip-modal');
-    if (modal) modal.classList.add('open');
+    if (typeof window.reactOpenCreateModal === 'function') {
+        window.reactOpenCreateModal();
+    }
     
     if (typeof window.applyGlobalTranslations === 'function') {
         window.applyGlobalTranslations();
@@ -499,8 +455,9 @@ function openCreateTripModal() {
 }
 
 function closeCreateTripModal() {
-    const modal = document.getElementById('create-trip-modal');
-    if (modal) modal.classList.remove('open');
+    if (typeof window.reactCloseCreateModal === 'function') {
+        window.reactCloseCreateModal();
+    }
 }
 
 async function addFriend() {
@@ -665,7 +622,9 @@ let editFriendsList = [];
 async function openEditTripModal(tripId) {
     editTripId = tripId;
     editFriendsList = [];
-    document.getElementById('edit-trip-modal').classList.add('open');
+    if (typeof window.reactOpenEditModal === 'function') {
+        window.reactOpenEditModal(tripId);
+    }
     
     // Fetch full trip details including participants and budgets
     try {
@@ -715,7 +674,9 @@ async function openEditTripModal(tripId) {
 }
 
 function closeEditTripModal() {
-    document.getElementById('edit-trip-modal').classList.remove('open');
+    if (typeof window.reactCloseEditModal === 'function') {
+        window.reactCloseEditModal();
+    }
     editTripId = null;
     editFriendsList = [];
 }

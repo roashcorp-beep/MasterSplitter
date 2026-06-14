@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,6 +8,29 @@
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800;900&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2.3">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: { sans: ['system-ui', 'sans-serif'] }
+          }
+        }
+      }
+    </script>
+    <!-- React & Babel -->
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+        "lucide-react": "https://esm.sh/lucide-react@0.344.0"
+      }
+    }
+    </script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#0a0a1a">
     <link rel="apple-touch-icon" href="/static/icons/icon-192x192.png">
@@ -39,9 +61,9 @@
 
 <body>
     <!-- Step 7.5 Dynamic Background Container -->
-    <div id="dynamic-bg-container" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 0; overflow: hidden; pointer-events: none; background: var(--bg-main);">
-        <canvas id="bg-canvas-dark" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 0.7s;"></canvas>
-        <canvas id="bg-canvas-light" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 0.7s;"></canvas>
+    <div id="dynamic-bg-container" class="fixed inset-0 overflow-hidden pointer-events-none transition-colors duration-500 bg-[#f8fafc] dark:bg-[#0f172a] -z-10">
+        <canvas id="bg-canvas-dark" class="absolute inset-0 transition-opacity duration-700" style="width: 100%; height: 100%; opacity: 0;"></canvas>
+        <canvas id="bg-canvas-light" class="absolute inset-0 transition-opacity duration-700" style="width: 100%; height: 100%; opacity: 0;"></canvas>
     </div>
 
     <div id="toast" class="toast"></div>
@@ -72,14 +94,16 @@
         <div class="screens-container">
 
             <!-- LOBBY SCREEN -->
-            <div id="screen-lobby" class="screen active">
-                <div class="lobby-header">
-                    <h2 data-i18n="lobby_my_trips">הקבוצות שלי</h2>
-                    <button class="primary-btn sm" onclick="openCreateTripModal()" data-i18n="lobby_btn_create">+ צור
-                        קבוצה חדשה</button>
-                </div>
-                <div id="trips-list" class="trips-grid">
-                    <div class="loading-state" data-i18n="loading">טוען...</div>
+            <div id="screen-lobby" class="screen active relative min-h-screen">
+                <div class="relative z-10 w-full max-w-md mx-auto bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-[2.5rem] p-6 shadow-2xl border border-white/50 dark:border-gray-700/50 mt-16">
+                    <div class="lobby-header">
+                        <h2 data-i18n="lobby_my_trips">הקבוצות שלי</h2>
+                        <button class="primary-btn sm" onclick="openCreateTripModal()" data-i18n="lobby_btn_create">+ צור
+                            קבוצה חדשה</button>
+                    </div>
+                    <div id="trips-list" class="trips-grid">
+                        <div class="loading-state" data-i18n="loading">טוען...</div>
+                    </div>
                 </div>
             </div>
 
@@ -390,12 +414,13 @@
 
                     <!-- WhatsApp Tab -->
                     <div class="invite-tab-panel active" data-panel="whatsapp" id="create-tab-whatsapp">
-                        <div class="invite-input-group" style="display: flex; gap: 5px;">
-                            <input type="text" id="create-wa-phone" data-i18n="invite_phone_ph" placeholder="מספר טלפון" style="flex: 1;">
-                            <button type="button" class="icon-btn" onclick="pickContact('create', 'wa')" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; width: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-dark);" title="Phone Contacts">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 18a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2"></path><rect x="5" y="2" width="14" height="20" rx="2"></rect><circle cx="12" cy="8" r="2"></circle></svg>
-                            </button>
+                        <div class="invite-input-group">
+                            <input type="text" id="create-wa-phone" data-i18n="invite_phone_ph" placeholder="מספר טלפון">
                         </div>
+                        <button type="button" class="invite-action-btn guest w-full" onclick="pickContact('create', 'wa')" style="margin-bottom: 8px;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 18a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2"></path><rect x="5" y="2" width="14" height="20" rx="2"></rect><circle cx="12" cy="8" r="2"></circle></svg>
+                            <span data-i18n="invite_add_contacts">הוסף מאנשי קשר</span>
+                        </button>
                         <button type="button" class="invite-action-btn whatsapp" onclick="sendWhatsAppInviteFromTab('create')">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
                             <span data-i18n="invite_send_whatsapp">שלח הזמנה בוואטסאפ</span>
@@ -513,12 +538,13 @@
                     </div>
 
                     <div class="invite-tab-panel active" data-panel="whatsapp" id="edit-tab-whatsapp">
-                        <div class="invite-input-group" style="display: flex; gap: 5px;">
-                            <input type="text" id="edit-wa-phone" data-i18n="invite_phone_ph" placeholder="מספר טלפון" style="flex: 1;">
-                            <button type="button" class="icon-btn" onclick="pickContact('edit', 'wa')" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; width: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-dark);" title="Phone Contacts">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 18a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2"></path><rect x="5" y="2" width="14" height="20" rx="2"></rect><circle cx="12" cy="8" r="2"></circle></svg>
-                            </button>
+                        <div class="invite-input-group">
+                            <input type="text" id="edit-wa-phone" data-i18n="invite_phone_ph" placeholder="מספר טלפון">
                         </div>
+                        <button type="button" class="invite-action-btn guest w-full" onclick="pickContact('edit', 'wa')" style="margin-bottom: 8px;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 18a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2"></path><rect x="5" y="2" width="14" height="20" rx="2"></rect><circle cx="12" cy="8" r="2"></circle></svg>
+                            <span data-i18n="invite_add_contacts">הוסף מאנשי קשר</span>
+                        </button>
                         <button type="button" class="invite-action-btn whatsapp" onclick="sendWhatsAppInviteFromTab('edit')">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
                             <span data-i18n="invite_send_whatsapp">שלח הזמנה בוואטסאפ</span>
@@ -795,6 +821,34 @@
         </div>
     </div>
 
+    <!-- React Language Sync Component -->
+    <div id="react-language-sync"></div>
+    <script type="text/babel" data-type="module">
+      import React, { useEffect, useState } from 'react';
+      import { createRoot } from 'react-dom/client';
+
+      const LanguageSync = () => {
+        const [lang, setLang] = useState(localStorage.getItem('lang') || 'he');
+        
+        useEffect(() => {
+          const handleStorage = (e) => {
+            if (e.key === 'lang' && e.newValue) {
+              setLang(e.newValue);
+              if (typeof setLanguage === 'function') setLanguage(e.newValue);
+              if (typeof renderTripsList === 'function') renderTripsList();
+              if (typeof renderDashboard === 'function' && document.getElementById('screen-dashboard')?.classList.contains('active')) renderDashboard();
+            }
+          };
+          window.addEventListener('storage', handleStorage);
+          return () => window.removeEventListener('storage', handleStorage);
+        }, []);
+
+        return null; // Invisible component, just handles React State logic for languages
+      };
+
+      const root = createRoot(document.getElementById('react-language-sync'));
+      root.render(<LanguageSync />);
+    </script>
 </body>
 
 </html>

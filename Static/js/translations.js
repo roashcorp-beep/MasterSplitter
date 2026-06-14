@@ -518,20 +518,21 @@ const translations = {
 let currentLang = 'he';
 
 function initLanguage() {
-    // We fetch language from API or use default
+    let saved = localStorage.getItem('lang');
+    if(saved) setLanguage(saved);
+    else applyTranslations(); // fallback to default 'he'
+
+    // We fetch language from API to sync
     fetch('/api/me').then(res => {
         if(res.ok) {
             res.json().then(data => {
-                if(data.language) {
+                if(data.language && data.language !== saved) {
                     setLanguage(data.language);
                 }
             });
         }
     }).catch(e => {
-        // Not logged in, use localStorage
-        let saved = localStorage.getItem('lang');
-        if(saved) setLanguage(saved);
-        else applyTranslations(); // fallback to default 'he'
+        console.error('Failed to sync language from API', e);
     });
 }
 

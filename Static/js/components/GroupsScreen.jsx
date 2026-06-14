@@ -163,13 +163,20 @@ const GroupsScreen = () => {
                                     <div className="toggle-hint">{i18n("budget_per_user_hint")}</div>
                                 </div>
                                 <label className="mini-toggle">
-                                    <input type="checkbox" id="trip-budget-per-user" onChange={(e) => {
-                                        if (typeof window.toggleBudgetFields === "function") {
-                                            window.toggleBudgetFields("create");
-                                        }
+                                    <input type="checkbox" id="trip-budget-per-user" onChange={() => {
+                                        if (typeof window.toggleBudgetFields === "function") window.toggleBudgetFields("create");
                                     }} />
                                     <span className="mini-toggle-slider"></span>
                                 </label>
+                            </div>
+                            <div className="form-group" style={{ marginBottom: 15 }}>
+                                <label>{i18n("budget_currency") || "מטבע הקבוצה"}</label>
+                                <select id="create-trip-currency" className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg p-2 mt-1">
+                                    <option value="ILS">ILS (₪)</option>
+                                    <option value="USD">USD ($)</option>
+                                    <option value="EUR">EUR (€)</option>
+                                    <option value="GBP">GBP (£)</option>
+                                </select>
                             </div>
                             <div id="create-global-budgets">
                                 <div className="form-group" id="create-budget-daily-group" style={{ marginBottom: 10 }}>
@@ -277,13 +284,20 @@ const GroupsScreen = () => {
                                     <div className="toggle-hint">{i18n("budget_per_user_hint")}</div>
                                 </div>
                                 <label className="mini-toggle">
-                                    <input type="checkbox" id="edit-trip-budget-per-user" onChange={(e) => {
-                                        if (typeof window.toggleBudgetFields === "function") {
-                                            window.toggleBudgetFields("edit");
-                                        }
+                                    <input type="checkbox" id="edit-trip-budget-per-user" onChange={() => {
+                                        if (typeof window.toggleBudgetFields === "function") window.toggleBudgetFields("edit");
                                     }} />
                                     <span className="mini-toggle-slider"></span>
                                 </label>
+                            </div>
+                            <div className="form-group" style={{ marginBottom: 15 }}>
+                                <label>{i18n("budget_currency") || "מטבע הקבוצה"}</label>
+                                <select id="edit-trip-currency" className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg p-2 mt-1">
+                                    <option value="ILS">ILS (₪)</option>
+                                    <option value="USD">USD ($)</option>
+                                    <option value="EUR">EUR (€)</option>
+                                    <option value="GBP">GBP (£)</option>
+                                </select>
                             </div>
                             <div id="edit-global-budgets">
                                 <div className="form-group" id="edit-budget-daily-group" style={{ marginBottom: 10 }}>

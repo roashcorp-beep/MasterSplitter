@@ -2339,21 +2339,28 @@ def add_expense():
     if currency not in ALLOWED_CURRENCIES:
         currency = 'ILS'
 
-    # Look up user's default currency for conversion target
-    cursor.execute("SELECT COALESCE(default_currency, 'ILS') as default_currency FROM Users WHERE id = ?", (session['user_id'],))
-    user_row = cursor.fetchone()
-    user_default_currency = user_row['default_currency'] if user_row else 'ILS'
+    # Look up Trip's base currency for conversion target
+    cursor.execute("SELECT budget_type FROM Trips WHERE id = ?", (trip_id,))
+    trip_row = cursor.fetchone()
+    trip_base_currency = 'ILS'
+    if trip_row and trip_row['budget_type'] and trip_row['budget_type'] != 'none':
+        try:
+            import json
+            budgets = json.loads(trip_row['budget_type'])
+            trip_base_currency = budgets.get('currency', 'ILS')
+        except:
+            pass
 
-    # Currency conversion: convert to user's default currency if foreign
+    # Currency conversion: convert to Trip's base currency if foreign
     original_amount = None
-    if currency != user_default_currency:
-        rate = get_exchange_rate(currency, user_default_currency)
+    if currency != trip_base_currency:
+        rate = get_exchange_rate(currency, trip_base_currency)
         if rate:
             original_amount = amount
             amount = round(original_amount * rate, 2)
         else:
             # Could not get rate — store as-is with a warning
-            logger.warning(f"Could not get exchange rate for {currency}->{user_default_currency}, storing raw amount")
+            logger.warning(f"Could not get exchange rate for {currency}->{trip_base_currency}, storing raw amount")
             original_amount = amount
 
     # Personal expense flag
@@ -2430,13 +2437,49 @@ def edit_expense(expense_id):
         updates = []
         params = []
         
-        if 'amount' in data:
-            amount, err = validate_amount(data['amount'])
-            if err:
-                return jsonify({"error": err}), 400
-            updates.append("amount = ?")
-            params.append(amount)
+        if 'amount' in data or 'currency' in data:
+            cursor.execute("SELECT amount, original_amount, currency, trip_id FROM Expenses WHERE id = ?", (expense_id,))
+            old_exp = cursor.fetchone()
             
+            new_amount = data.get('amount')
+            if new_amount is not None:
+                new_amount, err = validate_amount(new_amount)
+                if err: return jsonify({"error": err}), 400
+            else:
+                new_amount = old_exp['original_amount'] if old_exp['original_amount'] else old_exp['amount']
+                
+            new_currency = data.get('currency', old_exp['currency']).strip().upper()
+            if new_currency not in ALLOWED_CURRENCIES:
+                new_currency = old_exp['currency']
+
+            # Get Trip's base currency
+            cursor.execute("SELECT budget_type FROM Trips WHERE id = ?", (old_exp['trip_id'],))
+            trip_row = cursor.fetchone()
+            trip_base_currency = 'ILS'
+            if trip_row and trip_row['budget_type'] and trip_row['budget_type'] != 'none':
+                try:
+                    import json
+                    trip_base_currency = json.loads(trip_row['budget_type']).get('currency', 'ILS')
+                except:
+                    pass
+            
+            original_amount = None
+            final_amount = new_amount
+            if new_currency != trip_base_currency:
+                rate = get_exchange_rate(new_currency, trip_base_currency)
+                if rate:
+                    original_amount = new_amount
+                    final_amount = round(original_amount * rate, 2)
+                else:
+                    original_amount = new_amount
+
+            updates.append("amount = ?")
+            params.append(final_amount)
+            updates.append("original_amount = ?")
+            params.append(original_amount)
+            updates.append("currency = ?")
+            params.append(new_currency)
+
         if 'description' in data:
             desc, err = validate_string(data['description'], 'תיאור', MAX_DESCRIPTION_LENGTH)
             if err:
@@ -2449,12 +2492,6 @@ def edit_expense(expense_id):
             if len(cat) > 50: cat = cat[:50]
             updates.append("category = ?")
             params.append(cat)
-            
-        if 'currency' in data:
-            curr = str(data['currency']).strip().upper()
-            if curr in ALLOWED_CURRENCIES:
-                updates.append("currency = ?")
-                params.append(curr)
 
         if updates:
             params.append(expense_id)

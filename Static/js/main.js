@@ -596,6 +596,9 @@ async function createTrip() {
     const yVal = parseFloat(document.getElementById('create-budget-yearly-amt')?.value);
     if (yVal > 0) budgets_json.yearly = yVal;
 
+    const cVal = document.getElementById('create-trip-currency')?.value;
+    if (cVal) budgets_json.currency = cVal;
+
     if (!name) { showToast(typeof i18n === 'function' ? i18n('err_fill_all') : 'אנא מלא את כל השדות', 'error'); return; }
 
     // Build participant objects
@@ -674,6 +677,9 @@ async function openEditTripModal(tripId) {
             if (mbAmt) mbAmt.value = budgets.monthly || '';
             const ybAmt = document.getElementById('edit-budget-yearly-amt');
             if (ybAmt) ybAmt.value = budgets.yearly || '';
+            
+            const currEl = document.getElementById('edit-trip-currency');
+            if (currEl) currEl.value = budgets.currency || 'ILS';
             
             toggleBudgetFields('edit');
             
@@ -790,6 +796,9 @@ async function saveEditTrip() {
 
     const yVal = parseFloat(document.getElementById('edit-budget-yearly-amt')?.value);
     if (yVal > 0) budgets_json.yearly = yVal;
+
+    const cVal = document.getElementById('edit-trip-currency')?.value;
+    if (cVal) budgets_json.currency = cVal;
 
     if (!name) { alert(typeof i18n === 'function' ? i18n('err_fill_all') : 'Missing fields'); return; }
 

@@ -330,24 +330,11 @@ async function respondInvitation(id, action) {
 let hasAutoOpenedTrip = false;
 
 async function loadLobby() {
-    showView('loading');
-    let loaded = false;
-    
-    // Safety timeout: hide loading after 3s if stuck
-    const safetyTimeout = setTimeout(() => {
-        if (!loaded) {
-            console.warn("Safety timeout triggered: hiding spinner.");
-            showView('lobby');
-        }
-    }, 3000);
-
+    showView('lobby');
     try {
         const res = await fetch('/api/trips');
         if (res.status === 401) { window.location.href = '/'; return; }
         allTrips = await res.json();
-
-        loaded = true;
-        clearTimeout(safetyTimeout);
 
         // Auto-open the most recent trip on first load
         if (!hasAutoOpenedTrip && allTrips.length > 0) {
@@ -360,8 +347,6 @@ async function loadLobby() {
         renderTripsList();
     } catch (e) { 
         console.error('Load lobby error:', e); 
-        loaded = true;
-        clearTimeout(safetyTimeout);
         showView('lobby');
     }
 }
@@ -419,7 +404,7 @@ function renderTripsList() {
             <div class="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl shadow-inner">
                 ${trip.name.charAt(0).toUpperCase()}
             </div>
-            ${trip.is_admin ? `<button onclick="event.stopPropagation(); openEditModal(${trip.id})" class="text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors p-2 rounded-full hover:bg-indigo-50 dark:hover:bg-indigo-900/30">✏️</button>` : ''}
+            ${trip.is_admin ? `<button onclick="event.stopPropagation(); openEditModal(${trip.id})" class="text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors p-2 rounded-full hover:bg-indigo-50 dark:hover:bg-indigo-900/30"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-500 hover:text-blue-500 transition-colors"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg></button>` : ''}
             <div>
                 <h3 class="font-bold text-gray-900 dark:text-white text-lg">${escapeHTML(trip.name)}</h3>
                 <p class="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
@@ -438,6 +423,10 @@ function renderTripsList() {
 `;
     }
     container.innerHTML = tripHtml;
+    
+    if (typeof window.applyGlobalTranslations === 'function') {
+        window.applyGlobalTranslations();
+    }
 }
 
 async function openTrip(tripId) {
@@ -503,6 +492,10 @@ function openCreateTripModal() {
     switchInviteTab('whatsapp', 'create');
     const modal = document.getElementById('create-trip-modal');
     if (modal) modal.classList.add('open');
+    
+    if (typeof window.applyGlobalTranslations === 'function') {
+        window.applyGlobalTranslations();
+    }
 }
 
 function closeCreateTripModal() {
@@ -2499,11 +2492,8 @@ async function fetchActivity() {
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();
 
-    // Global function to apply translations to DOM and trigger re-renders
-    window.applyGlobalTranslations = function(lang) {
-        if (typeof setLanguage === 'function') {
-            setLanguage(lang);
-        }
+    // Register updateUI for i18n system to call when language changes
+    window.updateUI = function() {
         if (typeof renderTripsList === 'function') renderTripsList();
         if (typeof renderFriendsChips === 'function') renderFriendsChips();
         if (typeof renderEditFriendsChips === 'function') renderEditFriendsChips();
@@ -2512,19 +2502,18 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof fetchExpenses === 'function') fetchExpenses();
             if (typeof fetchActivity === 'function') fetchActivity();
         }
-    };
-
-    // Register updateUI for i18n system to call when language changes
-    window.updateUI = function() {
-        if (typeof currentLang !== 'undefined') {
-            window.applyGlobalTranslations(currentLang);
+        if (typeof window.applyGlobalTranslations === 'function') {
+            window.applyGlobalTranslations();
         }
     };
 
     // Listen for storage events (language changed in another tab/Profile page)
     window.addEventListener('storage', (e) => {
         if (e.key === 'lang' && e.newValue) {
-            window.applyGlobalTranslations(e.newValue);
+            if (typeof setLanguage === 'function') {
+                setLanguage(e.newValue);
+            }
+            window.updateUI();
         }
         if (e.key === 'theme') {
             initTheme();

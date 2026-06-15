@@ -149,56 +149,11 @@ const GroupsScreen = () => {
                         </button>
                     </div>
 
+                    <div className="modal-body-content space-y-4">
                     <div className="form-group">
                         <label>{i18n("create_trip_name") || "שם הקבוצה"}</label>
                         <input type="text" id="create-trip-name" placeholder={i18n("create_trip_name_ph") || "למשל: דירה, חופשה, משרד..."} />
                     </div>
-
-                    <div className="form-group">
-                        <button type="button" className="w-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 py-2 rounded-lg font-medium mt-4" onClick={() => setCreateShowBudget(!createShowBudget)}>
-                            ⚙️ <span>{i18n("advanced_budget") || "Advanced Budget Settings"}</span>
-                        </button>
-                    </div>
-
-                    {createShowBudget && (
-                        <div id="advanced-budget-settings" className="mt-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700">
-                            <div className="budget-per-user-row" style={{ marginBottom: 10 }}>
-                                <div>
-                                    <div className="toggle-label">{i18n("budget_per_user") || "תקציב לכל משתתף"}</div>
-                                    <div className="toggle-hint">{i18n("budget_per_user_hint")}</div>
-                                </div>
-                                <label className="mini-toggle">
-                                    <input type="checkbox" id="trip-budget-per-user" onChange={() => {
-                                        if (typeof window.toggleBudgetFields === "function") window.toggleBudgetFields("create");
-                                    }} />
-                                    <span className="mini-toggle-slider"></span>
-                                </label>
-                            </div>
-                            <div className="form-group" style={{ marginBottom: 15 }}>
-                                <label>{i18n("budget_currency") || "מטבע הקבוצה"}</label>
-                                <select id="create-trip-currency" className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg p-2 mt-1">
-                                    <option value="ILS">ILS (₪)</option>
-                                    <option value="USD">USD ($)</option>
-                                    <option value="EUR">EUR (€)</option>
-                                    <option value="GBP">GBP (£)</option>
-                                </select>
-                            </div>
-                            <div id="create-global-budgets">
-                                <div className="form-group" id="create-budget-daily-group" style={{ marginBottom: 10 }}>
-                                    <label>סכום תקציב יומי כללי</label>
-                                    <input type="number" id="create-budget-daily-amt" placeholder="0" min="0" />
-                                </div>
-                                <div className="form-group" id="create-budget-monthly-group" style={{ marginBottom: 10 }}>
-                                    <label>סכום תקציב חודשי כללי</label>
-                                    <input type="number" id="create-budget-monthly-amt" placeholder="0" min="0" />
-                                </div>
-                                <div className="form-group" id="create-budget-yearly-group" style={{ marginBottom: 10 }}>
-                                    <label>סכום תקציב שנתי כללי</label>
-                                    <input type="number" id="create-budget-yearly-amt" placeholder="0" min="0" />
-                                </div>
-                            </div>
-                        </div>
-                    )}
 
                     <div className="form-group">
                         <label>{i18n("invite_members_title") || "הזמן חברים"}</label>
@@ -250,6 +205,53 @@ const GroupsScreen = () => {
                         <div id="friends-chips" className="modal-members-list"></div>
                     </div>
 
+                        <button type="button" className="w-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 py-2 rounded-lg font-medium mt-4" onClick={() => setCreateShowBudget(!createShowBudget)}>
+                            ⚙️ <span>{i18n("advanced_budget") || "Advanced Budget Settings"}</span>
+                        </button>
+                    </div>
+
+                    {createShowBudget && (
+                        <div id="advanced-budget-settings" className="mt-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700">
+                            <div className="budget-per-user-row" style={{ marginBottom: 10 }}>
+                                <div>
+                                    <div className="toggle-label">{i18n("budget_per_user") || "תקציב לכל משתתף"}</div>
+                                    <div className="toggle-hint">{i18n("budget_per_user_hint")}</div>
+                                </div>
+                                <label className="mini-toggle">
+                                    <input type="checkbox" id="trip-budget-per-user" onChange={() => {
+                                        if (typeof window.toggleBudgetFields === "function") window.toggleBudgetFields("create");
+                                    }} />
+                                    <span className="mini-toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div className="form-group" style={{ marginBottom: 15 }}>
+                                <label>{i18n("budget_currency") || "מטבע הקבוצה"}</label>
+                                <select id="create-trip-currency" className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg p-2 mt-1">
+                                    <option value="ILS">ILS (₪)</option>
+                                    <option value="USD">USD ($)</option>
+                                    <option value="EUR">EUR (€)</option>
+                                    <option value="GBP">GBP (£)</option>
+                                </select>
+                            </div>
+                            <div id="create-global-budgets">
+                                <div className="form-group" id="create-budget-daily-group" style={{ marginBottom: 10 }}>
+                                    <label>סכום תקציב יומי כללי</label>
+                                    <input type="number" id="create-budget-daily-amt" placeholder="0" min="0" />
+                                </div>
+                                <div className="form-group" id="create-budget-monthly-group" style={{ marginBottom: 10 }}>
+                                    <label>סכום תקציב חודשי כללי</label>
+                                    <input type="number" id="create-budget-monthly-amt" placeholder="0" min="0" />
+                                </div>
+                                <div className="form-group" id="create-budget-yearly-group" style={{ marginBottom: 10 }}>
+                                    <label>סכום תקציב שנתי כללי</label>
+                                    <input type="number" id="create-budget-yearly-amt" placeholder="0" min="0" />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="form-group">
+                    </div>
                     <div className="modal-actions">
                         <button className="secondary-btn" onClick={() => setIsCreateOpen(false)}>{i18n("btn_cancel") || "ביטול"}</button>
                         <button className="primary-btn" onClick={() => window.createTrip()}>{i18n("create_trip_btn") || "צור קבוצה"}</button>
@@ -272,43 +274,11 @@ const GroupsScreen = () => {
                         </button>
                     </div>
 
+                    <div className="modal-body-content space-y-4">
                     <div className="form-group">
                         <label>{i18n("create_trip_name") || "שם הקבוצה"}</label>
                         <input type="text" id="edit-trip-name" defaultValue={trip?.name || ''} placeholder="שם הקבוצה" />
                     </div>
-
-                    
-                                <label className="mini-toggle">
-                                    <input type="checkbox" id="edit-trip-budget-per-user" onChange={() => {
-                                        if (typeof window.toggleBudgetFields === "function") window.toggleBudgetFields("edit");
-                                    }} />
-                                    <span className="mini-toggle-slider"></span>
-                                </label>
-                            </div>
-                            <div className="form-group" style={{ marginBottom: 15 }}>
-                                <label>{i18n("budget_currency") || "מטבע הקבוצה"}</label>
-                                <select id="edit-trip-currency" className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg p-2 mt-1">
-                                    <option value="ILS">ILS (₪)</option>
-                                    <option value="USD">USD ($)</option>
-                                    <option value="EUR">EUR (€)</option>
-                                    <option value="GBP">GBP (£)</option>
-                                </select>
-                            </div>
-                            <div id="edit-global-budgets">
-                                <div className="form-group" id="edit-budget-daily-group" style={{ marginBottom: 10 }}>
-                                    <label>סכום תקציב יומי כללי</label>
-                                    <input type="number" id="edit-budget-daily-amt" placeholder="0" min="0" />
-                                </div>
-                                <div className="form-group" id="edit-budget-monthly-group" style={{ marginBottom: 10 }}>
-                                    <label>סכום תקציב חודשי כללי</label>
-                                    <input type="number" id="edit-budget-monthly-amt" placeholder="0" min="0" />
-                                </div>
-                                <div className="form-group" id="edit-budget-yearly-group" style={{ marginBottom: 10 }}>
-                                    <label>סכום תקציב שנתי כללי</label>
-                                    <input type="number" id="edit-budget-yearly-amt" placeholder="0" min="0" />
-                                </div>
-                            </div>
-                        </div>
 
                     <div className="form-group">
                         <label>{i18n("invite_members_title") || "הזמן חברים"}</label>
@@ -360,7 +330,6 @@ const GroupsScreen = () => {
                         <div id="edit-friends-chips" className="modal-members-list"></div>
                     </div>
 
-                    <div className="form-group">
                         <button type="button" className="w-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 py-2 rounded-lg font-medium mt-4" onClick={() => setEditShowBudget(!editShowBudget)}>
                             ⚙️ <span>{i18n("advanced_budget") || "Advanced Budget Settings"}</span>
                         </button>
@@ -372,7 +341,41 @@ const GroupsScreen = () => {
                                     <div className="toggle-label">{i18n("budget_per_user") || "תקציב לכל משתתף"}</div>
                                     <div className="toggle-hint">{i18n("budget_per_user_hint")}</div>
                                 </div>
-<div className="modal-actions">
+                                <label className="mini-toggle">
+                                    <input type="checkbox" id="edit-trip-budget-per-user" onChange={() => {
+                                        if (typeof window.toggleBudgetFields === "function") window.toggleBudgetFields("edit");
+                                    }} />
+                                    <span className="mini-toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div className="form-group" style={{ marginBottom: 15 }}>
+                                <label>{i18n("budget_currency") || "מטבע הקבוצה"}</label>
+                                <select id="edit-trip-currency" className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg p-2 mt-1">
+                                    <option value="ILS">ILS (₪)</option>
+                                    <option value="USD">USD ($)</option>
+                                    <option value="EUR">EUR (€)</option>
+                                    <option value="GBP">GBP (£)</option>
+                                </select>
+                            </div>
+                            <div id="edit-global-budgets">
+                                <div className="form-group" id="edit-budget-daily-group" style={{ marginBottom: 10 }}>
+                                    <label>סכום תקציב יומי כללי</label>
+                                    <input type="number" id="edit-budget-daily-amt" placeholder="0" min="0" />
+                                </div>
+                                <div className="form-group" id="edit-budget-monthly-group" style={{ marginBottom: 10 }}>
+                                    <label>סכום תקציב חודשי כללי</label>
+                                    <input type="number" id="edit-budget-monthly-amt" placeholder="0" min="0" />
+                                </div>
+                                <div className="form-group" id="edit-budget-yearly-group" style={{ marginBottom: 10 }}>
+                                    <label>סכום תקציב שנתי כללי</label>
+                                    <input type="number" id="edit-budget-yearly-amt" placeholder="0" min="0" />
+                                </div>
+                            </div>
+                        </div>
+
+                    <div className="form-group">
+                    </div>
+                    <div className="modal-actions">
                         <button className="secondary-btn" onClick={() => setIsEditOpen(false)}>{i18n("btn_cancel") || "ביטול"}</button>
                         <button className="primary-btn" onClick={() => window.saveEditTrip()}>{i18n("save_changes") || "שמור שינויים"}</button>
                     </div>

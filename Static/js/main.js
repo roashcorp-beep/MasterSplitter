@@ -739,6 +739,9 @@ async function openEditTripModal(tripId) {
         const data = await res.json();
         if (res.ok && data.success) {
             const trip = data.trip;
+            if (typeof window.reactSetEditTripDetails === 'function') {
+                window.reactSetEditTripDetails(trip);
+            }
             const populateEditModal = () => {
                 const nameEl = document.getElementById('edit-trip-name');
                 if (!nameEl) {

@@ -680,18 +680,15 @@ async function createTrip() {
     if (!name) { showToast(typeof i18n === 'function' ? i18n('err_fill_all') : 'אנא מלא את כל השדות', 'error'); return; }
 
     // Extract participants strictly from the new DOM structure (Method B)
-    const participantNodes = document.querySelectorAll('#friends-chips .participant-row');
-    const participants = Array.from(participantNodes).map(node => ({
-        name: node.getAttribute('data-name'),
-        contact: node.getAttribute('data-phone') || node.getAttribute('data-name'),
-        type: 'registered',
-        budgets_json: {}
-    }));
-    
-    // Attempt to merge budget properties if per user budget is enabled
-    if (isBudgetPerUser) {
-        participantNodes.forEach((node, idx) => {
-            let pBudgets = {};
+    const participants = [];
+    const chips = document.getElementById('friends-chips')?.children || [];
+    Array.from(chips).forEach((chip, idx) => {
+        // Extract the name safely. Fallback to parsing text if data attributes don't exist.
+        const name = chip.getAttribute('data-name') || chip.innerText.replace('✕', '').replace('חבר', '').replace('אורח', '').trim();
+        const contact = chip.getAttribute('data-phone') || '';
+        
+        let pBudgets = {};
+        if (isBudgetPerUser) {
             const dailyInput = document.getElementById(`create-friend-${idx}-daily`);
             const monthlyInput = document.getElementById(`create-friend-${idx}-monthly`);
             const yearlyInput = document.getElementById(`create-friend-${idx}-yearly`);
@@ -699,10 +696,18 @@ async function createTrip() {
             if (dailyInput && parseFloat(dailyInput.value) > 0) pBudgets.daily = parseFloat(dailyInput.value);
             if (monthlyInput && parseFloat(monthlyInput.value) > 0) pBudgets.monthly = parseFloat(monthlyInput.value);
             if (yearlyInput && parseFloat(yearlyInput.value) > 0) pBudgets.yearly = parseFloat(yearlyInput.value);
-            
-            participants[idx].budgets_json = pBudgets;
-        });
-    }
+        }
+
+        if (name) {
+            participants.push({ 
+                name, 
+                contact: contact || name, 
+                type: 'registered',
+                status: 'member',
+                budgets_json: pBudgets
+            });
+        }
+    });
 
     try {
         const res = await fetch('/api/trips', {
@@ -899,18 +904,15 @@ async function saveEditTrip() {
     const payload = { name, budgets_json, is_budget_per_user: isBudgetPerUser };
     
     // Extract participants strictly from the new DOM structure (Method B)
-    const participantNodes = document.querySelectorAll('#edit-friends-chips .participant-row');
-    const participants = Array.from(participantNodes).map(node => ({
-        name: node.getAttribute('data-name'),
-        contact: node.getAttribute('data-phone') || node.getAttribute('data-name'), // 'phone' is what the user asked for
-        type: 'registered',
-        budgets_json: {}
-    }));
-    
-    // Attempt to merge budget properties if per user budget is enabled
-    if (isBudgetPerUser) {
-        participantNodes.forEach((node, idx) => {
-            let pBudgets = {};
+    const participants = [];
+    const chips = document.getElementById('edit-friends-chips')?.children || [];
+    Array.from(chips).forEach((chip, idx) => {
+        // Extract the name safely. Fallback to parsing text if data attributes don't exist.
+        const name = chip.getAttribute('data-name') || chip.innerText.replace('✕', '').replace('חבר', '').replace('אורח', '').trim();
+        const contact = chip.getAttribute('data-phone') || '';
+        
+        let pBudgets = {};
+        if (isBudgetPerUser) {
             const dailyInput = document.getElementById(`edit-friend-${idx}-daily`);
             const monthlyInput = document.getElementById(`edit-friend-${idx}-monthly`);
             const yearlyInput = document.getElementById(`edit-friend-${idx}-yearly`);
@@ -918,10 +920,18 @@ async function saveEditTrip() {
             if (dailyInput && parseFloat(dailyInput.value) > 0) pBudgets.daily = parseFloat(dailyInput.value);
             if (monthlyInput && parseFloat(monthlyInput.value) > 0) pBudgets.monthly = parseFloat(monthlyInput.value);
             if (yearlyInput && parseFloat(yearlyInput.value) > 0) pBudgets.yearly = parseFloat(yearlyInput.value);
-            
-            participants[idx].budgets_json = pBudgets;
-        });
-    }
+        }
+
+        if (name) {
+            participants.push({ 
+                name, 
+                contact: contact || name, 
+                type: 'registered',
+                status: 'member',
+                budgets_json: pBudgets
+            });
+        }
+    });
 
     payload.participants = participants;
 

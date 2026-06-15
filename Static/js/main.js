@@ -576,6 +576,7 @@ function addGuestFriend() {
 }
 
 function removeFriend(idx) {
+    if (!window.confirm(typeof i18n === 'function' && i18n("confirm_delete_member") ? i18n("confirm_delete_member") : "Are you sure you want to remove this member?")) return;
     friendsList.splice(idx, 1);
     renderFriendsChips();
 }
@@ -842,6 +843,7 @@ function addEditGuestFriend() {
 }
 
 function removeEditFriend(idx) {
+    if (!window.confirm(typeof i18n === 'function' && i18n("confirm_delete_member") ? i18n("confirm_delete_member") : "Are you sure you want to remove this member?")) return;
     editFriendsList.splice(idx, 1);
     renderEditFriendsChips();
 }

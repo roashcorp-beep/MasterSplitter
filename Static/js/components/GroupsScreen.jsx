@@ -96,7 +96,24 @@ const GroupsScreen = () => {
                     trips.map((trip, i) => {
                         const initial = (trip.name || "?").charAt(0).toUpperCase();
                         const isAdmin = trip.is_admin !== undefined ? trip.is_admin : trip.is_owner;
-                        const currency = typeof window.getTripCurrencySymbol === "function" ? window.getTripCurrencySymbol() : "₪";
+                        let cardCurrency = "₪";
+                        let highestBudget = null;
+                        let highestBudgetLabel = "";
+                        if (trip.budgets_json) {
+                            cardCurrency = trip.budgets_json.currency === 'USD' ? '$' : 
+                                      trip.budgets_json.currency === 'EUR' ? '€' : 
+                                      trip.budgets_json.currency === 'GBP' ? '£' : '₪';
+                            if (trip.budgets_json.yearly) {
+                                highestBudget = trip.budgets_json.yearly;
+                                highestBudgetLabel = i18n("yearly") || "שנתי";
+                            } else if (trip.budgets_json.monthly) {
+                                highestBudget = trip.budgets_json.monthly;
+                                highestBudgetLabel = i18n("monthly") || "חודשי";
+                            } else if (trip.budgets_json.daily) {
+                                highestBudget = trip.budgets_json.daily;
+                                highestBudgetLabel = i18n("daily") || "יומי";
+                            }
+                        }
                         
                         return (
                             <div key={trip.id} className="trip-card-v2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md rounded-2xl p-4 shadow-lg border border-gray-100 dark:border-gray-700 flex justify-between items-center cursor-pointer hover:shadow-xl transition-all" onClick={() => handleTripClick(trip.id)}>
@@ -115,19 +132,26 @@ const GroupsScreen = () => {
                                         </p>
                                     </div>
                                 </div>
-                                <div className="text-right">
-                                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-1" data-i18n="total_budget">{i18n("total_budget") || "Total"}</div>
-                                    <div className="font-bold text-xl text-indigo-600 dark:text-indigo-400 flex items-center justify-end gap-2" dir="ltr">
-                                        {isAdmin && (
-                                            <button 
-                                                onClick={(e) => { e.stopPropagation(); window.openEditTripModal(trip.id); }} 
-                                                className="border border-gray-300 dark:border-gray-600 rounded-md p-1.5 text-gray-500 hover:text-indigo-600 hover:border-indigo-600 transition-all"
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
-                                            </button>
-                                        )}
-                                        <span><span className="text-sm mr-1">{currency}</span>{trip.budget ? window.formatNumber(trip.budget) : "0.00"}</span>
-                                    </div>
+                                <div className="flex items-center gap-3 text-right">
+                                    {highestBudget !== null && (
+                                        <div className="border-r border-gray-200 dark:border-gray-700 pr-3 mr-1">
+                                            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                                                {i18n("total_budget") || "Total"} <span className="text-[10px]">({highestBudgetLabel})</span>
+                                            </div>
+                                            <div className="font-bold text-xl text-indigo-600 dark:text-indigo-400 flex items-center justify-end gap-1" dir="ltr">
+                                                <span className="text-sm mr-1">{cardCurrency}</span>
+                                                <span>{window.formatNumber(highestBudget)}</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {isAdmin && (
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); window.openEditTripModal(trip.id); }} 
+                                            className="border border-gray-300 dark:border-gray-600 rounded-md p-1.5 text-gray-500 hover:text-indigo-600 hover:border-indigo-600 transition-all flex-shrink-0"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         );
@@ -157,6 +181,14 @@ const GroupsScreen = () => {
 
                     <div className="form-group">
                         <label>{i18n("invite_members_title") || "הזמן חברים"}</label>
+                        <button type="button" className="invite-action-btn guest w-full mb-3 border-dashed" onClick={() => window.pickContact('create', 'wa')}>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '8px', display: 'inline-block'}}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                            <span>{i18n("invite_add_contacts") || "הוסף מאנשי קשר"}</span>
+                        </button>
+                        <button type="button" className="invite-action-btn guest w-full mb-3 border-dashed" onClick={() => window.pickContact('edit', 'wa')}>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '8px', display: 'inline-block'}}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                            <span>{i18n("invite_add_contacts") || "הוסף מאנשי קשר"}</span>
+                        </button>
                         <div className="invite-tabs-container">
                             <div className="invite-tabs-header">
                                 <button type="button" className={`invite-tab-btn ${createTab === 'whatsapp' ? 'active' : ''}`} onClick={() => setCreateTab('whatsapp')}>
@@ -174,9 +206,7 @@ const GroupsScreen = () => {
                                 <div className="invite-input-group">
                                     <input type="text" id="create-wa-phone" placeholder={i18n("invite_phone_ph") || "מספר טלפון"} />
                                 </div>
-                                <button type="button" className="invite-action-btn guest w-full" onClick={() => window.pickContact('create', 'wa')} style={{ marginBottom: 8 }}>
-                                    <span>{i18n("invite_add_contacts") || "הוסף מאנשי קשר"}</span>
-                                </button>
+                                
                                 <button type="button" className="invite-action-btn whatsapp" onClick={() => window.sendWhatsAppInviteFromTab('create')}>
                                     <span>{i18n("invite_send_whatsapp") || "שלח הזמנה בוואטסאפ"}</span>
                                 </button>
@@ -195,6 +225,7 @@ const GroupsScreen = () => {
                             <div className={`invite-tab-panel ${createTab === 'guest' ? 'active' : ''}`} style={{ display: createTab === 'guest' ? 'block' : 'none' }}>
                                 <div className="invite-input-group">
                                     <input type="text" id="create-guest-name" placeholder={i18n("invite_name_ph") || "שם"} />
+                                    <p className="text-xs text-gray-400 mt-1" style={{ textAlign: 'right' }}>{i18n("guest_offline_note") || "עבור משתמש שאינו מקוון"}</p>
                                 </div>
                                 <button type="button" className="invite-action-btn guest" onClick={() => window.addGuestFromTab('create')}>
                                     <span>{i18n("invite_add_guest") || "הוסף אורח"}</span>
@@ -299,9 +330,7 @@ const GroupsScreen = () => {
                                 <div className="invite-input-group">
                                     <input type="text" id="edit-wa-phone" placeholder={i18n("invite_phone_ph") || "מספר טלפון"} />
                                 </div>
-                                <button type="button" className="invite-action-btn guest w-full" onClick={() => window.pickContact('edit', 'wa')} style={{ marginBottom: 8 }}>
-                                    <span>{i18n("invite_add_contacts") || "הוסף מאנשי קשר"}</span>
-                                </button>
+                                
                                 <button type="button" className="invite-action-btn whatsapp" onClick={() => window.sendWhatsAppInviteFromTab('edit')}>
                                     <span>{i18n("invite_send_whatsapp") || "שלח הזמנה בוואטסאפ"}</span>
                                 </button>
@@ -320,6 +349,7 @@ const GroupsScreen = () => {
                             <div className={`invite-tab-panel ${editTab === 'guest' ? 'active' : ''}`} style={{ display: editTab === 'guest' ? 'block' : 'none' }}>
                                 <div className="invite-input-group">
                                     <input type="text" id="edit-guest-name" placeholder={i18n("invite_name_ph") || "שם"} />
+                                    <p className="text-xs text-gray-400 mt-1" style={{ textAlign: 'right' }}>{i18n("guest_offline_note") || "עבור משתמש שאינו מקוון"}</p>
                                 </div>
                                 <button type="button" className="invite-action-btn guest" onClick={() => window.addGuestFromTab('edit')}>
                                     <span>{i18n("invite_add_guest") || "הוסף אורח"}</span>

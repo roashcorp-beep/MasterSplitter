@@ -780,11 +780,12 @@ async function openEditTripModal(tripId) {
                 editFriendsList = trip.participants.map(p => ({
                     id: p.id,
                     name: p.name,
-                    contact: p.name,
-                    type: p.is_guest ? 'guest' : 'registered',
+                    contact: p.contact || p.name,
+                    type: p.is_guest ? 'guest' : (p.type || 'registered'),
                     budgets_json: p.budgets_json || {}
                 }));
             }
+            window.currentEditParticipants = editFriendsList;
             renderEditFriendsChips();
             switchInviteTab('whatsapp', 'edit');
             };
@@ -874,7 +875,7 @@ function renderEditFriendsChips() {
         const budgetInputs = getBudgetInputsHtml('edit', idx, n.budgets_json);
         
         return `
-        <div class="whatsapp-contact-row" style="display:flex; flex-direction:column; padding:12px 0; border-bottom:1px solid rgba(156, 163, 175, 0.2); width:100%;">
+        <div class="whatsapp-contact-row" data-id="${n.id || ''}" data-name="${escapeHTML(n.name || '')}" data-contact="${escapeHTML(n.contact || '')}" data-type="${n.type || 'registered'}" style="display:flex; flex-direction:column; padding:12px 0; border-bottom:1px solid rgba(156, 163, 175, 0.2); width:100%;">
             <div style="display:flex; align-items:center; width:100%;">
                 <div class="contact-avatar" style="width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg, #a855f7, #6366f1); color:white; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:18px; margin-left:12px; flex-shrink:0;">
                     ${initial}
@@ -915,15 +916,45 @@ async function saveEditTrip() {
     if (!name) { alert(typeof i18n === 'function' ? i18n('err_fill_all') : 'Missing fields'); return; }
 
     const payload = { name, budgets_json, is_budget_per_user: isBudgetPerUser };
-    payload.participants = editFriendsList.map(f => {
-        return {
-            id: f.id,
-            name: f.name || f.contact,
-            contact: f.contact || f.name,
-            type: f.type || 'registered',
-            budgets_json: isBudgetPerUser ? (f.budgets_json || {}) : {}
-        };
+    
+    // Extract participants robustly from the DOM to match visual state
+    const participantRows = document.querySelectorAll('#edit-friends-chips .whatsapp-contact-row');
+    const participants = [];
+    participantRows.forEach((row, idx) => {
+        const id = row.getAttribute('data-id');
+        const pName = row.getAttribute('data-name');
+        const pContact = row.getAttribute('data-contact');
+        const pType = row.getAttribute('data-type');
+        
+        let pBudgets = {};
+        if (isBudgetPerUser) {
+            // Read individual budget inputs directly from the DOM
+            const dailyInput = document.getElementById(`edit-friend-${idx}-daily`);
+            const monthlyInput = document.getElementById(`edit-friend-${idx}-monthly`);
+            const yearlyInput = document.getElementById(`edit-friend-${idx}-yearly`);
+            
+            if (dailyInput && parseFloat(dailyInput.value) > 0) pBudgets.daily = parseFloat(dailyInput.value);
+            if (monthlyInput && parseFloat(monthlyInput.value) > 0) pBudgets.monthly = parseFloat(monthlyInput.value);
+            if (yearlyInput && parseFloat(yearlyInput.value) > 0) pBudgets.yearly = parseFloat(yearlyInput.value);
+        }
+        
+        participants.push({
+            id: id || null,
+            name: pName || pContact,
+            contact: pContact || pName,
+            type: pType || 'registered',
+            budgets_json: pBudgets
+        });
     });
+    
+    // Fallback to window.currentEditParticipants if DOM is somehow empty but list isn't
+    payload.participants = participants.length > 0 ? participants : (window.currentEditParticipants || editFriendsList).map(f => ({
+        id: f.id,
+        name: f.name || f.contact,
+        contact: f.contact || f.name,
+        type: f.type || 'registered',
+        budgets_json: isBudgetPerUser ? (f.budgets_json || {}) : {}
+    }));
 
     try {
         const res = await fetch(`/api/trips/${editTripId}`, {

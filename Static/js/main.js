@@ -1028,7 +1028,7 @@ function sendWhatsAppInviteFromTab(mode, providedName = null) {
     } else {
         renderEditFriendsChips();
         if (editTripId) {
-            const trip = trips.find(t => t.id === editTripId);
+            const trip = allTrips.find(t => t.id === editTripId);
             if (trip && trip.invite_token) {
                 const cleanPhone = phone.replace(/\D/g, '');
                 const link = `${window.location.origin}/?join_group=${trip.invite_token}`;
@@ -1040,6 +1040,7 @@ function sendWhatsAppInviteFromTab(mode, providedName = null) {
     }
     
     phoneInput.value = '';
+}
 
 async function sendEmailInviteFromTab(mode) {
     const nameInput = document.getElementById(mode === 'create' ? 'create-email-name' : 'edit-email-name');

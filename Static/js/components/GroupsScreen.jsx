@@ -277,18 +277,7 @@ const GroupsScreen = () => {
                         <input type="text" id="edit-trip-name" defaultValue={trip?.name || ''} placeholder="שם הקבוצה" />
                     </div>
 
-                    <div className="form-group">
-                        <button type="button" className="w-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 py-2 rounded-lg font-medium mt-4" onClick={() => setEditShowBudget(!editShowBudget)}>
-                            ⚙️ <span>{i18n("advanced_budget") || "Advanced Budget Settings"}</span>
-                        </button>
-                    </div>
-
-                        <div id="advanced-budget-settings" className="mt-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700" style={{ display: editShowBudget ? 'block' : 'none' }}>
-                            <div className="budget-per-user-row" style={{ marginBottom: 10 }}>
-                                <div>
-                                    <div className="toggle-label">{i18n("budget_per_user") || "תקציב לכל משתתף"}</div>
-                                    <div className="toggle-hint">{i18n("budget_per_user_hint")}</div>
-                                </div>
+                    
                                 <label className="mini-toggle">
                                     <input type="checkbox" id="edit-trip-budget-per-user" onChange={() => {
                                         if (typeof window.toggleBudgetFields === "function") window.toggleBudgetFields("edit");
@@ -371,7 +360,19 @@ const GroupsScreen = () => {
                         <div id="edit-friends-chips" className="modal-members-list"></div>
                     </div>
 
-                    <div className="modal-actions">
+                    <div className="form-group">
+                        <button type="button" className="w-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 py-2 rounded-lg font-medium mt-4" onClick={() => setEditShowBudget(!editShowBudget)}>
+                            ⚙️ <span>{i18n("advanced_budget") || "Advanced Budget Settings"}</span>
+                        </button>
+                    </div>
+
+                        <div id="advanced-budget-settings" className="mt-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700" style={{ display: editShowBudget ? 'block' : 'none' }}>
+                            <div className="budget-per-user-row" style={{ marginBottom: 10 }}>
+                                <div>
+                                    <div className="toggle-label">{i18n("budget_per_user") || "תקציב לכל משתתף"}</div>
+                                    <div className="toggle-hint">{i18n("budget_per_user_hint")}</div>
+                                </div>
+<div className="modal-actions">
                         <button className="secondary-btn" onClick={() => setIsEditOpen(false)}>{i18n("btn_cancel") || "ביטול"}</button>
                         <button className="primary-btn" onClick={() => window.saveEditTrip()}>{i18n("save_changes") || "שמור שינויים"}</button>
                     </div>

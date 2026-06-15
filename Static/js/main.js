@@ -642,6 +642,20 @@ async function createTrip() {
         if (res.ok && data.success) {
             closeCreateTripModal();
             showToast(typeof i18n === 'function' ? i18n('toast_trip_created') : 'Trip created', 'success');
+            
+            // Auto-open WhatsApp if a WhatsApp contact was added
+            const waContact = friendsList.find(f => f.inviteMethod === 'whatsapp' && f.contact);
+            if (waContact && data.invite_token) {
+                const phone = waContact.contact;
+                const cleanPhone = phone.replace(/\D/g, '');
+                const inviteCode = data.invite_token;
+                const link = `${window.location.origin}/join/${inviteCode}`;
+                const text = encodeURIComponent(typeof i18n === 'function' ? 
+                    (i18n('whatsapp_invite_msg') || `You've been invited to join the group! Click here to join: ${link}`) : 
+                    `You've been invited to join the group! Click here to join: ${link}`);
+                window.open(`https://wa.me/${cleanPhone}?text=${text}`, '_blank');
+            }
+
             await loadLobby();
         } else {
             showToast(data.error || 'Network error', 'error');

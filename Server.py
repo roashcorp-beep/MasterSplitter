@@ -1574,10 +1574,12 @@ def create_trip():
         global_budgets = data.get('budgets_json', {})
         global_budgets_json = json.dumps(global_budgets)
 
+        invite_token = __import__('uuid').uuid4().hex[:12]
+
         participants_json = json.dumps([], ensure_ascii=False)
         cursor.execute(
-            "INSERT INTO Trips (destination, budget, budget_type, is_budget_per_user, budgets_json, owner_id, local_participants) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (name, budget, budget_type, is_budget_per_user, global_budgets_json, session['user_id'], participants_json)
+            "INSERT INTO Trips (destination, budget, budget_type, is_budget_per_user, budgets_json, owner_id, local_participants, invite_token) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (name, budget, budget_type, is_budget_per_user, global_budgets_json, session['user_id'], participants_json, invite_token)
         )
         trip_id = cursor.lastrowid
 
@@ -1618,7 +1620,7 @@ def create_trip():
 
         conn.commit()
         logger.info(f"Trip created: '{name}' (id={trip_id}) by user {session['user_id']}")
-        return jsonify({"success": True, "trip_id": trip_id})
+        return jsonify({"success": True, "trip_id": trip_id, "invite_token": invite_token})
     except sqlite3.Error as e:
         logger.error(f"Create trip error: {e}")
         return jsonify({"error": "שגיאה ביצירת הטיול."}), 500

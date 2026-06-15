@@ -615,45 +615,48 @@ function updateMemberBudget(mode, idx, type, val) {
     list[idx].budgets_json[type] = parseFloat(val) || 0;
 }
 
+function createParticipantRowHTML(n, idx, mode) {
+    const displayName = escapeHTML(n.name || n.resolvedName || n.contact || n);
+    const initial = (displayName || '?').charAt(0).toUpperCase();
+    
+    let statusText = 'חבר';
+    let statusColor = '#10b981'; // green
+    
+    if (n.type === 'guest') {
+        statusText = 'אורח';
+        statusColor = '#3b82f6'; // blue
+    } else if (n.type === 'pending' || n.type === 'unregistered' || n.inviteMethod) {
+        if (!n.id) {
+            statusText = 'ממתין להצטרפות';
+            statusColor = '#9ca3af'; // gray
+        }
+    }
+
+    const budgetInputs = getBudgetInputsHtml(mode, idx, n.budgets_json);
+    const removeFn = mode === 'create' ? `removeFriend(${idx})` : `removeEditFriend(${idx})`;
+    
+    return `
+    <div class="flex items-center justify-between p-3 border-b border-gray-100 dark:border-gray-700 last:border-0 participant-row" style="flex-wrap: wrap;" data-name="${escapeHTML(n.name || n.contact || '')}" data-phone="${escapeHTML(n.contact || '')}">
+        <div class="flex items-center justify-between w-full">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-lg">
+                    ${escapeHTML(initial)}
+                </div>
+                <span class="font-medium text-gray-900 dark:text-white">${escapeHTML(displayName)}</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="px-2.5 py-1 text-xs rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-medium">${statusText}</span>
+                <button type="button" onclick="if(confirm('Remove user?')) { ${removeFn}; }" class="text-red-500 hover:text-red-700 dark:text-red-400 p-1">✕</button>
+            </div>
+        </div>
+        ${budgetInputs}
+    </div>`;
+}
+
 function renderFriendsChips() {
     const container = document.getElementById('friends-chips');
     if (!container) return;
-    container.innerHTML = friendsList.map((n, idx) => {
-        const displayName = escapeHTML(n.name || n.resolvedName || n.contact || n);
-        const initial = (displayName || '?').charAt(0).toUpperCase();
-        
-        let statusText = 'חבר';
-        let statusColor = '#10b981'; // green
-        
-        if (n.type === 'guest') {
-            statusText = 'אורח';
-            statusColor = '#3b82f6'; // blue
-        } else if (n.type === 'pending' || n.type === 'unregistered' || n.inviteMethod) {
-            if (!n.id) {
-                statusText = 'ממתין להצטרפות';
-                statusColor = '#9ca3af'; // gray
-            }
-        }
-
-        const budgetInputs = getBudgetInputsHtml('create', idx, n.budgets_json);
-        
-        return `
-        <div class="flex items-center justify-between p-3 border-b border-gray-100 dark:border-gray-700 last:border-0 participant-row" style="flex-wrap: wrap;" data-name="${escapeHTML(n.name || n.contact || '')}" data-phone="${escapeHTML(n.contact || '')}">
-            <div class="flex items-center justify-between w-full">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-lg">
-                        ${escapeHTML(displayName.charAt(0).toUpperCase())}
-                    </div>
-                    <span class="font-medium text-gray-900 dark:text-white">${escapeHTML(displayName)}</span>
-                </div>
-                <div class="flex items-center gap-3">
-                    <span class="px-2.5 py-1 text-xs rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-medium">${statusText}</span>
-                    <button type="button" onclick="if(confirm('Remove user?')) this.closest('.participant-row').remove();" class="text-red-500 hover:text-red-700 dark:text-red-400 p-1">✕</button>
-                </div>
-            </div>
-            ${budgetInputs}
-        </div>`;
-    }).join('');
+    container.innerHTML = friendsList.map((n, idx) => createParticipantRowHTML(n, idx, 'create')).join('');
 }
 
 async function createTrip() {
@@ -869,42 +872,7 @@ function removeEditFriend(idx) {
 function renderEditFriendsChips() {
     const container = document.getElementById('edit-friends-chips');
     if (!container) return;
-    container.innerHTML = editFriendsList.map((n, idx) => {
-        const displayName = escapeHTML(n.name || n.resolvedName || n.contact || n);
-        const initial = (displayName || '?').charAt(0).toUpperCase();
-        
-        let statusText = 'חבר';
-        let statusColor = '#10b981'; // green
-        
-        if (n.type === 'guest') {
-            statusText = 'אורח';
-            statusColor = '#3b82f6'; // blue
-        } else if (n.type === 'pending' || n.type === 'unregistered' || n.inviteMethod) {
-            if (!n.id) {
-                statusText = 'ממתין להצטרפות';
-                statusColor = '#9ca3af'; // gray
-            }
-        }
-
-        const budgetInputs = getBudgetInputsHtml('edit', idx, n.budgets_json);
-        
-        return `
-        <div class="flex items-center justify-between p-3 border-b border-gray-100 dark:border-gray-700 last:border-0 participant-row" style="flex-wrap: wrap;" data-name="${escapeHTML(n.name || n.contact || '')}" data-phone="${escapeHTML(n.contact || '')}">
-            <div class="flex items-center justify-between w-full">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-lg">
-                        ${escapeHTML(displayName.charAt(0).toUpperCase())}
-                    </div>
-                    <span class="font-medium text-gray-900 dark:text-white">${escapeHTML(displayName)}</span>
-                </div>
-                <div class="flex items-center gap-3">
-                    <span class="px-2.5 py-1 text-xs rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-medium">${statusText}</span>
-                    <button type="button" onclick="if(confirm('Remove user?')) this.closest('.participant-row').remove();" class="text-red-500 hover:text-red-700 dark:text-red-400 p-1">✕</button>
-                </div>
-            </div>
-            ${budgetInputs}
-        </div>`;
-    }).join('');
+    container.innerHTML = editFriendsList.map((n, idx) => createParticipantRowHTML(n, idx, 'edit')).join('');
 }
 
 async function saveEditTrip() {

@@ -1496,7 +1496,7 @@ def get_trips():
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT DISTINCT t.id, t.destination, t.budget, t.budget_type,
+        SELECT DISTINCT t.id, t.destination, t.budget, t.budget_type, t.budgets_json,
             COALESCE(t.is_budget_per_user, 0) as is_budget_per_user, t.owner_id, t.invite_token,
             (SELECT GROUP_CONCAT(COALESCE(u.name, tm2.guest_name))
              FROM TripMembers tm2 
@@ -1520,6 +1520,7 @@ def get_trips():
             'is_budget_per_user': bool(t['is_budget_per_user']),
             'is_owner': t['owner_id'] == session['user_id'],
             'invite_token': t['invite_token'],
+            'budgets_json': json.loads(t['budgets_json']) if t['budgets_json'] else {},
             'participants': participants
         })
     return jsonify(result)

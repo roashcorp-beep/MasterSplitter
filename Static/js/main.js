@@ -915,17 +915,15 @@ async function saveEditTrip() {
     if (!name) { alert(typeof i18n === 'function' ? i18n('err_fill_all') : 'Missing fields'); return; }
 
     const payload = { name, budgets_json, is_budget_per_user: isBudgetPerUser };
-    if (editFriendsList.length > 0) {
-        payload.participants = editFriendsList.map(f => {
-            return {
-                id: f.id,
-                name: f.name || f.contact,
-                contact: f.contact || f.name,
-                type: f.type || 'registered',
-                budgets_json: isBudgetPerUser ? (f.budgets_json || {}) : {}
-            };
-        });
-    }
+    payload.participants = editFriendsList.map(f => {
+        return {
+            id: f.id,
+            name: f.name || f.contact,
+            contact: f.contact || f.name,
+            type: f.type || 'registered',
+            budgets_json: isBudgetPerUser ? (f.budgets_json || {}) : {}
+        };
+    });
 
     try {
         const res = await fetch(`/api/trips/${editTripId}`, {

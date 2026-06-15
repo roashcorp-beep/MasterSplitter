@@ -78,7 +78,7 @@ const GroupsScreen = () => {
     ];
 
     const renderGroupsLobby = () => (
-        <div className="relative z-10 w-full max-w-4xl mx-auto p-4 pt-16">
+        <div className="relative z-10 w-full max-w-4xl mx-auto p-4 pt-4">
             <div className="lobby-header">
                 <h2 data-i18n="lobby_my_trips">{i18n("lobby_my_trips") || "הקבוצות שלי"}</h2>
                 <button className="primary-btn sm" onClick={() => setIsCreateOpen(true)} data-i18n="lobby_btn_create">
@@ -362,27 +362,32 @@ const GroupsScreen = () => {
                         {/* Vanilla JS will populate this div */}
                         <div id="edit-friends-chips" className="modal-members-list mt-4">
                             {trip?.participants?.map((p, idx) => (
-                                <div key={idx} className="whatsapp-contact-row flex flex-col py-3 border-b border-gray-200 dark:border-gray-700 w-full">
-                                    <div className="flex items-center w-full">
-                                        <div className="contact-avatar w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg ml-3 flex-shrink-0" style={{background: 'linear-gradient(135deg, #a855f7, #6366f1)'}}>
+                                <div key={idx} className="flex items-center justify-between p-3 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-lg">
                                             {p.name ? p.name.charAt(0).toUpperCase() : '?'}
                                         </div>
-                                        <div className="contact-info flex-1 flex flex-col justify-center text-right">
-                                            <div className="font-bold text-gray-900 dark:text-white text-base">{p.name}</div>
-                                            <div className="text-xs mt-0.5 flex items-center" style={{color: p.is_guest ? '#3b82f6' : '#10b981'}}>
-                                                <span className="inline-block w-1.5 h-1.5 rounded-full ml-1" style={{backgroundColor: p.is_guest ? '#3b82f6' : '#10b981'}}></span>
-                                                {p.is_guest ? 'אורח' : 'חבר'}
-                                            </div>
-                                        </div>
-                                        <span className="chip-remove cursor-pointer text-gray-400 hover:text-red-500 text-2xl px-2" onClick={() => {
-                                            if(window.confirm(i18n('confirm_remove_user') || 'Are you sure you want to remove this user?')) {
+                                        <span className="font-medium text-gray-900 dark:text-white">{p.name}</span>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        {p.type === 'guest' || p.is_guest ? (
+                                            <span className="px-2.5 py-1 text-xs rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-medium">
+                                                {i18n('guest') || 'אורח'}
+                                            </span>
+                                        ) : (
+                                            <span className="px-2.5 py-1 text-xs rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-medium">
+                                                {i18n('member') || 'חבר'}
+                                            </span>
+                                        )}
+                                        <button type="button" onClick={() => {
+                                            if(window.confirm(i18n('confirm_remove_user') || 'Remove user?')) {
                                                 if (window.removeParticipant) {
                                                     window.removeParticipant(trip.id, p.id || p.phone || p.email);
                                                 } else if (window.removeEditFriend) {
                                                     window.removeEditFriend(idx);
                                                 }
                                             }
-                                        }}>&times;</span>
+                                        }} className="text-red-500 hover:text-red-700 dark:text-red-400 p-1">✕</button>
                                     </div>
                                 </div>
                             ))}

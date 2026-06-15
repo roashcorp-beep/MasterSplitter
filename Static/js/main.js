@@ -52,8 +52,9 @@ window.formatNumber = formatNumber;
 //  AUTH (Login Page)
 // =====================
 let authMode = 'login';
-let currentUser = null;
-let friendsList = [];
+window.currentUser = null;
+window.currentCreatingParticipants = [];
+window.currentEditingParticipants = [];
 let _groupSettings = { is_admin: false, allow_member_delete: true };
 let _cachedExpenses = [];
 
@@ -499,23 +500,35 @@ function showLobby() {
 //  CREATE TRIP MODAL
 // =====================
 function openCreateTripModal() {
-    friendsList = [];
+    window.currentCreatingParticipants = [];
+    const currentUserPhone = window.currentUser?.phone || window.currentUser?.email;
+    const hasAdmin = window.currentCreatingParticipants.find(p => p.contact === currentUserPhone || p.phone === currentUserPhone || p.email === currentUserPhone);
+    if (!hasAdmin && window.currentUser) {
+        window.currentCreatingParticipants.unshift({
+            name: window.currentUser.name || 'Me',
+            contact: currentUserPhone || '',
+            phone: window.currentUser.phone || '',
+            email: window.currentUser.email || '',
+            type: 'registered',
+            status: 'admin'
+        });
+    }
+
     renderFriendsChips();
     const nameInput = document.getElementById('trip-name');
-    const budgetInput = document.getElementById('trip-budget');
-    const budgetType = document.getElementById('trip-budget-type');
-    const budgetPerUser = document.getElementById('trip-budget-per-user');
     if (nameInput) nameInput.value = '';
-    if (budgetInput) budgetInput.value = '';
-    if (budgetType) budgetType.value = 'none';
-    if (budgetPerUser) budgetPerUser.checked = false;
-    // Reset invite tab inputs
-    ['create-wa-phone', 'create-email-name', 'create-email-addr', 'create-guest-name'].forEach(id => {
+    
+    // reset global budgets if present
+    ['create-budget-daily-amt', 'create-budget-monthly-amt', 'create-budget-yearly-amt'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
+    
+    // default per user toggle off
+    const pbu = document.getElementById('trip-budget-per-user');
+    if (pbu) pbu.checked = false;
     toggleBudgetFields('create');
-    switchInviteTab('whatsapp', 'create');
+    
     if (typeof window.reactOpenCreateModal === 'function') {
         window.reactOpenCreateModal();
     }
@@ -536,9 +549,9 @@ async function addFriend() {
     const contact = input?.value.trim();
     if (!contact) return;
     // Prevent duplicates
-    if (friendsList.some(f => (f.contact || f.name || f) === contact)) { input.value = ''; return; }
+    if (window.currentCreatingParticipants.some(f => (f.contact || f.name || f) === contact)) { input.value = ''; return; }
     // Add as checking first
-    friendsList.push({ contact: contact, name: contact, type: 'registered', status: 'checking' });
+    window.currentCreatingParticipants.push({ contact: contact, name: contact, type: 'registered', status: 'checking' });
     input.value = '';
     renderFriendsChips();
     // Check user existence
@@ -549,7 +562,7 @@ async function addFriend() {
             body: JSON.stringify({ contact: contact })
         });
         const data = await res.json();
-        const entry = friendsList.find(f => f.contact === contact);
+        const entry = window.currentCreatingParticipants.find(f => f.contact === contact);
         if (entry) {
             if (data.exists) {
                 entry.status = 'valid';
@@ -560,7 +573,7 @@ async function addFriend() {
             }
         }
     } catch (e) {
-        const entry = friendsList.find(f => f.contact === contact);
+        const entry = window.currentCreatingParticipants.find(f => f.contact === contact);
         if (entry) { entry.status = 'unregistered'; entry.type = 'unregistered'; }
     }
     renderFriendsChips();
@@ -570,14 +583,14 @@ function addGuestFriend() {
     const guestName = prompt('\u05e9\u05dd \u05d4\u05de\u05e9\u05ea\u05de\u05e9 \u05d4\u05d0\u05d5\u05e8\u05d7:');
     if (!guestName || !guestName.trim()) return;
     const name = guestName.trim();
-    if (friendsList.some(f => (f.name || f) === name)) return;
-    friendsList.push({ name: name, type: 'guest', status: 'guest' });
+    if (window.currentCreatingParticipants.some(f => (f.name || f) === name)) return;
+    window.currentCreatingParticipants.push({ name: name, type: 'guest', status: 'guest' });
     renderFriendsChips();
 }
 
 function removeFriend(idx) {
     if (!window.confirm(typeof i18n === 'function' && i18n("confirm_delete_member") ? i18n("confirm_delete_member") : "Are you sure you want to remove this member?")) return;
-    friendsList.splice(idx, 1);
+    window.currentCreatingParticipants.splice(idx, 1);
     renderFriendsChips();
 }
 
@@ -610,7 +623,7 @@ function getBudgetInputsHtml(mode, idx, memberBudgets = {}) {
 }
 
 function updateMemberBudget(mode, idx, type, val) {
-    const list = mode === 'create' ? friendsList : editFriendsList;
+    const list = mode === 'create' ? window.currentCreatingParticipants : window.currentEditingParticipants;
     if (!list[idx].budgets_json) list[idx].budgets_json = {};
     list[idx].budgets_json[type] = parseFloat(val) || 0;
 }
@@ -656,7 +669,7 @@ function createParticipantRowHTML(n, idx, mode) {
 function renderFriendsChips() {
     const container = document.getElementById('friends-chips');
     if (!container) return;
-    container.innerHTML = friendsList.map((n, idx) => createParticipantRowHTML(n, idx, 'create')).join('');
+    container.innerHTML = window.currentCreatingParticipants.map((n, idx) => createParticipantRowHTML(n, idx, 'create')).join('');
 }
 
 async function createTrip() {
@@ -679,14 +692,8 @@ async function createTrip() {
 
     if (!name) { showToast(typeof i18n === 'function' ? i18n('err_fill_all') : 'אנא מלא את כל השדות', 'error'); return; }
 
-    // Extract participants strictly from the new DOM structure (Method B)
-    const participants = [];
-    const chips = document.getElementById('friends-chips')?.children || [];
-    Array.from(chips).forEach((chip, idx) => {
-        // Extract the name safely. Fallback to parsing text if data attributes don't exist.
-        const name = chip.getAttribute('data-name') || chip.innerText.replace('✕', '').replace('חבר', '').replace('אורח', '').trim();
-        const contact = chip.getAttribute('data-phone') || '';
-        
+    // Extract participants strictly from the memory state array (WhatsApp style)
+    const participants = window.currentCreatingParticipants.map((p, idx) => {
         let pBudgets = {};
         if (isBudgetPerUser) {
             const dailyInput = document.getElementById(`create-friend-${idx}-daily`);
@@ -698,15 +705,13 @@ async function createTrip() {
             if (yearlyInput && parseFloat(yearlyInput.value) > 0) pBudgets.yearly = parseFloat(yearlyInput.value);
         }
 
-        if (name) {
-            participants.push({ 
-                name, 
-                contact: contact || name, 
-                type: 'registered',
-                status: 'member',
-                budgets_json: pBudgets
-            });
-        }
+        return { 
+            name: p.name, 
+            contact: p.contact || p.phone || p.email || p.name, 
+            type: p.type || 'registered',
+            status: p.status || 'member',
+            budgets_json: isBudgetPerUser ? pBudgets : {}
+        };
     });
 
     try {
@@ -721,13 +726,13 @@ async function createTrip() {
             showToast(typeof i18n === 'function' ? i18n('toast_trip_created') : 'Trip created', 'success');
             
             // Auto-open WhatsApp if a WhatsApp contact was added
-            const waContact = friendsList.find(f => f.inviteMethod === 'whatsapp' && f.contact);
+            const waContact = window.currentCreatingParticipants.find(f => f.inviteMethod === 'whatsapp' && f.contact);
             if (waContact && data.invite_token) {
                 const phone = waContact.contact;
                 const cleanPhone = phone.replace(/\D/g, '');
                 const inviteCode = data.invite_token;
                 const link = `${window.location.origin}/#join=${inviteCode}`;
-                const userName = currentUser ? currentUser.name : '';
+                const userName = window.currentUser ? window.currentUser.name : '';
                 const text = encodeURIComponent(`Hey! ${userName} invited you to join the group '${name}' on MasterSplitter. Click here to join: ${link}`);
                 window.open(`https://wa.me/${cleanPhone}?text=${text}`, '_blank');
             }
@@ -746,11 +751,22 @@ async function createTrip() {
 //  EDIT TRIP MODAL
 // =====================
 let editTripId = null;
-let editFriendsList = [];
+
+window.removeEditingParticipant = function(idx) {
+    if (!window.confirm(typeof i18n === 'function' && i18n("confirm_delete_member") ? i18n("confirm_delete_member") : "Are you sure you want to remove this member?")) return;
+    window.currentEditingParticipants.splice(idx, 1);
+    renderEditFriendsChips();
+};
+
+window.removeCreatingParticipant = function(idx) {
+    if (!window.confirm(typeof i18n === 'function' && i18n("confirm_delete_member") ? i18n("confirm_delete_member") : "Are you sure you want to remove this member?")) return;
+    window.currentCreatingParticipants.splice(idx, 1);
+    renderFriendsChips();
+};
 
 async function openEditTripModal(tripId) {
     editTripId = tripId;
-    editFriendsList = [];
+    window.currentEditingParticipants = [];
     if (typeof window.reactOpenEditModal === 'function') {
         window.reactOpenEditModal(tripId);
     }
@@ -799,15 +815,32 @@ async function openEditTripModal(tripId) {
             
             // Populate members
             if (trip.participants) {
-                editFriendsList = trip.participants.map(p => ({
+                window.currentEditingParticipants = trip.participants.map(p => ({
                     id: p.id,
                     name: p.name,
                     contact: p.contact || p.name,
                     type: p.is_guest ? 'guest' : (p.type || 'registered'),
-                    budgets_json: p.budgets_json || {}
+                    budgets_json: p.budgets_json || {},
+                    status: 'member'
                 }));
+            } else {
+                window.currentEditingParticipants = [];
             }
-            window.currentEditParticipants = editFriendsList;
+            
+            // Ensure current user is in the array:
+            const currentUserPhone = window.currentUser?.phone || window.currentUser?.email;
+            const hasAdmin = window.currentEditingParticipants.find(p => p.contact === currentUserPhone || p.phone === currentUserPhone || p.email === currentUserPhone);
+            if (!hasAdmin && window.currentUser) {
+                window.currentEditingParticipants.unshift({
+                    name: window.currentUser.name || 'Me',
+                    contact: currentUserPhone || '',
+                    phone: window.currentUser.phone || '',
+                    email: window.currentUser.email || '',
+                    type: 'registered',
+                    status: 'admin'
+                });
+            }
+            
             renderEditFriendsChips();
             switchInviteTab('whatsapp', 'edit');
             };
@@ -824,15 +857,15 @@ function closeEditTripModal() {
         window.reactCloseEditModal();
     }
     editTripId = null;
-    editFriendsList = [];
+    window.currentEditingParticipants = [];
 }
 
 async function addEditFriend() {
     const input = document.getElementById('edit-friend-input');
     const contact = input?.value.trim();
     if (!contact) return;
-    if (editFriendsList.some(f => (f.contact || f.name || f) === contact)) { input.value = ''; return; }
-    editFriendsList.push({ contact: contact, name: contact, type: 'registered', status: 'checking' });
+    if (window.currentEditingParticipants.some(f => (f.contact || f.name || f) === contact)) { input.value = ''; return; }
+    window.currentEditingParticipants.push({ contact: contact, name: contact, type: 'registered', status: 'checking' });
     input.value = '';
     renderEditFriendsChips();
     try {
@@ -842,7 +875,7 @@ async function addEditFriend() {
             body: JSON.stringify({ contact: contact })
         });
         const data = await res.json();
-        const entry = editFriendsList.find(f => f.contact === contact);
+        const entry = window.currentEditingParticipants.find(f => f.contact === contact);
         if (entry) {
             if (data.exists) {
                 entry.status = 'valid';
@@ -853,7 +886,7 @@ async function addEditFriend() {
             }
         }
     } catch (e) {
-        const entry = editFriendsList.find(f => f.contact === contact);
+        const entry = window.currentEditingParticipants.find(f => f.contact === contact);
         if (entry) { entry.status = 'unregistered'; entry.type = 'unregistered'; }
     }
     renderEditFriendsChips();
@@ -863,21 +896,21 @@ function addEditGuestFriend() {
     const guestName = prompt('\u05e9\u05dd \u05d4\u05de\u05e9\u05ea\u05de\u05e9 \u05d4\u05d0\u05d5\u05e8\u05d7:');
     if (!guestName || !guestName.trim()) return;
     const name = guestName.trim();
-    if (editFriendsList.some(f => (f.name || f) === name)) return;
-    editFriendsList.push({ name: name, type: 'guest', status: 'guest' });
+    if (window.currentEditingParticipants.some(f => (f.name || f) === name)) return;
+    window.currentEditingParticipants.push({ name: name, type: 'guest', status: 'guest' });
     renderEditFriendsChips();
 }
 
 function removeEditFriend(idx) {
     if (!window.confirm(typeof i18n === 'function' && i18n("confirm_delete_member") ? i18n("confirm_delete_member") : "Are you sure you want to remove this member?")) return;
-    editFriendsList.splice(idx, 1);
+    window.currentEditingParticipants.splice(idx, 1);
     renderEditFriendsChips();
 }
 
 function renderEditFriendsChips() {
     const container = document.getElementById('edit-friends-chips');
     if (!container) return;
-    container.innerHTML = editFriendsList.map((n, idx) => createParticipantRowHTML(n, idx, 'edit')).join('');
+    container.innerHTML = window.currentEditingParticipants.map((n, idx) => createParticipantRowHTML(n, idx, 'edit')).join('');
 }
 
 async function saveEditTrip() {
@@ -903,14 +936,8 @@ async function saveEditTrip() {
 
     const payload = { name, budgets_json, is_budget_per_user: isBudgetPerUser };
     
-    // Extract participants strictly from the new DOM structure (Method B)
-    const participants = [];
-    const chips = document.getElementById('edit-friends-chips')?.children || [];
-    Array.from(chips).forEach((chip, idx) => {
-        // Extract the name safely. Fallback to parsing text if data attributes don't exist.
-        const name = chip.getAttribute('data-name') || chip.innerText.replace('✕', '').replace('חבר', '').replace('אורח', '').trim();
-        const contact = chip.getAttribute('data-phone') || '';
-        
+    // Extract participants strictly from the memory state array (WhatsApp style)
+    const participants = window.currentEditingParticipants.map((p, idx) => {
         let pBudgets = {};
         if (isBudgetPerUser) {
             const dailyInput = document.getElementById(`edit-friend-${idx}-daily`);
@@ -922,15 +949,14 @@ async function saveEditTrip() {
             if (yearlyInput && parseFloat(yearlyInput.value) > 0) pBudgets.yearly = parseFloat(yearlyInput.value);
         }
 
-        if (name) {
-            participants.push({ 
-                name, 
-                contact: contact || name, 
-                type: 'registered',
-                status: 'member',
-                budgets_json: pBudgets
-            });
-        }
+        return { 
+            id: p.id || null,
+            name: p.name, 
+            contact: p.contact || p.phone || p.email || p.name, 
+            type: p.type || 'registered',
+            status: p.status || 'member',
+            budgets_json: isBudgetPerUser ? pBudgets : {}
+        };
     });
 
     payload.participants = participants;
@@ -1044,7 +1070,7 @@ function sendWhatsAppInviteFromTab(mode, providedName = null) {
     const phone = phoneInput?.value.trim();
     if (!phone) return;
 
-    const list = mode === 'create' ? friendsList : editFriendsList;
+    const list = mode === 'create' ? window.currentCreatingParticipants : window.currentEditingParticipants;
     list.push({
         contact: phone,
         name: providedName || phone,
@@ -1061,7 +1087,7 @@ function sendWhatsAppInviteFromTab(mode, providedName = null) {
             if (trip && trip.invite_token) {
                 const cleanPhone = phone.replace(/\D/g, '');
                 const link = `${window.location.origin}/#join=${trip.invite_token}`;
-                const userName = currentUser ? currentUser.name : '';
+                const userName = window.currentUser ? window.currentUser.name : '';
                 const text = encodeURIComponent(`Hey! ${userName} invited you to join the group '${trip.name}' on MasterSplitter. Click here to join: ${link}`);
                 window.open(`https://wa.me/${cleanPhone}?text=${text}`, '_blank');
             }
@@ -1082,7 +1108,7 @@ async function sendEmailInviteFromTab(mode) {
         return;
     }
 
-    const list = mode === 'create' ? friendsList : editFriendsList;
+    const list = mode === 'create' ? window.currentCreatingParticipants : window.currentEditingParticipants;
     list.push({
         contact: email,
         name: name,
@@ -1124,7 +1150,7 @@ function addGuestFromTab(mode) {
     const name = nameInput?.value.trim();
     if (!name) return;
 
-    const list = mode === 'create' ? friendsList : editFriendsList;
+    const list = mode === 'create' ? window.currentCreatingParticipants : window.currentEditingParticipants;
     list.push({
         name: name,
         type: 'guest',
@@ -1475,7 +1501,7 @@ async function fetchExpenses() {
                 // Currency display: show original currency prominently, converted in parens
                 let amountDisplay = '';
                 const userSym = getTripCurrencySymbol();
-                if (exp.original_amount && exp.currency && exp.currency !== (currentUser?.default_currency || 'ILS')) {
+                if (exp.original_amount && exp.currency && exp.currency !== (window.currentUser?.default_currency || 'ILS')) {
                     // Foreign currency: show original first, converted in parens
                     const origSym = getCurrencySymbol(exp.currency);
                     amountDisplay = `<span class="primary-amount">${origSym}${parseFloat(exp.original_amount).toFixed(0)}</span>
@@ -1484,7 +1510,7 @@ async function fetchExpenses() {
                     amountDisplay = `${userSym}${formatNumber(exp.amount)}`;
                 }
 
-                const canEdit = currentUser && exp.user_id === currentUser.id;
+                const canEdit = window.currentUser && exp.user_id === window.currentUser.id;
                 const editBtn = canEdit ? `<button class="edit-expense-btn" onclick="openEditExpenseModal(${exp.id}, ${exp.amount}, '${safeDesc}', '${safeCat}', '${exp.currency}')" title="Edit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>` : '';
 
                 // Delete button visibility: hide if allow_member_delete is off and user is not admin
@@ -1775,7 +1801,7 @@ async function fetchBalances() {
             const badgeTxt = isPos ? txtReceive : isNeg ? txtPay : txtSettled;
 
             const amtCls = isPos ? 'amount-pos' : isNeg ? 'amount-neg' : '';
-            const me = currentUser && b.user_id === currentUser.id ? (typeof i18n === 'function' ? i18n('balance_you') : ' (את/ה)') : '';
+            const me = window.currentUser && b.user_id === window.currentUser.id ? (typeof i18n === 'function' ? i18n('balance_you') : ' (את/ה)') : '';
             const safeName = escapeHTML(b.name);
 
             // Find this person's settlements
@@ -1786,8 +1812,8 @@ async function fetchBalances() {
                     const safeFrom = escapeHTML(s.from);
                     const safeTo = escapeHTML(s.to);
 
-                    const isDebtor = currentUser && currentUser.id === s.from_id;
-                    const isCreditor = currentUser && currentUser.id === s.to_id;
+                    const isDebtor = window.currentUser && window.currentUser.id === s.from_id;
+                    const isCreditor = window.currentUser && window.currentUser.id === s.to_id;
 
                     let settleBtn = '';
                     if (isDebtor || isCreditor) {

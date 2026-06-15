@@ -117,6 +117,11 @@ const GroupsScreen = () => {
                                 highestBudgetLabel = i18n("daily") || "יומי";
                             }
                         }
+                        // If budget is per-user, multiply by participant count
+                        if (highestBudget !== null && trip.is_budget_per_user) {
+                            const memberCount = trip.participants?.length || 1;
+                            highestBudget = highestBudget * memberCount;
+                        }
                         
                         return (
                             <div key={trip.id} className="trip-card-v2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md rounded-2xl p-4 shadow-lg border border-gray-100 dark:border-gray-700 flex justify-between items-center cursor-pointer hover:shadow-xl transition-all" onClick={() => handleTripClick(trip.id)}>
@@ -295,7 +300,7 @@ const GroupsScreen = () => {
         if (!isEditOpen) return null;
         const trip = trips.find(t => t.id === editTripId);
         return (
-            <div id="edit-trip-modal" className="modal-overlay open">
+            <div id="edit-trip-modal" className="modal-overlay open" key={editTripId}>
                 <div className="modal-card">
                     <div className="modal-header">
                         <h3>{i18n("modal_edit_trip") || "עריכת קבוצה"}</h3>
@@ -359,39 +364,8 @@ const GroupsScreen = () => {
                                 </button>
                             </div>
                         </div>
-                        {/* Vanilla JS will populate this div */}
-                        <div id="edit-friends-chips" className="modal-members-list mt-4">
-                            {trip?.participants?.map((p, idx) => (
-                                <div key={idx} className="flex items-center justify-between p-3 border-b border-gray-100 dark:border-gray-700 last:border-0">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-lg">
-                                            {p.name ? p.name.charAt(0).toUpperCase() : '?'}
-                                        </div>
-                                        <span className="font-medium text-gray-900 dark:text-white">{p.name}</span>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        {p.type === 'guest' || p.is_guest ? (
-                                            <span className="px-2.5 py-1 text-xs rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-medium">
-                                                {i18n('guest') || 'אורח'}
-                                            </span>
-                                        ) : (
-                                            <span className="px-2.5 py-1 text-xs rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-medium">
-                                                {i18n('member') || 'חבר'}
-                                            </span>
-                                        )}
-                                        <button type="button" onClick={() => {
-                                            if(window.confirm(i18n('confirm_remove_user') || 'Remove user?')) {
-                                                if (window.removeParticipant) {
-                                                    window.removeParticipant(trip.id, p.id || p.phone || p.email);
-                                                } else if (window.removeEditFriend) {
-                                                    window.removeEditFriend(idx);
-                                                }
-                                            }
-                                        }} className="text-red-500 hover:text-red-700 dark:text-red-400 p-1">✕</button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                        {/* Vanilla JS renderEditFriendsChips() populates this div */}
+                        <div id="edit-friends-chips" className="modal-members-list mt-4"></div>
                     </div>
 
                         <button type="button" className="w-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 py-2 rounded-lg font-medium mt-4" onClick={() => setEditShowBudget(!editShowBudget)}>
@@ -406,7 +380,7 @@ const GroupsScreen = () => {
                                     <div className="toggle-hint">{i18n("budget_per_user_hint")}</div>
                                 </div>
                                 <label className="mini-toggle">
-                                    <input type="checkbox" id="edit-trip-budget-per-user" onChange={() => {
+                                    <input type="checkbox" id="edit-trip-budget-per-user" defaultChecked={trip?.is_budget_per_user || false} onChange={() => {
                                         if (typeof window.toggleBudgetFields === "function") window.toggleBudgetFields("edit");
                                     }} />
                                     <span className="mini-toggle-slider"></span>

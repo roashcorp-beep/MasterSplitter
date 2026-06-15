@@ -286,19 +286,35 @@ async function initApp() {
         // Unconditionally load lobby and fetch invitations since React DOM might not exist yet
         await loadLobby();
         
-        // Handle Deep Linking Join
-        const urlParams = new URLSearchParams(window.location.search);
-        const joinToken = urlParams.get('join_group');
+        // Handle Post-Login Deep Linking Join
+        const pendingJoinId = localStorage.getItem('pending_join_trip_id');
+        const hashMatch = window.location.hash.match(/#join=([^&]+)/);
+        const joinToken = pendingJoinId || (hashMatch ? hashMatch[1] : null);
+        
         if (joinToken) {
+            if (window.showToast) {
+                window.showToast(typeof i18n === 'function' && i18n("joining_group") ? i18n("joining_group") : "Joining group...", "info");
+            } else {
+                console.log("Joining...");
+            }
             try {
                 const joinRes = await fetch(`/api/join/${joinToken}`, { method: 'POST' });
                 const joinData = await joinRes.json();
                 if (joinData.success) {
-                    alert(typeof i18n === 'function' ? (i18n('toast_trip_created') ? 'Joined group successfully!' : 'Joined group successfully!') : 'Joined group successfully!');
-                    window.history.replaceState({}, document.title, window.location.pathname);
+                    localStorage.removeItem('pending_join_trip_id');
+                    window.location.hash = '';
+                    if (window.showToast) {
+                        window.showToast(typeof i18n === 'function' && i18n("toast_trip_created") ? 'Joined group successfully!' : 'Joined group successfully!', 'success');
+                    } else {
+                        alert('Joined group successfully!');
+                    }
                     await loadLobby();
                 } else {
-                    alert(joinData.error || 'Failed to join group.');
+                    if (window.showToast) {
+                        window.showToast(joinData.error || 'Failed to join group.', 'error');
+                    } else {
+                        alert(joinData.error || 'Failed to join group.');
+                    }
                 }
             } catch (err) {
                 console.error('Join error', err);
@@ -687,7 +703,7 @@ async function createTrip() {
                 const phone = waContact.contact;
                 const cleanPhone = phone.replace(/\D/g, '');
                 const inviteCode = data.invite_token;
-                const link = `${window.location.origin}/?join_group=${inviteCode}`;
+                const link = `${window.location.origin}/#join=${inviteCode}`;
                 const userName = currentUser ? currentUser.name : '';
                 const text = encodeURIComponent(`Hey! ${userName} invited you to join the group '${name}' on MasterSplitter. Click here to join: ${link}`);
                 window.open(`https://wa.me/${cleanPhone}?text=${text}`, '_blank');
@@ -1031,7 +1047,7 @@ function sendWhatsAppInviteFromTab(mode, providedName = null) {
             const trip = allTrips.find(t => t.id === editTripId);
             if (trip && trip.invite_token) {
                 const cleanPhone = phone.replace(/\D/g, '');
-                const link = `${window.location.origin}/?join_group=${trip.invite_token}`;
+                const link = `${window.location.origin}/#join=${trip.invite_token}`;
                 const userName = currentUser ? currentUser.name : '';
                 const text = encodeURIComponent(`Hey! ${userName} invited you to join the group '${trip.name}' on MasterSplitter. Click here to join: ${link}`);
                 window.open(`https://wa.me/${cleanPhone}?text=${text}`, '_blank');

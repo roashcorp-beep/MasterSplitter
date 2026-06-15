@@ -14,6 +14,11 @@
         } else {
             document.documentElement.classList.remove('dark');
         }
+        
+        const hashMatch = window.location.hash.match(/#join=([^&]+)/);
+        if (hashMatch) {
+            localStorage.setItem('pending_join_trip_id', hashMatch[1]);
+        }
     </script>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>

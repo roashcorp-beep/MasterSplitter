@@ -619,7 +619,7 @@ function renderFriendsChips() {
     const container = document.getElementById('friends-chips');
     if (!container) return;
     container.innerHTML = friendsList.map((n, idx) => {
-        const displayName = escapeHTML(n.resolvedName || n.name || n.contact || n);
+        const displayName = escapeHTML(n.name || n.resolvedName || n.contact || n);
         const initial = (displayName || '?').charAt(0).toUpperCase();
         
         let statusText = 'חבר';
@@ -855,7 +855,7 @@ function renderEditFriendsChips() {
     const container = document.getElementById('edit-friends-chips');
     if (!container) return;
     container.innerHTML = editFriendsList.map((n, idx) => {
-        const displayName = escapeHTML(n.resolvedName || n.name || n.contact || n);
+        const displayName = escapeHTML(n.name || n.resolvedName || n.contact || n);
         const initial = (displayName || '?').charAt(0).toUpperCase();
         
         let statusText = 'חבר';

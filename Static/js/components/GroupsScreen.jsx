@@ -184,7 +184,7 @@ const GroupsScreen = () => {
 
                     <div className="form-group">
                         <label>{i18n("invite_members_title") || "הזמן חברים"}</label>
-                        <button type="button" className="invite-action-btn guest w-full mb-3 border-dashed" onClick={() => window.pickContact && window.pickContact('create', 'wa')}>
+                        <button type="button" className="w-full mb-3 flex items-center justify-center p-3 rounded-xl bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 text-gray-800 dark:text-white border-0 outline-none transition-all" onClick={() => window.pickContact && window.pickContact('create', 'wa')}>
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '8px', display: 'inline-block'}}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                             <span>{i18n("invite_add_contacts") || "הוסף מאנשי קשר"}</span>
                         </button>
@@ -312,7 +312,7 @@ const GroupsScreen = () => {
 
                     <div className="form-group">
                         <label>{i18n("invite_members_title") || "הזמן חברים"}</label>
-                        <button type="button" className="invite-action-btn guest w-full mb-3 border-dashed" onClick={() => window.pickContact && window.pickContact('edit', 'wa')}>
+                        <button type="button" className="w-full mb-3 flex items-center justify-center p-3 rounded-xl bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 text-gray-800 dark:text-white border-0 outline-none transition-all" onClick={() => window.pickContact && window.pickContact('edit', 'wa')}>
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '8px', display: 'inline-block'}}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                             <span>{i18n("invite_add_contacts") || "הוסף מאנשי קשר"}</span>
                         </button>

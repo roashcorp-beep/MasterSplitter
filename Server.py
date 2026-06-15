@@ -1497,7 +1497,7 @@ def get_trips():
     cursor = conn.cursor()
     cursor.execute("""
         SELECT DISTINCT t.id, t.destination, t.budget, t.budget_type,
-            COALESCE(t.is_budget_per_user, 0) as is_budget_per_user, t.owner_id,
+            COALESCE(t.is_budget_per_user, 0) as is_budget_per_user, t.owner_id, t.invite_token,
             (SELECT GROUP_CONCAT(COALESCE(u.name, tm2.guest_name))
              FROM TripMembers tm2 
              LEFT JOIN Users u ON tm2.user_id = u.id 
@@ -1519,6 +1519,7 @@ def get_trips():
             'budget_type': t['budget_type'] or 'none',
             'is_budget_per_user': bool(t['is_budget_per_user']),
             'is_owner': t['owner_id'] == session['user_id'],
+            'invite_token': t['invite_token'],
             'participants': participants
         })
     return jsonify(result)
@@ -1616,8 +1617,13 @@ def create_trip():
                         "INSERT INTO trip_invitations (trip_id, inviter_id, invitee_phone_or_email, status) VALUES (?, ?, ?, 'APPROVED')",
                         (trip_id, session['user_id'], contact)
                     )
-            # 'unregistered' type — not added to DB (just shown in UI for WhatsApp invite)
-
+            elif ptype == 'unregistered':
+                contact = str(p.get('contact', '')).strip()
+                if contact:
+                    cursor.execute(
+                        "INSERT INTO trip_invitations (trip_id, inviter_id, invitee_phone_or_email, status) VALUES (?, ?, ?, 'PENDING')",
+                        (trip_id, session['user_id'], contact)
+                    )
         conn.commit()
         logger.info(f"Trip created: '{name}' (id={trip_id}) by user {session['user_id']}")
         return jsonify({"success": True, "trip_id": trip_id, "invite_token": invite_token})
@@ -1661,6 +1667,18 @@ def get_trip(trip_id):
                 'budgets_json': json.loads(m['budgets_json']) if m['budgets_json'] else {}
             })
 
+        # Get pending invitations
+        cursor.execute("SELECT invitee_phone_or_email FROM trip_invitations WHERE trip_id = ? AND status = 'PENDING'", (trip_id,))
+        pending_invites = cursor.fetchall()
+        for p in pending_invites:
+            participants.append({
+                'id': None,
+                'name': p['invitee_phone_or_email'],
+                'contact': p['invitee_phone_or_email'],
+                'type': 'pending',
+                'budgets_json': {}
+            })
+
         return jsonify({
             'id': trip['id'],
             'name': trip['destination'],
@@ -1669,6 +1687,7 @@ def get_trip(trip_id):
             'is_budget_per_user': bool(trip['is_budget_per_user']),
             'budgets_json': json.loads(trip['budgets_json']) if trip['budgets_json'] else {},
             'is_owner': trip['owner_id'] == session['user_id'],
+            'invite_token': trip['invite_token'],
             'participants': participants
         })
     except sqlite3.Error as e:
@@ -2001,6 +2020,14 @@ def join_via_invite(token):
 
     cursor.execute("INSERT INTO TripMembers (trip_id, user_id, is_admin) VALUES (?, ?, 0)",
                    (trip_id, session['user_id']))
+    
+    # Flip status from Pending to Member in trip_invitations
+    cursor.execute("""
+        UPDATE trip_invitations 
+        SET status = 'APPROVED' 
+        WHERE trip_id = ? AND invitee_phone_or_email IN (SELECT phone FROM Users WHERE id = ? UNION SELECT email FROM Users WHERE id = ?)
+    """, (trip_id, session['user_id'], session['user_id']))
+
     conn.commit()
     conn.close()
     logger.info(f"User {session['user_id']} joined trip {trip_id} via invite link")

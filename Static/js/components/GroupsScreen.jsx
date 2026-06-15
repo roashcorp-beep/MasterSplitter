@@ -75,7 +75,7 @@ const GroupsScreen = () => {
     ];
 
     const renderGroupsLobby = () => (
-        <div className="relative z-10 w-full max-w-4xl mx-auto p-4 pt-24 mt-8">
+        <div className="relative z-10 w-full max-w-4xl mx-auto p-4 pt-16">
             <div className="lobby-header">
                 <h2 data-i18n="lobby_my_trips">{i18n("lobby_my_trips") || "הקבוצות שלי"}</h2>
                 <button className="primary-btn sm" onClick={() => setIsCreateOpen(true)} data-i18n="lobby_btn_create">

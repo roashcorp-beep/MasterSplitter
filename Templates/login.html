@@ -8,6 +8,15 @@
     <!-- Step 1 Isolated i18n Engine -->
     <script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
 
+    <!-- OS Default Theme Script -->
+    <script>
+        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+
     <!-- React & Tailwind CDNs -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>

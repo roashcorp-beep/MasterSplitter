@@ -285,6 +285,25 @@ async function initApp() {
         
         // Unconditionally load lobby and fetch invitations since React DOM might not exist yet
         await loadLobby();
+        
+        // Handle Deep Linking Join
+        const urlParams = new URLSearchParams(window.location.search);
+        const joinToken = urlParams.get('join_group');
+        if (joinToken) {
+            try {
+                const joinRes = await fetch(`/api/join/${joinToken}`, { method: 'POST' });
+                const joinData = await joinRes.json();
+                if (joinData.success) {
+                    alert(typeof i18n === 'function' ? (i18n('toast_trip_created') ? 'Joined group successfully!' : 'Joined group successfully!') : 'Joined group successfully!');
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    await loadLobby();
+                } else {
+                    alert(joinData.error || 'Failed to join group.');
+                }
+            } catch (err) {
+                console.error('Join error', err);
+            }
+        }
         fetchInvitations();
 
     } catch (e) {
@@ -584,18 +603,37 @@ function renderFriendsChips() {
     if (!container) return;
     container.innerHTML = friendsList.map((n, idx) => {
         const displayName = escapeHTML(n.resolvedName || n.name || n.contact || n);
-        const chipType = n.type === 'guest' ? 'guest' : (n.inviteMethod || 'registered');
-        const initial = (displayName || '?').charAt(0);
+        const initial = (displayName || '?').charAt(0).toUpperCase();
+        
+        let statusText = 'חבר';
+        let statusColor = '#10b981'; // green
+        
+        if (n.type === 'guest') {
+            statusText = 'אורח';
+            statusColor = '#3b82f6'; // blue
+        } else if (n.type === 'pending' || n.type === 'unregistered' || n.inviteMethod) {
+            if (!n.id) {
+                statusText = 'ממתין להצטרפות';
+                statusColor = '#9ca3af'; // gray
+            }
+        }
+
         const budgetInputs = getBudgetInputsHtml('create', idx, n.budgets_json);
         
         return `
-        <div class="modal-member-chip ${chipType}" style="flex-direction:column; align-items:flex-start;">
-            <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <span class="chip-avatar">${initial}</span>
-                    <span>${displayName}</span>
+        <div class="whatsapp-contact-row" style="display:flex; flex-direction:column; padding:12px 0; border-bottom:1px solid rgba(156, 163, 175, 0.2); width:100%;">
+            <div style="display:flex; align-items:center; width:100%;">
+                <div class="contact-avatar" style="width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg, #a855f7, #6366f1); color:white; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:18px; margin-left:12px; flex-shrink:0;">
+                    ${initial}
                 </div>
-                <span class="chip-remove" onclick="removeFriend(${idx})">&times;</span>
+                <div class="contact-info" style="flex:1; display:flex; flex-direction:column; justify-content:center; text-align:right;">
+                    <div style="font-weight:bold; color:var(--text-dark); font-size:1rem;">${displayName}</div>
+                    <div style="font-size:0.75rem; color:${statusColor}; margin-top:2px; display:flex; align-items:center;">
+                        <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background-color:${statusColor}; margin-left:4px;"></span>
+                        ${statusText}
+                    </div>
+                </div>
+                <span class="chip-remove" onclick="removeFriend(${idx})" style="cursor:pointer; color:var(--text-muted); font-size:1.5rem; padding:0 8px;">&times;</span>
             </div>
             ${budgetInputs}
         </div>`;
@@ -649,10 +687,9 @@ async function createTrip() {
                 const phone = waContact.contact;
                 const cleanPhone = phone.replace(/\D/g, '');
                 const inviteCode = data.invite_token;
-                const link = `${window.location.origin}/join/${inviteCode}`;
-                const text = encodeURIComponent(typeof i18n === 'function' ? 
-                    (i18n('whatsapp_invite_msg') || `You've been invited to join the group! Click here to join: ${link}`) : 
-                    `You've been invited to join the group! Click here to join: ${link}`);
+                const link = `${window.location.origin}/?join_group=${inviteCode}`;
+                const userName = currentUser ? currentUser.name : '';
+                const text = encodeURIComponent(`Hey! ${userName} invited you to join the group '${name}' on MasterSplitter. Click here to join: ${link}`);
                 window.open(`https://wa.me/${cleanPhone}?text=${text}`, '_blank');
             }
 
@@ -798,18 +835,37 @@ function renderEditFriendsChips() {
     if (!container) return;
     container.innerHTML = editFriendsList.map((n, idx) => {
         const displayName = escapeHTML(n.resolvedName || n.name || n.contact || n);
-        const chipType = n.type === 'guest' ? 'guest' : (n.inviteMethod || 'registered');
-        const initial = (displayName || '?').charAt(0);
+        const initial = (displayName || '?').charAt(0).toUpperCase();
+        
+        let statusText = 'חבר';
+        let statusColor = '#10b981'; // green
+        
+        if (n.type === 'guest') {
+            statusText = 'אורח';
+            statusColor = '#3b82f6'; // blue
+        } else if (n.type === 'pending' || n.type === 'unregistered' || n.inviteMethod) {
+            if (!n.id) {
+                statusText = 'ממתין להצטרפות';
+                statusColor = '#9ca3af'; // gray
+            }
+        }
+
         const budgetInputs = getBudgetInputsHtml('edit', idx, n.budgets_json);
         
         return `
-        <div class="modal-member-chip ${chipType}" style="flex-direction:column; align-items:flex-start;">
-            <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <span class="chip-avatar">${initial}</span>
-                    <span>${displayName}</span>
+        <div class="whatsapp-contact-row" style="display:flex; flex-direction:column; padding:12px 0; border-bottom:1px solid rgba(156, 163, 175, 0.2); width:100%;">
+            <div style="display:flex; align-items:center; width:100%;">
+                <div class="contact-avatar" style="width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg, #a855f7, #6366f1); color:white; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:18px; margin-left:12px; flex-shrink:0;">
+                    ${initial}
                 </div>
-                <span class="chip-remove" onclick="removeEditFriend(${idx})">&times;</span>
+                <div class="contact-info" style="flex:1; display:flex; flex-direction:column; justify-content:center; text-align:right;">
+                    <div style="font-weight:bold; color:var(--text-dark); font-size:1rem;">${displayName}</div>
+                    <div style="font-size:0.75rem; color:${statusColor}; margin-top:2px; display:flex; align-items:center;">
+                        <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background-color:${statusColor}; margin-left:4px;"></span>
+                        ${statusText}
+                    </div>
+                </div>
+                <span class="chip-remove" onclick="removeEditFriend(${idx})" style="cursor:pointer; color:var(--text-muted); font-size:1.5rem; padding:0 8px;">&times;</span>
             </div>
             ${budgetInputs}
         </div>`;
@@ -967,14 +1023,23 @@ function sendWhatsAppInviteFromTab(mode, providedName = null) {
         inviteMethod: 'whatsapp'
     });
     
-    if (mode === 'create') renderFriendsChips();
-    else renderEditFriendsChips();
+    if (mode === 'create') {
+        renderFriendsChips();
+    } else {
+        renderEditFriendsChips();
+        if (editTripId) {
+            const trip = trips.find(t => t.id === editTripId);
+            if (trip && trip.invite_token) {
+                const cleanPhone = phone.replace(/\D/g, '');
+                const link = `${window.location.origin}/?join_group=${trip.invite_token}`;
+                const userName = currentUser ? currentUser.name : '';
+                const text = encodeURIComponent(`Hey! ${userName} invited you to join the group '${trip.name}' on MasterSplitter. Click here to join: ${link}`);
+                window.open(`https://wa.me/${cleanPhone}?text=${text}`, '_blank');
+            }
+        }
+    }
     
     phoneInput.value = '';
-    
-    // Attempt to open WhatsApp directly (will fail silently if blocked by popup blocker, but link is also generated backend side if saved)
-    // We just want to add them to the chip list so they are saved with the group
-}
 
 async function sendEmailInviteFromTab(mode) {
     const nameInput = document.getElementById(mode === 'create' ? 'create-email-name' : 'edit-email-name');

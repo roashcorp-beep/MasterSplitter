@@ -75,7 +75,7 @@ const GroupsScreen = () => {
     ];
 
     const renderGroupsLobby = () => (
-        <div className="relative z-10 w-full max-w-4xl mx-auto p-4 pt-24">
+        <div className="relative z-10 w-full max-w-4xl mx-auto p-4 pt-24 mt-8">
             <div className="lobby-header">
                 <h2 data-i18n="lobby_my_trips">{i18n("lobby_my_trips") || "הקבוצות שלי"}</h2>
                 <button className="primary-btn sm" onClick={() => setIsCreateOpen(true)} data-i18n="lobby_btn_create">
@@ -104,14 +104,7 @@ const GroupsScreen = () => {
                                     <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-inner" style={{ background: avatarColors[i % avatarColors.length] }}>
                                         {initial}
                                     </div>
-                                    {isAdmin && (
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); window.openEditTripModal(trip.id); }} 
-                                            className="text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors p-2 rounded-full hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
-                                        </button>
-                                    )}
+
                                     <div>
                                         <h3 className="font-bold text-gray-900 dark:text-white text-lg">{trip.name}</h3>
                                         <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
@@ -124,8 +117,16 @@ const GroupsScreen = () => {
                                 </div>
                                 <div className="text-right">
                                     <div className="text-xs text-gray-500 dark:text-gray-400 mb-1" data-i18n="total_budget">{i18n("total_budget") || "Total"}</div>
-                                    <div className="font-bold text-xl text-indigo-600 dark:text-indigo-400" dir="ltr">
-                                        <span className="text-sm mr-1">{currency}</span>{trip.budget ? window.formatNumber(trip.budget) : "0.00"}
+                                    <div className="font-bold text-xl text-indigo-600 dark:text-indigo-400 flex items-center justify-end gap-2" dir="ltr">
+                                        {isAdmin && (
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); window.openEditTripModal(trip.id); }} 
+                                                className="border border-gray-300 dark:border-gray-600 rounded-md p-1.5 text-gray-500 hover:text-indigo-600 hover:border-indigo-600 transition-all"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                                            </button>
+                                        )}
+                                        <span><span className="text-sm mr-1">{currency}</span>{trip.budget ? window.formatNumber(trip.budget) : "0.00"}</span>
                                     </div>
                                 </div>
                             </div>
@@ -150,7 +151,7 @@ const GroupsScreen = () => {
 
                     <div className="form-group">
                         <label>{i18n("create_trip_name") || "שם הקבוצה"}</label>
-                        <input type="text" id="trip-name" placeholder={i18n("create_trip_name_ph") || "למשל: דירה, חופשה, משרד..."} />
+                        <input type="text" id="create-trip-name" placeholder={i18n("create_trip_name_ph") || "למשל: דירה, חופשה, משרד..."} />
                     </div>
 
                     <div className="form-group">
@@ -260,6 +261,7 @@ const GroupsScreen = () => {
 
     const renderEditModal = () => {
         if (!isEditOpen) return null;
+        const trip = trips.find(t => t.id === editTripId);
         return (
             <div id="edit-trip-modal" className="modal-overlay open">
                 <div className="modal-card">
@@ -272,7 +274,7 @@ const GroupsScreen = () => {
 
                     <div className="form-group">
                         <label>{i18n("create_trip_name") || "שם הקבוצה"}</label>
-                        <input type="text" id="edit-trip-name" placeholder="שם הקבוצה" />
+                        <input type="text" id="edit-trip-name" defaultValue={trip?.name || ''} placeholder="שם הקבוצה" />
                     </div>
 
                     <div className="form-group">
@@ -371,7 +373,7 @@ const GroupsScreen = () => {
 
                     <div className="modal-actions">
                         <button className="secondary-btn" onClick={() => setIsEditOpen(false)}>{i18n("btn_cancel") || "ביטול"}</button>
-                        <button className="primary-btn" onClick={() => window.saveTripEdits()}>{i18n("save_changes") || "שמור שינויים"}</button>
+                        <button className="primary-btn" onClick={() => window.saveEditTrip()}>{i18n("save_changes") || "שמור שינויים"}</button>
                     </div>
                 </div>
             </div>

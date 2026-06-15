@@ -603,7 +603,7 @@ function renderFriendsChips() {
 }
 
 async function createTrip() {
-    const name = document.getElementById('trip-name')?.value.trim();
+    const name = document.getElementById('create-trip-name')?.value.trim() || document.getElementById('trip-name')?.value.trim();
     const isBudgetPerUser = document.getElementById('trip-budget-per-user')?.checked || false;
     
     // Collect budgets_json

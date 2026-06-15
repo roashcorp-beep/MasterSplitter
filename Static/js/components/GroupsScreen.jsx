@@ -36,6 +36,14 @@ const GroupsScreen = () => {
             setEditTripId(id);
             setEditTab("whatsapp");
             setIsEditOpen(true);
+
+            // Let React render the empty #edit-friends-chips div first, then fill it
+            setTimeout(() => {
+                if (window.allTrips && window.renderEditFriendsChips) {
+                    const trip = window.allTrips.find(t => t.id === id);
+                    if (trip) window.renderEditFriendsChips(trip.participants || []);
+                }
+            }, 50);
         };
         window.reactSetEditTripDetails = (details) => {
             setEditTripDetails(details);

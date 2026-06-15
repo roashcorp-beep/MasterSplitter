@@ -638,19 +638,18 @@ function renderFriendsChips() {
         const budgetInputs = getBudgetInputsHtml('create', idx, n.budgets_json);
         
         return `
-        <div class="whatsapp-contact-row" style="display:flex; flex-direction:column; padding:12px 0; border-bottom:1px solid rgba(156, 163, 175, 0.2); width:100%;">
-            <div style="display:flex; align-items:center; width:100%;">
-                <div class="contact-avatar" style="width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg, #a855f7, #6366f1); color:white; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:18px; margin-left:12px; flex-shrink:0;">
-                    ${initial}
-                </div>
-                <div class="contact-info" style="flex:1; display:flex; flex-direction:column; justify-content:center; text-align:right;">
-                    <div style="font-weight:bold; color:var(--text-dark); font-size:1rem;">${displayName}</div>
-                    <div style="font-size:0.75rem; color:${statusColor}; margin-top:2px; display:flex; align-items:center;">
-                        <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background-color:${statusColor}; margin-left:4px;"></span>
-                        ${statusText}
+        <div class="flex items-center justify-between p-3 border-b border-gray-100 dark:border-gray-700 last:border-0 participant-row" style="flex-wrap: wrap;" data-name="${escapeHTML(n.name || n.contact || '')}" data-phone="${escapeHTML(n.contact || '')}">
+            <div class="flex items-center justify-between w-full">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-lg">
+                        ${escapeHTML(displayName.charAt(0).toUpperCase())}
                     </div>
+                    <span class="font-medium text-gray-900 dark:text-white">${escapeHTML(displayName)}</span>
                 </div>
-                <span class="chip-remove" onclick="removeFriend(${idx})" style="cursor:pointer; color:var(--text-muted); font-size:1.5rem; padding:0 8px;">&times;</span>
+                <div class="flex items-center gap-3">
+                    <span class="px-2.5 py-1 text-xs rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-medium">${statusText}</span>
+                    <button type="button" onclick="if(confirm('Remove user?')) this.closest('.participant-row').remove();" class="text-red-500 hover:text-red-700 dark:text-red-400 p-1">✕</button>
+                </div>
             </div>
             ${budgetInputs}
         </div>`;
@@ -677,15 +676,30 @@ async function createTrip() {
 
     if (!name) { showToast(typeof i18n === 'function' ? i18n('err_fill_all') : 'אנא מלא את כל השדות', 'error'); return; }
 
-    // Build participant objects
-    const participants = friendsList.map(f => {
-        return {
-            name: f.name || f.contact,
-            contact: f.contact || f.name,
-            type: f.type || 'registered',
-            budgets_json: isBudgetPerUser ? (f.budgets_json || {}) : {}
-        };
-    });
+    // Extract participants strictly from the new DOM structure (Method B)
+    const participantNodes = document.querySelectorAll('#friends-chips .participant-row');
+    const participants = Array.from(participantNodes).map(node => ({
+        name: node.getAttribute('data-name'),
+        contact: node.getAttribute('data-phone') || node.getAttribute('data-name'),
+        type: 'registered',
+        budgets_json: {}
+    }));
+    
+    // Attempt to merge budget properties if per user budget is enabled
+    if (isBudgetPerUser) {
+        participantNodes.forEach((node, idx) => {
+            let pBudgets = {};
+            const dailyInput = document.getElementById(`create-friend-${idx}-daily`);
+            const monthlyInput = document.getElementById(`create-friend-${idx}-monthly`);
+            const yearlyInput = document.getElementById(`create-friend-${idx}-yearly`);
+            
+            if (dailyInput && parseFloat(dailyInput.value) > 0) pBudgets.daily = parseFloat(dailyInput.value);
+            if (monthlyInput && parseFloat(monthlyInput.value) > 0) pBudgets.monthly = parseFloat(monthlyInput.value);
+            if (yearlyInput && parseFloat(yearlyInput.value) > 0) pBudgets.yearly = parseFloat(yearlyInput.value);
+            
+            participants[idx].budgets_json = pBudgets;
+        });
+    }
 
     try {
         const res = await fetch('/api/trips', {
@@ -875,19 +889,18 @@ function renderEditFriendsChips() {
         const budgetInputs = getBudgetInputsHtml('edit', idx, n.budgets_json);
         
         return `
-        <div class="whatsapp-contact-row" data-id="${n.id || ''}" data-name="${escapeHTML(n.name || '')}" data-contact="${escapeHTML(n.contact || '')}" data-type="${n.type || 'registered'}" style="display:flex; flex-direction:column; padding:12px 0; border-bottom:1px solid rgba(156, 163, 175, 0.2); width:100%;">
-            <div style="display:flex; align-items:center; width:100%;">
-                <div class="contact-avatar" style="width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg, #a855f7, #6366f1); color:white; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:18px; margin-left:12px; flex-shrink:0;">
-                    ${initial}
-                </div>
-                <div class="contact-info" style="flex:1; display:flex; flex-direction:column; justify-content:center; text-align:right;">
-                    <div style="font-weight:bold; color:var(--text-dark); font-size:1rem;">${displayName}</div>
-                    <div style="font-size:0.75rem; color:${statusColor}; margin-top:2px; display:flex; align-items:center;">
-                        <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background-color:${statusColor}; margin-left:4px;"></span>
-                        ${statusText}
+        <div class="flex items-center justify-between p-3 border-b border-gray-100 dark:border-gray-700 last:border-0 participant-row" style="flex-wrap: wrap;" data-name="${escapeHTML(n.name || n.contact || '')}" data-phone="${escapeHTML(n.contact || '')}">
+            <div class="flex items-center justify-between w-full">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-lg">
+                        ${escapeHTML(displayName.charAt(0).toUpperCase())}
                     </div>
+                    <span class="font-medium text-gray-900 dark:text-white">${escapeHTML(displayName)}</span>
                 </div>
-                <span class="chip-remove" onclick="removeEditFriend(${idx})" style="cursor:pointer; color:var(--text-muted); font-size:1.5rem; padding:0 8px;">&times;</span>
+                <div class="flex items-center gap-3">
+                    <span class="px-2.5 py-1 text-xs rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-medium">${statusText}</span>
+                    <button type="button" onclick="if(confirm('Remove user?')) this.closest('.participant-row').remove();" class="text-red-500 hover:text-red-700 dark:text-red-400 p-1">✕</button>
+                </div>
             </div>
             ${budgetInputs}
         </div>`;
@@ -917,18 +930,19 @@ async function saveEditTrip() {
 
     const payload = { name, budgets_json, is_budget_per_user: isBudgetPerUser };
     
-    // Extract participants robustly from the DOM to match visual state
-    const participantRows = document.querySelectorAll('#edit-friends-chips .whatsapp-contact-row');
-    const participants = [];
-    participantRows.forEach((row, idx) => {
-        const id = row.getAttribute('data-id');
-        const pName = row.getAttribute('data-name');
-        const pContact = row.getAttribute('data-contact');
-        const pType = row.getAttribute('data-type');
-        
-        let pBudgets = {};
-        if (isBudgetPerUser) {
-            // Read individual budget inputs directly from the DOM
+    // Extract participants strictly from the new DOM structure (Method B)
+    const participantNodes = document.querySelectorAll('#edit-friends-chips .participant-row');
+    const participants = Array.from(participantNodes).map(node => ({
+        name: node.getAttribute('data-name'),
+        contact: node.getAttribute('data-phone') || node.getAttribute('data-name'), // 'phone' is what the user asked for
+        type: 'registered',
+        budgets_json: {}
+    }));
+    
+    // Attempt to merge budget properties if per user budget is enabled
+    if (isBudgetPerUser) {
+        participantNodes.forEach((node, idx) => {
+            let pBudgets = {};
             const dailyInput = document.getElementById(`edit-friend-${idx}-daily`);
             const monthlyInput = document.getElementById(`edit-friend-${idx}-monthly`);
             const yearlyInput = document.getElementById(`edit-friend-${idx}-yearly`);
@@ -936,25 +950,12 @@ async function saveEditTrip() {
             if (dailyInput && parseFloat(dailyInput.value) > 0) pBudgets.daily = parseFloat(dailyInput.value);
             if (monthlyInput && parseFloat(monthlyInput.value) > 0) pBudgets.monthly = parseFloat(monthlyInput.value);
             if (yearlyInput && parseFloat(yearlyInput.value) > 0) pBudgets.yearly = parseFloat(yearlyInput.value);
-        }
-        
-        participants.push({
-            id: id || null,
-            name: pName || pContact,
-            contact: pContact || pName,
-            type: pType || 'registered',
-            budgets_json: pBudgets
+            
+            participants[idx].budgets_json = pBudgets;
         });
-    });
-    
-    // Fallback to window.currentEditParticipants if DOM is somehow empty but list isn't
-    payload.participants = participants.length > 0 ? participants : (window.currentEditParticipants || editFriendsList).map(f => ({
-        id: f.id,
-        name: f.name || f.contact,
-        contact: f.contact || f.name,
-        type: f.type || 'registered',
-        budgets_json: isBudgetPerUser ? (f.budgets_json || {}) : {}
-    }));
+    }
+
+    payload.participants = participants;
 
     try {
         const res = await fetch(`/api/trips/${editTripId}`, {

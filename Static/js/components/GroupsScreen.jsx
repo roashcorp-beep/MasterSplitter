@@ -112,7 +112,7 @@ const GroupsScreen = () => {
                     </div>
                 ) : (
                     trips.map((trip, i) => {
-                        const initial = (trip.name || "?").charAt(0).toUpperCase();
+                        const initial = trip && trip.name ? String(trip.name).charAt(0).toUpperCase() : '?';
                         const isAdmin = trip.is_admin !== undefined ? trip.is_admin : trip.is_owner;
                         let cardCurrency = "₪";
                         let highestBudget = null;
@@ -317,7 +317,7 @@ const GroupsScreen = () => {
                         {/* Header: Avatar, Name, Member Count */}
                         <div className="group-info-header text-center">
                             <div className="w-20 h-20 rounded-full mx-auto flex items-center justify-center text-white font-bold text-3xl shadow-inner mb-3" style={{ background: avatarColors[trip.id % avatarColors.length] }}>
-                                {(trip.name || "?").charAt(0).toUpperCase()}
+                                {trip && trip.name ? String(trip.name).charAt(0).toUpperCase() : '?'}
                             </div>
                             <input 
                                 type="text" 
@@ -380,7 +380,7 @@ const GroupsScreen = () => {
                                     <div key={idx} className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition">
                                         <div className="flex items-center gap-3">
                                             <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-300 font-bold">
-                                                {p.name.charAt(0).toUpperCase()}
+                                                {p && p.name ? String(p.name).charAt(0).toUpperCase() : '?'}
                                             </div>
                                             <div>
                                                 <div className="font-medium text-sm flex items-center gap-2">

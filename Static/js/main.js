@@ -3109,7 +3109,10 @@ window.saveEditTripFromReact = async function(trip) {
 
 
 window.openGroupInfo = function() {
-    if (!window.currentTripId) {
+    // Check multiple potential global variables for the active trip context
+    const tripId = window.currentTripId || window.activeTripId || (window.currentTrip && window.currentTrip.id);
+
+    if (!tripId) {
         alert(typeof i18n === 'function' ? i18n('error_no_active_trip') : 'No active trip selected.');
         return;
     }
@@ -3118,7 +3121,9 @@ window.openGroupInfo = function() {
 
     setTimeout(() => {
         if (typeof window.reactOpenEditModal === 'function') {
-            window.reactOpenEditModal(window.currentTripId);
+            window.reactOpenEditModal(tripId);
+        } else {
+            console.warn("React modal function not ready yet.");
         }
     }, 50);
 

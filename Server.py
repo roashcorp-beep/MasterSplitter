@@ -1665,6 +1665,8 @@ def get_trip(trip_id):
                 'name': m['name'] or m['guest_name'],
                 'contact': contact,
                 'type': 'guest' if not m['user_id'] else 'registered',
+                'is_admin': bool(m['is_admin']),
+                'is_owner': m['user_id'] == trip['owner_id'] if m['user_id'] else False,
                 'budgets_json': json.loads(m['budgets_json']) if m['budgets_json'] else {}
             })
 
@@ -1687,8 +1689,11 @@ def get_trip(trip_id):
             'budget_type': trip['budget_type'] or 'none',
             'is_budget_per_user': bool(trip['is_budget_per_user']),
             'budgets_json': json.loads(trip['budgets_json']) if trip['budgets_json'] else {},
+            'user_budgets': json.loads(trip['user_budgets']) if trip.keys() and 'user_budgets' in trip.keys() and trip['user_budgets'] else {},
             'is_owner': trip['owner_id'] == session['user_id'],
             'invite_token': trip['invite_token'],
+            'is_public_expenses': bool(trip['is_public_expenses']) if 'is_public_expenses' in trip.keys() else False,
+            'allow_member_delete': bool(trip['allow_member_delete']) if 'allow_member_delete' in trip.keys() else True,
             'participants': participants
         })
     except sqlite3.Error as e:
@@ -1748,6 +1753,10 @@ def update_trip(trip_id):
         if 'budgets_json' in data:
             updates.append("budgets_json = ?")
             params.append(json.dumps(data['budgets_json']))
+
+        if 'user_budgets' in data:
+            updates.append("user_budgets = ?")
+            params.append(json.dumps(data['user_budgets']))
 
         if 'participants' in data:
             raw_participants = data['participants']
@@ -1958,6 +1967,49 @@ def demote_member(trip_id, member_id):
     conn.commit()
     conn.close()
     logger.info(f"User {session['user_id']} demoted {member_id} from admin in trip {trip_id}")
+    return jsonify({"success": True})
+
+
+@app.route('/api/trips/<int:trip_id>/members/<contact>', methods=['DELETE'])
+@login_required
+@require_trip_access
+def remove_member(trip_id, contact):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    # Check caller is admin
+    cursor.execute("SELECT COALESCE(is_admin, 0) as is_admin, user_id FROM TripMembers WHERE trip_id = ? AND user_id = ?",
+                   (trip_id, session['user_id']))
+    caller = cursor.fetchone()
+    if not caller or not caller['is_admin']:
+        conn.close()
+        return jsonify({"error": "Only admins can remove members."}), 403
+
+    # Check if removing the owner
+    cursor.execute("SELECT owner_id FROM Trips WHERE id = ?", (trip_id,))
+    trip = cursor.fetchone()
+    
+    # Resolve contact to user_id if it's a registered user
+    cursor.execute("SELECT id FROM Users WHERE phone = ? OR email = ?", (contact, contact))
+    user = cursor.fetchone()
+    
+    if user:
+        member_id = user['id']
+        if trip and trip['owner_id'] == member_id:
+            conn.close()
+            return jsonify({"error": "Cannot remove the creator of the group."}), 403
+        
+        cursor.execute("DELETE FROM TripMembers WHERE trip_id = ? AND user_id = ?", (trip_id, member_id))
+    else:
+        # Might be a guest name
+        cursor.execute("DELETE FROM TripMembers WHERE trip_id = ? AND user_id IS NULL AND guest_name = ?", (trip_id, contact))
+
+    if cursor.rowcount == 0:
+        conn.close()
+        return jsonify({"error": "Member not found."}), 404
+        
+    conn.commit()
+    conn.close()
+    logger.info(f"User {session['user_id']} removed {contact} from trip {trip_id}")
     return jsonify({"success": True})
 
 

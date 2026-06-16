@@ -1082,6 +1082,7 @@ function sendWhatsAppInviteFromTab(mode, providedName = null) {
         renderFriendsChips();
     } else {
         renderEditFriendsChips();
+        if (typeof window.reactAddParticipantToEditTrip === 'function') window.reactAddParticipantToEditTrip({ contact: phone, name: providedName || phone, type: 'registered' });
         if (editTripId) {
             const trip = allTrips.find(t => t.id === editTripId);
             if (trip && trip.invite_token) {
@@ -1117,7 +1118,10 @@ async function sendEmailInviteFromTab(mode) {
     });
     
     if (mode === 'create') renderFriendsChips();
-    else renderEditFriendsChips();
+    else {
+        renderEditFriendsChips();
+        if (typeof window.reactAddParticipantToEditTrip === 'function') window.reactAddParticipantToEditTrip({ contact: email, name: name, type: 'registered' });
+    }
     
     nameInput.value = '';
     emailInput.value = '';
@@ -1158,7 +1162,10 @@ function addGuestFromTab(mode) {
     });
     
     if (mode === 'create') renderFriendsChips();
-    else renderEditFriendsChips();
+    else {
+        renderEditFriendsChips();
+        if (typeof window.reactAddParticipantToEditTrip === 'function') window.reactAddParticipantToEditTrip({ contact: email, name: name, type: 'registered' });
+    }
     
     nameInput.value = '';
 }
@@ -2676,15 +2683,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // =====================
 //  GROUP INFO MODAL
 // =====================
-async function openGroupInfo() {
-    if (!currentTripId) return;
-    const modal = document.getElementById('group-info-modal');
-    if (!modal) return;
-
-    // Fetch settings
-    try {
-        const settingsRes = await fetch(`/api/trips/${currentTripId}/settings`);
-        const settings = settingsRes.ok ? await settingsRes.json() : { is_public_expenses: false, is_admin: false };
+;
 
         // Group name
         const nameEl = document.getElementById('group-info-name');
@@ -2755,13 +2754,7 @@ function closeGroupInfo() {
     if (modal) modal.style.display = 'none';
 }
 
-async function toggleGroupPublic() {
-    if (!currentTripId) return;
-    const val = document.getElementById('group-public-toggle')?.checked || false;
-    try {
-        await fetch(`/api/trips/${currentTripId}/settings`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+,
             body: JSON.stringify({ is_public_expenses: val })
         });
     } catch (e) {
@@ -2769,13 +2762,7 @@ async function toggleGroupPublic() {
     }
 }
 
-async function toggleAllowDelete() {
-    if (!currentTripId) return;
-    const val = document.getElementById('group-delete-toggle')?.checked || false;
-    try {
-        await fetch(`/api/trips/${currentTripId}/settings`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+,
             body: JSON.stringify({ allow_member_delete: val })
         });
         _groupSettings.allow_member_delete = val;
@@ -3040,12 +3027,7 @@ window.addEventListener('appinstalled', () => {
 // =====================
 //  INVITE LINK
 // =====================
-async function generateInviteLink() {
-    if (!currentTripId) return;
-    try {
-        const res = await fetch(`/api/trips/${currentTripId}/invite-link`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+
         });
         const data = await res.json();
         if (data.success && data.invite_token) {
@@ -3194,3 +3176,93 @@ window.applyGlobalTranslations = function() {
         });
     }
 };
+
+
+// =====================
+//  REACT MODAL ACTIONS
+// =====================
+window.makeMemberAdmin = async function(tripId, contact) {
+    // 1. Resolve contact to member_id if needed, or backend can do it.
+    // Wait, the API takes member_id: PUT /api/trips/<int:trip_id>/members/<int:member_id>/promote
+    // But we only have `contact`. We need to find the member id from `window.currentEditingParticipants` or `allTrips`.
+    const trip = allTrips.find(t => t.id === tripId);
+    if (!trip) return;
+    const member = trip.participants.find(p => p.contact === contact || p.email === contact || p.phone === contact);
+    if (!member || member.type === 'guest') {
+        showToast("Guests cannot be admins.", "error");
+        return;
+    }
+    
+    try {
+        const res = await fetch(`/api/trips/${tripId}/members/${member.id}/promote`, { method: 'PUT' });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            showToast("Member promoted to admin", "success");
+            await loadLobby(); // reload trips to update state
+            // If the modal is open, we should also update its state by re-triggering openEditTripModal or it will auto-update if we re-fetch.
+            openEditTripModal(tripId);
+        } else {
+            showToast(data.error || "Error", "error");
+        }
+    } catch(e) {
+        showToast("Network error", "error");
+    }
+};
+
+window.removeTripMember = async function(tripId, contact) {
+    try {
+        const res = await fetch(`/api/trips/${tripId}/members/${encodeURIComponent(contact)}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            showToast("Member removed", "success");
+            await loadLobby();
+            openEditTripModal(tripId);
+        } else {
+            showToast(data.error || "Error", "error");
+        }
+    } catch(e) {
+        showToast("Network error", "error");
+    }
+};
+
+window.saveEditTripFromReact = async function(trip) {
+    if (!trip.id) return;
+
+    // Remove duplicates or match participants
+    const participants = (trip.participants || []).map(p => ({
+        id: p.id || null,
+        name: p.name,
+        contact: p.contact || p.name,
+        type: p.type || 'registered',
+        budgets_json: trip.is_budget_per_user && trip.user_budgets ? { daily: trip.user_budgets[p.contact] } : {}
+    }));
+
+    const payload = { 
+        name: trip.name, 
+        is_budget_per_user: trip.is_budget_per_user,
+        is_public_expenses: trip.is_public_expenses,
+        allow_member_delete: trip.allow_member_delete,
+        user_budgets: trip.user_budgets || {},
+        participants: participants
+    };
+
+    try {
+        const res = await fetch(`/api/trips/${trip.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            closeEditTripModal();
+            showToast(typeof i18n === 'function' ? i18n('toast_trip_updated') : 'Trip updated', 'success');
+            await loadLobby();
+        } else {
+            alert(data.error || 'Network error');
+        }
+    } catch (e) {
+        console.error('Save edit trip error:', e);
+        alert('Network error');
+    }
+};
+

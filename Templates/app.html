@@ -488,41 +488,6 @@
         </div>
     </div>
 
-    <!-- Group Info Modal -->
-    <div id="group-info-modal" class="modal-overlay" style="display:none;">
-        <div class="modal group-info-modal">
-            <div class="modal-header">
-                <h3 data-i18n="group_info_title">פרטי קבוצה</h3>
-                <button class="modal-close-x" onclick="closeGroupInfo()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-            </div>
-            <div class="modal-body">
-                <div class="group-info-name" id="group-info-name"></div>
-                <div class="group-info-toggle" id="group-info-toggle-section" style="display:none;">
-                    <label class="toggle-row">
-                        <span data-i18n="group_info_public_expenses">הצג הוצאות לכולם</span>
-                        <input type="checkbox" id="group-public-toggle" onchange="toggleGroupPublic()">
-                        <span class="toggle-slider"></span>
-                    </label>
-                    <p class="toggle-hint" data-i18n="group_info_public_hint">כשכבוי, חברים רואים רק הוצאות ששילמו או שהם חלק מהן.</p>
-                </div>
-                <div class="group-info-toggle" id="group-info-delete-section" style="display:none;">
-                    <label class="toggle-row">
-                        <span data-i18n="group_info_allow_delete">אפשר לחברים למחוק הוצאות</span>
-                        <input type="checkbox" id="group-delete-toggle" checked onchange="toggleAllowDelete()">
-                        <span class="toggle-slider"></span>
-                    </label>
-                    <p class="toggle-hint" data-i18n="group_info_allow_delete_hint">כשכבוי, רק מנהלים יכולו למחוק הוצאות.</p>
-                </div>
-                <h4 class="settings-section-title" data-i18n="group_info_members">חברי קבוצה</h4>
-                <div id="group-info-members-list" class="settings-members-list"></div>
-                <button id="invite-link-btn" class="action-btn" onclick="generateInviteLink()" style="margin-top:14px; width:100%; display:none; background:linear-gradient(135deg, var(--primary), #6366f1); color:#fff; border:none; border-radius:12px; padding:12px; font-weight:700; cursor:pointer; font-size:0.9rem; transition:all 0.2s;">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-inline-end:6px;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                    <span data-i18n="invite_link_btn">צור קישור הזמנה</span>
-                </button>
-                <button class="leave-group-btn" onclick="leaveGroup()" data-i18n="group_info_leave">צא מהקבוצה</button>
-            </div>
-        </div>
-    </div>
 
     <!-- Admin Promote Balloon -->
     <div id="promote-balloon" class="promote-balloon" style="display:none;">

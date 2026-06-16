@@ -34,17 +34,22 @@ const GroupsScreen = () => {
         };
         window.reactCloseCreateModal = () => setIsCreateOpen(false);
         window.reactOpenEditModal = (id) => {
-            setEditTripId(id);
-            setEditTab("whatsapp");
-            setIsEditOpen(true);
+            const trip = window.allTrips ? window.allTrips.find(t => t.id === id) : trips.find(t => t.id === id);
+            if (trip) {
+                setEditTripId(id);
+                setEditTripDetails(trip);
+                setEditTab("whatsapp");
+                setIsEditOpen(true);
 
-            // Let React render the empty #edit-friends-chips div first, then fill it
-            setTimeout(() => {
-                if (window.allTrips && window.renderEditFriendsChips) {
-                    const trip = window.allTrips.find(t => t.id === id);
-                    if (trip) window.renderEditFriendsChips(trip.participants || []);
-                }
-            }, 50);
+                // Let React render the empty #edit-friends-chips div first, then fill it
+                setTimeout(() => {
+                    if (window.renderEditFriendsChips) {
+                        window.renderEditFriendsChips(trip.participants || []);
+                    }
+                }, 50);
+            } else {
+                console.error("Trip not found for ID:", id);
+            }
         };
         window.reactSetEditTripDetails = (details) => {
             setEditTripDetails(details);

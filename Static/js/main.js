@@ -3107,3 +3107,29 @@ window.saveEditTripFromReact = async function(trip) {
     }
 };
 
+
+window.openGroupInfo = function() {
+    if (!window.currentTripId) {
+        alert(typeof i18n === 'function' ? i18n('error_no_active_trip') : 'No active trip selected.');
+        return;
+    }
+
+    if (typeof window.switchTab === 'function') window.switchTab('groups');
+
+    setTimeout(() => {
+        if (typeof window.reactOpenEditModal === 'function') {
+            window.reactOpenEditModal(window.currentTripId);
+        }
+    }, 50);
+
+    const navMenu = document.getElementById('nav-menu');
+    if (navMenu) navMenu.classList.remove('active');
+};
+
+window.openEditTripModal = function(id, event) {
+    if(event) event.stopPropagation();
+    if (typeof window.reactOpenEditModal === 'function') {
+        window.reactOpenEditModal(id);
+    }
+};
+

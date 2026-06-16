@@ -49,7 +49,8 @@ const GroupsScreen = () => {
         window.reactSetEditTripDetails = (details) => {
             setEditTripDetails(details);
         };
-        window.reactCloseEditModal = () => setIsEditOpen(false);\n        window.reactAddParticipantToEditTrip = (p) => { setEditTripDetails(prev => { if (!prev) return prev; return { ...prev, participants: [...(prev.participants || []), p] }; }); };
+        window.reactCloseEditModal = () => setIsEditOpen(false);
+        window.reactAddParticipantToEditTrip = (p) => { setEditTripDetails(prev => { if (!prev) return prev; return { ...prev, participants: [...(prev.participants || []), p] }; }); };
 
         if (window.allTrips) setTrips([...window.allTrips]);
 
@@ -432,5 +433,14 @@ const GroupsScreen = () => {
             </div>
         );
     };
-    return (\n        <React.Fragment>\n            {renderGroupsLobby()}\n            {renderCreateModal()}\n            {renderEditModal()}\n        </React.Fragment>\n    );\n};\n\nconst root = createRoot(document.getElementById('react-groups-root'));
+    return (
+        <React.Fragment>
+            {renderGroupsLobby()}
+            {renderCreateModal()}
+            {renderEditModal()}
+        </React.Fragment>
+    );
+};
+
+const root = createRoot(document.getElementById('react-groups-root'));
 root.render(<GroupsScreen />);

@@ -2862,7 +2862,13 @@ window.addEventListener('appinstalled', () => {
 // =====================
 //  INVITE LINK
 // =====================
-
+async function copyInviteLink(tripId) {
+    const tid = tripId || currentTripId;
+    if (!tid) return;
+    try {
+        const res = await fetch(`/api/trips/${tid}/invite-link`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
         });
         const data = await res.json();
         if (data.success && data.invite_token) {

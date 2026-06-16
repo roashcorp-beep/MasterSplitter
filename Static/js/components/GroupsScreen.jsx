@@ -251,6 +251,7 @@ const GroupsScreen = () => {
                     </div>
                     <div className="form-group">
                     </div>
+                    </div>
                     <div className="modal-actions">
                         <button className="secondary-btn" onClick={() => setIsCreateOpen(false)}>{i18n("btn_cancel") || "ביטול"}</button>
                         <button className="primary-btn" onClick={() => window.createTrip()}>{i18n("create_trip_btn") || "צור קבוצה"}</button>

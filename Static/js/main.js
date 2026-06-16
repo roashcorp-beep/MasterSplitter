@@ -3120,9 +3120,18 @@ window.saveEditTripFromReact = async function(trip) {
 
 
 window.openGroupInfo = function() {
-    const groupId = window.currentGroupId || window.currentTripId || window.activeTripId || (window.currentGroup && window.currentGroup.id) || (window.currentTrip && window.currentTrip.id);
+    // Aggressively find the current group ID
+    let groupId = window.currentTripId || window.activeTripId || window.currentGroupId;
+    if (!groupId && window.currentTrip && window.currentTrip.id) groupId = window.currentTrip.id;
+    if (!groupId && window.currentGroup && window.currentGroup.id) groupId = window.currentGroup.id;
     if (!groupId) {
-        alert(typeof i18n === 'function' ? i18n('error_no_active_group') || 'No active group selected.' : 'No active group selected.');
+        // Fallback: try to read from DOM if active trip is stored in an attribute
+        const activeTab = document.querySelector('.trip-tab.active');
+        if (activeTab) groupId = activeTab.dataset.id || activeTab.dataset.tripId;
+    }
+    
+    if (!groupId) {
+        alert(typeof i18n === 'function' ? i18n('error_no_active_group') || 'No active group found.' : 'No active group found.');
         return;
     }
 
@@ -3130,11 +3139,11 @@ window.openGroupInfo = function() {
 
     setTimeout(() => {
         if (typeof window.reactOpenEditModal === 'function') {
-            window.reactOpenEditModal(groupId);
+            window.reactOpenEditModal(parseInt(groupId, 10));
         } else {
-            console.warn("React modal function not ready yet.");
+            console.error("reactOpenEditModal is not available.");
         }
-    }, 50);
+    }, 100);
 
     const navMenu = document.getElementById('nav-menu');
     if (navMenu) navMenu.classList.remove('active');

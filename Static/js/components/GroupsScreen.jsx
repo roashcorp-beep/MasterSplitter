@@ -1,3 +1,4 @@
+import { Users, Link, Settings, ChevronDown, Check } from "lucide-react";
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 
@@ -290,9 +291,13 @@ const GroupsScreen = () => {
     };
 
     
-        const renderEditModal = () => {
+            const renderEditModal = () => {
         if (!isEditOpen || !editTripDetails) return null;
         const trip = editTripDetails;
+        const t = typeof i18n === 'function' ? { group_name: i18n('create_trip_name') } : {};
+        const isRTL = document.dir === 'rtl';
+        const onClose = () => setIsEditOpen(false);
+
         const currentPhone = window.currentUser?.phone || window.currentUser?.email;
         const isAdmin = trip.is_admin || trip.is_owner || (trip.participants && trip.participants.some(p => (p.contact === currentPhone || p.id === window.currentUser?.id) && p.is_admin));
 
@@ -325,119 +330,141 @@ const GroupsScreen = () => {
             }
         };
 
+        const participants = trip?.participants?.length > 0 ? trip.participants : [
+            { name: window.currentUser?.username || (window.currentUser?.email ? window.currentUser.email.split('@')[0] : 'Me'), role: 'admin' }
+        ];
+
         return (
-            <div id="edit-trip-modal" className="modal-overlay open z-[60]" key={editTripId}>
-                <div className="modal-card edit-group-info bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl border border-gray-100 dark:border-gray-700 shadow-2xl rounded-[2rem] max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 relative">
-                    <button className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 dark:hover:text-white transition" onClick={() => setIsEditOpen(false)}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                    </button>
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md" dir={isRTL ? 'rtl' : 'ltr'}>
+                <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl border border-white/20 dark:border-gray-700 shadow-2xl rounded-[2rem] w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col max-h-[90vh]">
                     
-                    <div className="flex flex-col items-center mt-4 mb-6">
-                        <div className="w-24 h-24 rounded-full flex items-center justify-center text-white font-bold text-4xl shadow-xl mb-4" style={{ background: avatarColors[trip.id % avatarColors.length] }}>
-                            {trip && trip.name ? String(trip.name).charAt(0).toUpperCase() : '?'}
+                    {/* Header - WhatsApp Style */}
+                    <div className="p-6 bg-gradient-to-b from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 flex flex-col items-center relative">
+                        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 bg-gray-100 dark:bg-gray-700 rounded-full p-2 transition-colors">?</button>
+                        
+                        <div className="relative group cursor-pointer mb-3">
+                            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-4xl shadow-lg border-4 border-white dark:border-gray-800 overflow-hidden" style={{ background: avatarColors[trip.id % avatarColors.length] }}>
+                                {trip?.image_url ? <img src={trip.image_url} className="w-full h-full object-cover" /> : (trip?.name ? String(trip.name).charAt(0).toUpperCase() : '?')}
+                            </div>
+                            <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <span className="text-white text-xs font-bold text-center leading-tight">???<br/>?????</span>
+                            </div>
                         </div>
+                        
                         <input 
                             type="text" 
-                            id="edit-trip-name" 
-                            className="text-2xl font-bold text-center bg-transparent border-b-2 border-transparent focus:border-indigo-500 transition-colors outline-none w-3/4"
                             defaultValue={trip?.name || ''} 
-                            placeholder={i18n("create_trip_name") || "?? ??????"} 
+                            onChange={(e) => setEditTripDetails(prev => ({...prev, name: e.target.value}))}
+                            className="text-2xl font-bold text-gray-900 dark:text-white bg-transparent text-center focus:outline-none focus:border-b-2 focus:border-indigo-500 w-3/4 transition-all"
+                            placeholder={t?.group_name || '?? ??????'}
                         />
-                        <p className="text-gray-500 mt-2 text-sm">{trip.participants?.length || 0} {i18n("members") || "???????"}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{participants.length} ?????</p>
                     </div>
 
-                    <div className="space-y-6">
-                        <div className="bg-gray-50/50 dark:bg-gray-900/50 rounded-2xl p-4 border border-gray-100 dark:border-gray-700">
-                            <div className="flex justify-between items-center mb-4">
-                                <h4 className="font-bold text-sm text-gray-600 dark:text-gray-400 uppercase tracking-wider">{i18n("members") || "???????"}</h4>
-                                {isAdmin && (
-                                    <button onClick={() => window.pickContact && window.pickContact('edit', 'wa')} className="text-indigo-600 hover:text-indigo-800 text-sm font-medium flex items-center gap-1">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                                        {i18n("add_member") || "????"}
-                                    </button>
-                                )}
-                            </div>
-                            <div className="space-y-3">
-                                {(trip.participants || []).map((p, idx) => (
-                                    <div key={idx} className="flex justify-between items-center bg-white dark:bg-gray-800 p-3 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900 dark:to-purple-900 flex items-center justify-center text-indigo-700 dark:text-indigo-300 font-bold">
-                                                {p && p.name ? String(p.name).charAt(0).toUpperCase() : '?'}
-                                            </div>
-                                            <div>
-                                                <div className="font-medium text-sm flex items-center gap-2 text-gray-800 dark:text-gray-200">
-                                                    {p.name}
-                                                    {p.is_owner && <span className="bg-purple-100 text-purple-700 text-[10px] px-2 py-0.5 rounded-full font-semibold">{i18n("creator") || "????"}</span>}
-                                                    {p.is_admin && !p.is_owner && <span className="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full font-semibold">{i18n("admin") || "????"}</span>}
+                    {/* Scrollable Body */}
+                    <div className="flex-1 overflow-y-auto p-0">
+                        
+                        {/* Action Buttons */}
+                        <div className="flex justify-center gap-6 p-4 border-b border-gray-100 dark:border-gray-700">
+                            {isAdmin && (
+                                <button onClick={() => window.pickContact && window.pickContact('edit', 'wa')} className="flex flex-col items-center gap-1.5 text-indigo-600 dark:text-indigo-400 hover:scale-105 transition-transform">
+                                    <div className="p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-full shadow-sm"><Users size={22} /></div>
+                                    <span className="text-xs font-medium">???? ???</span>
+                                </button>
+                            )}
+                            <button onClick={() => window.copyInviteLink(trip.id, trip.invite_token)} className="flex flex-col items-center gap-1.5 text-indigo-600 dark:text-indigo-400 hover:scale-105 transition-transform">
+                                <div className="p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-full shadow-sm"><Link size={22} /></div>
+                                <span className="text-xs font-medium">????? ?????</span>
+                            </button>
+                        </div>
+
+                        {/* Participants List */}
+                        <div className="p-4">
+                            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 mb-3 px-2">???????</h3>
+                            <div className="space-y-2">
+                                {participants.map((p, idx) => {
+                                    const name = p.name || p.username || (p.email ? String(p.email).split('@')[0] : '?????');
+                                    const initial = name ? String(name).charAt(0).toUpperCase() : '?';
+                                    const isParticipantAdmin = p.is_admin || p.role === 'admin';
+                                    return (
+                                        <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-lg">
+                                                    {initial}
                                                 </div>
-                                                <div className="text-xs text-gray-500">{p.contact}</div>
+                                                <span className="font-medium text-gray-900 dark:text-white">{name}</span>
+                                            </div>
+                                            {isParticipantAdmin ? 
+                                                <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/30 px-2.5 py-1 rounded-full">????</span> :
+                                                isAdmin && !p.is_owner ? <button onClick={() => removeUser(p.contact)} className="text-xs font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 px-2.5 py-1 rounded-full transition-colors">???</button> : null
+                                            }
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Advanced Settings */}
+                        {isAdmin && (
+                            <div className="p-4 border-t border-gray-100 dark:border-gray-700">
+                                <button onClick={() => setEditTripDetails(prev => ({...prev, showAdvancedBudget: !prev.showAdvancedBudget}))} className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-2xl transition-colors border border-gray-100 dark:border-gray-700">
+                                    <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200 font-medium">
+                                        <Settings size={18} className="text-indigo-500" /> ?????? ????? ??????
+                                    </div>
+                                    <ChevronDown size={16} className={	ext-gray-500 transition-transform duration-300 } />
+                                </button>
+
+                                {trip.showAdvancedBudget && (
+                                    <div className="mt-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700 animate-in fade-in slide-in-from-top-2">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <label className="text-sm font-bold text-gray-700 dark:text-gray-300">????? ??? ?????</label>
+                                            <input type="checkbox" checked={trip.is_budget_per_user || false} onChange={() => togglePermission('is_budget_per_user')} className="w-4 h-4 text-indigo-600 rounded cursor-pointer" />
+                                        </div>
+                                        
+                                        {trip.is_budget_per_user && (
+                                            <div className="space-y-3 pt-3 border-t border-gray-200 dark:border-gray-700 mb-4">
+                                                {participants.map((p, idx) => {
+                                                    const uBudget = trip.user_budgets?.[p.contact] || { daily: '', monthly: '', yearly: '' };
+                                                    return (
+                                                        <div key={idx} className="mb-4">
+                                                            <div className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">{p.name}</div>
+                                                            <div className="grid grid-cols-3 gap-2">
+                                                                {['daily', 'monthly', 'yearly'].map((type, i) => (
+                                                                    <div key={i} className="flex items-center justify-between bg-white dark:bg-gray-900 p-2 rounded-xl border border-gray-100 dark:border-gray-700">
+                                                                        <span className="text-[10px] font-medium text-gray-600 dark:text-gray-400 pl-1">{type === 'daily' ? '????' : type === 'monthly' ? '?????' : '????'}</span>
+                                                                        <div className="relative w-full ml-1">
+                                                                            <span className="absolute inset-y-0 left-0 pl-1 flex items-center text-gray-500 pointer-events-none text-[10px]">?</span>
+                                                                            <input type="number" value={uBudget[type] || ''} onChange={(e) => updateBudget(p.contact, type, e.target.value)} placeholder="0" className="w-full pl-4 pr-1 py-1 bg-transparent border-none text-[10px] focus:ring-0 outline-none text-gray-900 dark:text-white" />
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                        )}
+                                        
+                                        <div className="pt-3 border-t border-gray-200 dark:border-gray-700 space-y-3">
+                                            <div className="flex items-center justify-between">
+                                                <label className="text-sm text-gray-700 dark:text-gray-300">??? ?????? ?????</label>
+                                                <input type="checkbox" checked={trip.is_public_expenses !== false} onChange={() => togglePermission('is_public_expenses')} className="w-4 h-4 text-indigo-600 rounded cursor-pointer" />
+                                            </div>
+                                            <div className="flex items-center justify-between">
+                                                <label className="text-sm text-gray-700 dark:text-gray-300">???? ?????? ?????</label>
+                                                <input type="checkbox" checked={trip.allow_member_delete !== false} onChange={() => togglePermission('allow_member_delete')} className="w-4 h-4 text-indigo-600 rounded cursor-pointer" />
                                             </div>
                                         </div>
                                     </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {isAdmin && (
-                            <div className="bg-gray-50/50 dark:bg-gray-900/50 rounded-2xl p-4 border border-gray-100 dark:border-gray-700">
-                                <div className="flex justify-between items-center mb-4">
-                                    <h4 className="font-bold text-sm text-gray-600 dark:text-gray-400 uppercase tracking-wider">{i18n("budget_per_user") || "????? ??? ?????"}</h4>
-                                    <label className="mini-toggle">
-                                        <input type="checkbox" checked={trip.is_budget_per_user || false} onChange={() => togglePermission('is_budget_per_user')} />
-                                        <span className="mini-toggle-slider"></span>
-                                    </label>
-                                </div>
-                                {trip.is_budget_per_user && (
-                                    <div className="space-y-3 mt-4">
-                                        {(trip.participants || []).map((p, idx) => {
-                                            const uBudget = trip.user_budgets?.[p.contact] || { daily: '', monthly: '', yearly: '' };
-                                            return (
-                                            <div key={idx} className="bg-white dark:bg-gray-800 p-3 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
-                                                <div className="text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">{p.name}</div>
-                                                <div className="grid grid-cols-3 gap-2">
-                                                    <div>
-                                                        <label className="text-[10px] text-gray-500 block mb-1">{i18n("daily") || "????"}</label>
-                                                        <input type="number" value={uBudget.daily || ''} onChange={(e) => updateBudget(p.contact, 'daily', e.target.value)} className="w-full bg-gray-100 dark:bg-gray-700 rounded px-2 py-1 text-sm outline-none" placeholder="?0" />
-                                                    </div>
-                                                    <div>
-                                                        <label className="text-[10px] text-gray-500 block mb-1">{i18n("monthly") || "?????"}</label>
-                                                        <input type="number" value={uBudget.monthly || ''} onChange={(e) => updateBudget(p.contact, 'monthly', e.target.value)} className="w-full bg-gray-100 dark:bg-gray-700 rounded px-2 py-1 text-sm outline-none" placeholder="?0" />
-                                                    </div>
-                                                    <div>
-                                                        <label className="text-[10px] text-gray-500 block mb-1">{i18n("yearly") || "????"}</label>
-                                                        <input type="number" value={uBudget.yearly || ''} onChange={(e) => updateBudget(p.contact, 'yearly', e.target.value)} className="w-full bg-gray-100 dark:bg-gray-700 rounded px-2 py-1 text-sm outline-none" placeholder="?0" />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )})}
-                                    </div>
                                 )}
-                            </div>
-                        )}
-
-                        {isAdmin && (
-                            <div className="bg-gray-50/50 dark:bg-gray-900/50 rounded-2xl p-4 border border-gray-100 dark:border-gray-700 space-y-4">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{i18n("show_all_expenses") || "??? ???"}</span>
-                                    <label className="mini-toggle">
-                                        <input type="checkbox" checked={trip.is_public_expenses !== false} onChange={() => togglePermission('is_public_expenses')} />
-                                        <span className="mini-toggle-slider"></span>
-                                    </label>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{i18n("allow_member_delete") || "???? ?????"}</span>
-                                    <label className="mini-toggle">
-                                        <input type="checkbox" checked={trip.allow_member_delete !== false} onChange={() => togglePermission('allow_member_delete')} />
-                                        <span className="mini-toggle-slider"></span>
-                                    </label>
-                                </div>
                             </div>
                         )}
                     </div>
 
-                    <div className="mt-8">
-                        <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-colors" onClick={() => window.saveEditTripFromReact(trip)}>
-                            {i18n("save_changes") || "???? ???????"}
+                    {/* Footer */}
+                    <div className="p-4 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
+                        <button onClick={() => window.saveEditTripFromReact(trip)} className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 dark:shadow-none transition-all flex items-center justify-center gap-2 active:scale-95">
+                            <Check size={18} /> ???? ???????
                         </button>
                     </div>
                 </div>

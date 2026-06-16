@@ -1,0 +1,200 @@
+import re
+
+with open('Static/js/components/GroupsScreen.jsx', 'r', encoding='utf-8') as f:
+    content = f.read()
+
+# Make sure lucide-react imports exist
+if 'from "lucide-react"' not in content:
+    content = 'const { Users, Link, Settings, ChevronDown, Check } = window.lucide;\n' + content
+
+render_edit_modal_start = content.find('const renderEditModal = () => {')
+render_edit_modal_end = content.find('return (\n        <React.Fragment>')
+if render_edit_modal_end == -1:
+    render_edit_modal_end = content.find('return (\r\n        <React.Fragment>')
+
+new_render_edit_modal = '''    const renderEditModal = () => {
+        if (!isEditOpen || !editTripDetails) return null;
+        const trip = editTripDetails;
+        const t = typeof i18n === 'function' ? { group_name: i18n('create_trip_name') } : {};
+        const isRTL = document.dir === 'rtl';
+        const onClose = () => setIsEditOpen(false);
+
+        const currentPhone = window.currentUser?.phone || window.currentUser?.email;
+        const isAdmin = trip.is_admin || trip.is_owner || (trip.participants && trip.participants.some(p => (p.contact === currentPhone || p.id === window.currentUser?.id) && p.is_admin));
+
+        const togglePermission = (field) => {
+            setEditTripDetails(prev => ({ ...prev, [field]: prev[field] === false ? true : false }));
+        };
+
+        const updateBudget = (contact, type, value) => {
+            setEditTripDetails(prev => {
+                const currentBudgets = prev.user_budgets || {};
+                const userBudget = typeof currentBudgets[contact] === 'object' ? { ...currentBudgets[contact] } : { daily: currentBudgets[contact] || '', monthly: '', yearly: '' };
+                userBudget[type] = value;
+                return {
+                    ...prev,
+                    user_budgets: { ...currentBudgets, [contact]: userBudget }
+                };
+            });
+        };
+
+        const makeAdmin = (contact) => {
+            setEditTripDetails(prev => ({
+                ...prev,
+                participants: prev.participants.map(p => p.contact === contact ? { ...p, is_admin: true } : p)
+            }));
+        };
+
+        const removeUser = async (contact) => {
+            if (window.confirm(i18n("confirm_delete_member") || "Are you sure you want to remove this member?")) {
+                window.removeTripMember(trip.id, contact);
+            }
+        };
+
+        const participants = trip?.participants?.length > 0 ? trip.participants : [
+            { name: window.currentUser?.username || (window.currentUser?.email ? window.currentUser.email.split('@')[0] : 'Me'), role: 'admin' }
+        ];
+
+        return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md" dir={isRTL ? 'rtl' : 'ltr'}>
+                <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl border border-white/20 dark:border-gray-700 shadow-2xl rounded-[2rem] w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col max-h-[90vh]">
+                    
+                    {/* Header - WhatsApp Style */}
+                    <div className="p-6 bg-gradient-to-b from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 flex flex-col items-center relative">
+                        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 bg-gray-100 dark:bg-gray-700 rounded-full p-2 transition-colors">?</button>
+                        
+                        <div className="relative group cursor-pointer mb-3">
+                            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-4xl shadow-lg border-4 border-white dark:border-gray-800 overflow-hidden" style={{ background: avatarColors[trip.id % avatarColors.length] }}>
+                                {trip?.image_url ? <img src={trip.image_url} className="w-full h-full object-cover" /> : (trip?.name ? String(trip.name).charAt(0).toUpperCase() : '?')}
+                            </div>
+                            <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <span className="text-white text-xs font-bold text-center leading-tight">???<br/>?????</span>
+                            </div>
+                        </div>
+                        
+                        <input 
+                            type="text" 
+                            defaultValue={trip?.name || ''} 
+                            onChange={(e) => setEditTripDetails(prev => ({...prev, name: e.target.value}))}
+                            className="text-2xl font-bold text-gray-900 dark:text-white bg-transparent text-center focus:outline-none focus:border-b-2 focus:border-indigo-500 w-3/4 transition-all"
+                            placeholder={t?.group_name || '?? ??????'}
+                        />
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{participants.length} ?????</p>
+                    </div>
+
+                    {/* Scrollable Body */}
+                    <div className="flex-1 overflow-y-auto p-0">
+                        
+                        {/* Action Buttons */}
+                        <div className="flex justify-center gap-6 p-4 border-b border-gray-100 dark:border-gray-700">
+                            {isAdmin && (
+                                <button onClick={() => window.pickContact && window.pickContact('edit', 'wa')} className="flex flex-col items-center gap-1.5 text-indigo-600 dark:text-indigo-400 hover:scale-105 transition-transform">
+                                    <div className="p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-full shadow-sm"><window.lucide.Users size={22} /></div>
+                                    <span className="text-xs font-medium">???? ???</span>
+                                </button>
+                            )}
+                            <button onClick={() => window.copyInviteLink(trip.id, trip.invite_token)} className="flex flex-col items-center gap-1.5 text-indigo-600 dark:text-indigo-400 hover:scale-105 transition-transform">
+                                <div className="p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-full shadow-sm"><window.lucide.Link size={22} /></div>
+                                <span className="text-xs font-medium">????? ?????</span>
+                            </button>
+                        </div>
+
+                        {/* Participants List */}
+                        <div className="p-4">
+                            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 mb-3 px-2">???????</h3>
+                            <div className="space-y-2">
+                                {participants.map((p, idx) => {
+                                    const name = p.name || p.username || (p.email ? String(p.email).split('@')[0] : '?????');
+                                    const initial = name ? String(name).charAt(0).toUpperCase() : '?';
+                                    const isParticipantAdmin = p.is_admin || p.role === 'admin';
+                                    return (
+                                        <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-lg">
+                                                    {initial}
+                                                </div>
+                                                <span className="font-medium text-gray-900 dark:text-white">{name}</span>
+                                            </div>
+                                            {isParticipantAdmin ? 
+                                                <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/30 px-2.5 py-1 rounded-full">????</span> :
+                                                isAdmin && !p.is_owner ? <button onClick={() => removeUser(p.contact)} className="text-xs font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 px-2.5 py-1 rounded-full transition-colors">???</button> : null
+                                            }
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Advanced Settings */}
+                        {isAdmin && (
+                            <div className="p-4 border-t border-gray-100 dark:border-gray-700">
+                                <button onClick={() => setEditTripDetails(prev => ({...prev, showAdvancedBudget: !prev.showAdvancedBudget}))} className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-2xl transition-colors border border-gray-100 dark:border-gray-700">
+                                    <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200 font-medium">
+                                        <window.lucide.Settings size={18} className="text-indigo-500" /> ?????? ????? ??????
+                                    </div>
+                                    <window.lucide.ChevronDown size={16} className={	ext-gray-500 transition-transform duration-300 } />
+                                </button>
+
+                                {trip.showAdvancedBudget && (
+                                    <div className="mt-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700 animate-in fade-in slide-in-from-top-2">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <label className="text-sm font-bold text-gray-700 dark:text-gray-300">????? ??? ?????</label>
+                                            <input type="checkbox" checked={trip.is_budget_per_user || false} onChange={() => togglePermission('is_budget_per_user')} className="w-4 h-4 text-indigo-600 rounded cursor-pointer" />
+                                        </div>
+                                        
+                                        {trip.is_budget_per_user && (
+                                            <div className="space-y-3 pt-3 border-t border-gray-200 dark:border-gray-700 mb-4">
+                                                {participants.map((p, idx) => {
+                                                    const uBudget = trip.user_budgets?.[p.contact] || { daily: '', monthly: '', yearly: '' };
+                                                    return (
+                                                        <div key={idx} className="mb-4">
+                                                            <div className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">{p.name}</div>
+                                                            <div className="grid grid-cols-3 gap-2">
+                                                                {['daily', 'monthly', 'yearly'].map((type, i) => (
+                                                                    <div key={i} className="flex items-center justify-between bg-white dark:bg-gray-900 p-2 rounded-xl border border-gray-100 dark:border-gray-700">
+                                                                        <span className="text-[10px] font-medium text-gray-600 dark:text-gray-400 pl-1">{type === 'daily' ? '????' : type === 'monthly' ? '?????' : '????'}</span>
+                                                                        <div className="relative w-full ml-1">
+                                                                            <span className="absolute inset-y-0 left-0 pl-1 flex items-center text-gray-500 pointer-events-none text-[10px]">?</span>
+                                                                            <input type="number" value={uBudget[type] || ''} onChange={(e) => updateBudget(p.contact, type, e.target.value)} placeholder="0" className="w-full pl-4 pr-1 py-1 bg-transparent border-none text-[10px] focus:ring-0 outline-none text-gray-900 dark:text-white" />
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                        )}
+                                        
+                                        <div className="pt-3 border-t border-gray-200 dark:border-gray-700 space-y-3">
+                                            <div className="flex items-center justify-between">
+                                                <label className="text-sm text-gray-700 dark:text-gray-300">??? ?????? ?????</label>
+                                                <input type="checkbox" checked={trip.is_public_expenses !== false} onChange={() => togglePermission('is_public_expenses')} className="w-4 h-4 text-indigo-600 rounded cursor-pointer" />
+                                            </div>
+                                            <div className="flex items-center justify-between">
+                                                <label className="text-sm text-gray-700 dark:text-gray-300">???? ?????? ?????</label>
+                                                <input type="checkbox" checked={trip.allow_member_delete !== false} onChange={() => togglePermission('allow_member_delete')} className="w-4 h-4 text-indigo-600 rounded cursor-pointer" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Footer */}
+                    <div className="p-4 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
+                        <button onClick={() => window.saveEditTripFromReact(trip)} className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 dark:shadow-none transition-all flex items-center justify-center gap-2 active:scale-95">
+                            <window.lucide.Check size={18} /> ???? ???????
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+'''
+
+content = content[:render_edit_modal_start] + new_render_edit_modal + content[render_edit_modal_end:]
+
+with open('Static/js/components/GroupsScreen.jsx', 'w', encoding='utf-8') as f:
+    f.write(content)

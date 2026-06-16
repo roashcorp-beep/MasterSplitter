@@ -33,20 +33,43 @@ const GroupsScreen = () => {
             setIsCreateOpen(true);
         };
         window.reactCloseCreateModal = () => setIsCreateOpen(false);
-        window.reactOpenEditModal = (id) => {
+                window.reactOpenEditModal = (id) => {
             const trip = window.allTrips ? window.allTrips.find(t => t.id === id) : trips.find(t => t.id === id);
             if (trip) {
+                let participants = trip.participants || [];
+                if (window.currentUser) {
+                    const currentPhone = window.currentUser.phone || window.currentUser.email;
+                    if (!participants.some(p => p.contact === currentPhone || p.id === window.currentUser.id)) {
+                        participants = [
+                            {
+                                id: window.currentUser.id,
+                                name: window.currentUser.name || "Me",
+                                contact: currentPhone,
+                                is_owner: true,
+                                is_admin: true,
+                                type: "registered"
+                            },
+                            ...participants
+                        ];
+                    }
+                }
+                const updatedTrip = { ...trip, participants };
+                
+                if (!updatedTrip.user_budgets) updatedTrip.user_budgets = {};
+                participants.forEach(p => {
+                    if (typeof updatedTrip.user_budgets[p.contact] !== 'object') {
+                        updatedTrip.user_budgets[p.contact] = {
+                            daily: updatedTrip.user_budgets[p.contact] || '',
+                            monthly: '',
+                            yearly: ''
+                        };
+                    }
+                });
+
                 setEditTripId(id);
-                setEditTripDetails(trip);
+                setEditTripDetails(updatedTrip);
                 setEditTab("whatsapp");
                 setIsEditOpen(true);
-
-                // Let React render the empty #edit-friends-chips div first, then fill it
-                setTimeout(() => {
-                    if (window.renderEditFriendsChips) {
-                        window.renderEditFriendsChips(trip.participants || []);
-                    }
-                }, 50);
             } else {
                 console.error("Trip not found for ID:", id);
             }
@@ -267,36 +290,35 @@ const GroupsScreen = () => {
     };
 
     
-    const renderEditModal = () => {
+        const renderEditModal = () => {
         if (!isEditOpen || !editTripDetails) return null;
         const trip = editTripDetails;
-        
-        const isUserAdmin = trip.participants?.find(p => {
-            const currentPhone = window.currentUser?.phone || window.currentUser?.email;
-            return (p.contact === currentPhone || p.id === window.currentUser?.id) && p.is_admin;
-        });
-        
-        const isAdmin = !!isUserAdmin || trip.is_owner;
+        const currentPhone = window.currentUser?.phone || window.currentUser?.email;
+        const isAdmin = trip.is_admin || trip.is_owner || (trip.participants && trip.participants.some(p => (p.contact === currentPhone || p.id === window.currentUser?.id) && p.is_admin));
 
-        const updateBudget = (contact, amount) => {
-            const newTrip = { ...trip };
-            newTrip.user_budgets = newTrip.user_budgets || {};
-            newTrip.user_budgets[contact] = amount;
-            setEditTripDetails(newTrip);
+        const togglePermission = (field) => {
+            setEditTripDetails(prev => ({ ...prev, [field]: prev[field] === false ? true : false }));
         };
 
-        const togglePermission = (key) => {
-            if (!isAdmin) return;
-            const newTrip = { ...trip };
-            newTrip[key] = !newTrip[key];
-            setEditTripDetails(newTrip);
+        const updateBudget = (contact, type, value) => {
+            setEditTripDetails(prev => {
+                const currentBudgets = prev.user_budgets || {};
+                const userBudget = typeof currentBudgets[contact] === 'object' ? { ...currentBudgets[contact] } : { daily: currentBudgets[contact] || '', monthly: '', yearly: '' };
+                userBudget[type] = value;
+                return {
+                    ...prev,
+                    user_budgets: { ...currentBudgets, [contact]: userBudget }
+                };
+            });
         };
-        
-        const makeAdmin = async (contact) => {
-            // we will implement the API call in main.js or here
-            window.makeMemberAdmin(trip.id, contact);
+
+        const makeAdmin = (contact) => {
+            setEditTripDetails(prev => ({
+                ...prev,
+                participants: prev.participants.map(p => p.contact === contact ? { ...p, is_admin: true } : p)
+            }));
         };
-        
+
         const removeUser = async (contact) => {
             if (window.confirm(i18n("confirm_delete_member") || "Are you sure you want to remove this member?")) {
                 window.removeTripMember(trip.id, contact);
@@ -304,142 +326,125 @@ const GroupsScreen = () => {
         };
 
         return (
-            <div id="edit-trip-modal" className="modal-overlay open" key={editTripId}>
-                <div className="modal-card edit-group-info">
-                    <div className="modal-header">
-                        <h3>{i18n("group_info") || "פרטי קבוצה"}</h3>
-                        <button className="modal-close-x" onClick={() => setIsEditOpen(false)}>
-                            <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                        </button>
+            <div id="edit-trip-modal" className="modal-overlay open z-[60]" key={editTripId}>
+                <div className="modal-card edit-group-info bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl border border-gray-100 dark:border-gray-700 shadow-2xl rounded-[2rem] max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 relative">
+                    <button className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 dark:hover:text-white transition" onClick={() => setIsEditOpen(false)}>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                    
+                    <div className="flex flex-col items-center mt-4 mb-6">
+                        <div className="w-24 h-24 rounded-full flex items-center justify-center text-white font-bold text-4xl shadow-xl mb-4" style={{ background: avatarColors[trip.id % avatarColors.length] }}>
+                            {trip && trip.name ? String(trip.name).charAt(0).toUpperCase() : '?'}
+                        </div>
+                        <input 
+                            type="text" 
+                            id="edit-trip-name" 
+                            className="text-2xl font-bold text-center bg-transparent border-b-2 border-transparent focus:border-indigo-500 transition-colors outline-none w-3/4"
+                            defaultValue={trip?.name || ''} 
+                            placeholder={i18n("create_trip_name") || "?? ??????"} 
+                        />
+                        <p className="text-gray-500 mt-2 text-sm">{trip.participants?.length || 0} {i18n("members") || "???????"}</p>
                     </div>
 
-                    <div className="modal-body-content space-y-4">
-                        {/* Header: Avatar, Name, Member Count */}
-                        <div className="group-info-header text-center">
-                            <div className="w-20 h-20 rounded-full mx-auto flex items-center justify-center text-white font-bold text-3xl shadow-inner mb-3" style={{ background: avatarColors[trip.id % avatarColors.length] }}>
-                                {trip && trip.name ? String(trip.name).charAt(0).toUpperCase() : '?'}
+                    <div className="space-y-6">
+                        <div className="bg-gray-50/50 dark:bg-gray-900/50 rounded-2xl p-4 border border-gray-100 dark:border-gray-700">
+                            <div className="flex justify-between items-center mb-4">
+                                <h4 className="font-bold text-sm text-gray-600 dark:text-gray-400 uppercase tracking-wider">{i18n("members") || "???????"}</h4>
+                                {isAdmin && (
+                                    <button onClick={() => window.pickContact && window.pickContact('edit', 'wa')} className="text-indigo-600 hover:text-indigo-800 text-sm font-medium flex items-center gap-1">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                        {i18n("add_member") || "????"}
+                                    </button>
+                                )}
                             </div>
-                            <input 
-                                type="text" 
-                                id="edit-trip-name" 
-                                className="text-2xl font-bold text-center bg-transparent border-b border-dashed border-gray-300 focus:border-indigo-500 outline-none w-3/4 mx-auto"
-                                defaultValue={trip?.name || ''} 
-                                placeholder={i18n("create_trip_name") || "שם הקבוצה"} 
-                            />
-                            <p className="text-gray-500 mt-1">{trip.participants?.length || 0} {i18n("members") || "משתתפים"}</p>
+                            <div className="space-y-3">
+                                {(trip.participants || []).map((p, idx) => (
+                                    <div key={idx} className="flex justify-between items-center bg-white dark:bg-gray-800 p-3 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900 dark:to-purple-900 flex items-center justify-center text-indigo-700 dark:text-indigo-300 font-bold">
+                                                {p && p.name ? String(p.name).charAt(0).toUpperCase() : '?'}
+                                            </div>
+                                            <div>
+                                                <div className="font-medium text-sm flex items-center gap-2 text-gray-800 dark:text-gray-200">
+                                                    {p.name}
+                                                    {p.is_owner && <span className="bg-purple-100 text-purple-700 text-[10px] px-2 py-0.5 rounded-full font-semibold">{i18n("creator") || "????"}</span>}
+                                                    {p.is_admin && !p.is_owner && <span className="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full font-semibold">{i18n("admin") || "????"}</span>}
+                                                </div>
+                                                <div className="text-xs text-gray-500">{p.contact}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
 
-                        {/* Invite Link */}
-                        <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3 flex justify-between items-center cursor-pointer hover:bg-gray-100 transition" onClick={() => window.copyInviteLink(trip.id, trip.invite_token)}>
-                            <div className="flex items-center gap-3">
-                                <div className="bg-green-100 text-green-600 p-2 rounded-full">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
-                                </div>
-                                <div>
-                                    <h4 className="font-semibold text-sm">{i18n("invite_via_link") || "הזמנה באמצעות קישור"}</h4>
-                                    <p className="text-xs text-gray-500">{window.location.origin}/#join={trip.invite_token}</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Admin Permissions */}
                         {isAdmin && (
-                            <div className="permissions-section bg-gray-50 dark:bg-gray-800 rounded-xl p-4 space-y-3">
-                                <h4 className="font-bold text-sm text-gray-700 dark:text-gray-300 uppercase tracking-wide">{i18n("admin_settings") || "הגדרות מנהל"}</h4>
+                            <div className="bg-gray-50/50 dark:bg-gray-900/50 rounded-2xl p-4 border border-gray-100 dark:border-gray-700">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h4 className="font-bold text-sm text-gray-600 dark:text-gray-400 uppercase tracking-wider">{i18n("budget_per_user") || "????? ??? ?????"}</h4>
+                                    <label className="mini-toggle">
+                                        <input type="checkbox" checked={trip.is_budget_per_user || false} onChange={() => togglePermission('is_budget_per_user')} />
+                                        <span className="mini-toggle-slider"></span>
+                                    </label>
+                                </div>
+                                {trip.is_budget_per_user && (
+                                    <div className="space-y-3 mt-4">
+                                        {(trip.participants || []).map((p, idx) => {
+                                            const uBudget = trip.user_budgets?.[p.contact] || { daily: '', monthly: '', yearly: '' };
+                                            return (
+                                            <div key={idx} className="bg-white dark:bg-gray-800 p-3 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+                                                <div className="text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">{p.name}</div>
+                                                <div className="grid grid-cols-3 gap-2">
+                                                    <div>
+                                                        <label className="text-[10px] text-gray-500 block mb-1">{i18n("daily") || "????"}</label>
+                                                        <input type="number" value={uBudget.daily || ''} onChange={(e) => updateBudget(p.contact, 'daily', e.target.value)} className="w-full bg-gray-100 dark:bg-gray-700 rounded px-2 py-1 text-sm outline-none" placeholder="?0" />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[10px] text-gray-500 block mb-1">{i18n("monthly") || "?????"}</label>
+                                                        <input type="number" value={uBudget.monthly || ''} onChange={(e) => updateBudget(p.contact, 'monthly', e.target.value)} className="w-full bg-gray-100 dark:bg-gray-700 rounded px-2 py-1 text-sm outline-none" placeholder="?0" />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[10px] text-gray-500 block mb-1">{i18n("yearly") || "????"}</label>
+                                                        <input type="number" value={uBudget.yearly || ''} onChange={(e) => updateBudget(p.contact, 'yearly', e.target.value)} className="w-full bg-gray-100 dark:bg-gray-700 rounded px-2 py-1 text-sm outline-none" placeholder="?0" />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )})}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {isAdmin && (
+                            <div className="bg-gray-50/50 dark:bg-gray-900/50 rounded-2xl p-4 border border-gray-100 dark:border-gray-700 space-y-4">
                                 <div className="flex justify-between items-center">
-                                    <span className="text-sm">{i18n("show_all_expenses") || "הצג את כל ההוצאות לכולם"}</span>
+                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{i18n("show_all_expenses") || "??? ???"}</span>
                                     <label className="mini-toggle">
                                         <input type="checkbox" checked={trip.is_public_expenses !== false} onChange={() => togglePermission('is_public_expenses')} />
                                         <span className="mini-toggle-slider"></span>
                                     </label>
                                 </div>
                                 <div className="flex justify-between items-center">
-                                    <span className="text-sm">{i18n("allow_member_delete") || "אפשר למשתתפים למחוק הוצאות"}</span>
+                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{i18n("allow_member_delete") || "???? ?????"}</span>
                                     <label className="mini-toggle">
                                         <input type="checkbox" checked={trip.allow_member_delete !== false} onChange={() => togglePermission('allow_member_delete')} />
                                         <span className="mini-toggle-slider"></span>
                                     </label>
                                 </div>
-                                <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                                    <div>
-                                        <span className="text-sm font-semibold">{i18n("budget_per_user") || "תקציב לכל משתתף"}</span>
-                                    </div>
-                                    <label className="mini-toggle">
-                                        <input type="checkbox" id="edit-trip-budget-per-user" checked={trip.is_budget_per_user || false} onChange={() => togglePermission('is_budget_per_user')} />
-                                        <span className="mini-toggle-slider"></span>
-                                    </label>
-                                </div>
                             </div>
                         )}
-
-                        {/* Members List */}
-                        <div className="members-section mt-4">
-                            <h4 className="font-bold text-sm text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2">{i18n("members") || "משתתפים"}</h4>
-                            <div className="space-y-2">
-                                {(trip.participants || []).map((p, idx) => (
-                                    <div key={idx} className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-300 font-bold">
-                                                {p && p.name ? String(p.name).charAt(0).toUpperCase() : '?'}
-                                            </div>
-                                            <div>
-                                                <div className="font-medium text-sm flex items-center gap-2">
-                                                    {p.name}
-                                                    {p.is_owner && <span className="bg-purple-100 text-purple-700 text-[10px] px-2 py-0.5 rounded-full">{i18n("creator") || "יוצר"}</span>}
-                                                    {p.is_admin && !p.is_owner && <span className="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full">{i18n("admin") || "מנהל"}</span>}
-                                                </div>
-                                                <div className="text-xs text-gray-500">{p.contact}</div>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            {trip.is_budget_per_user && (
-                                                <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg px-2 py-1">
-                                                    <span className="text-xs text-gray-500 mr-1">₪</span>
-                                                    <input 
-                                                        type="number" 
-                                                        className="w-16 bg-transparent outline-none text-sm text-right" 
-                                                        placeholder="0"
-                                                        value={trip.user_budgets?.[p.contact] || ''}
-                                                        onChange={(e) => updateBudget(p.contact, e.target.value)}
-                                                        disabled={!isAdmin}
-                                                    />
-                                                </div>
-                                            )}
-                                            {isAdmin && !p.is_owner && (
-                                                <div className="relative group cursor-pointer p-1 text-gray-400 hover:text-gray-700">
-                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
-                                                    <div className="absolute left-0 top-full mt-1 w-36 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-100 dark:border-gray-700 hidden group-hover:block z-50">
-                                                        {!p.is_admin && <button onClick={() => makeAdmin(p.contact)} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700">{i18n("make_admin") || "הפוך למנהל"}</button>}
-                                                        <button onClick={() => removeUser(p.contact)} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-gray-700">{i18n("remove_user") || "הסר משתמש"}</button>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
-                                
-                                {/* Add member button within the list for Admins */}
-                                {isAdmin && (
-                                    <div className="flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition" onClick={() => window.pickContact && window.pickContact('edit', 'wa')}>
-                                        <div className="w-10 h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center font-bold">
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                                        </div>
-                                        <div className="font-medium text-sm text-green-600">{i18n("add_member") || "הוסף משתתף"}</div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
                     </div>
-                    <div className="modal-actions mt-6">
-                        <button className="secondary-btn" onClick={() => setIsEditOpen(false)}>{i18n("btn_cancel") || "ביטול"}</button>
-                        <button className="primary-btn" onClick={() => window.saveEditTripFromReact(trip)}>{i18n("save_changes") || "שמור שינויים"}</button>
+
+                    <div className="mt-8">
+                        <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-colors" onClick={() => window.saveEditTripFromReact(trip)}>
+                            {i18n("save_changes") || "???? ???????"}
+                        </button>
                     </div>
                 </div>
             </div>
         );
     };
-    return (
+return (
         <React.Fragment>
             {renderGroupsLobby()}
             {renderCreateModal()}

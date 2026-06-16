@@ -3070,13 +3070,24 @@ window.saveEditTripFromReact = async function(trip) {
     if (!trip.id) return;
 
     // Remove duplicates or match participants
-    const participants = (trip.participants || []).map(p => ({
-        id: p.id || null,
-        name: p.name,
-        contact: p.contact || p.name,
-        type: p.type || 'registered',
-        budgets_json: trip.is_budget_per_user && trip.user_budgets ? { daily: trip.user_budgets[p.contact] } : {}
-    }));
+    const participants = (trip.participants || []).map(p => {
+        let bJson = {};
+        if (trip.is_budget_per_user && trip.user_budgets && trip.user_budgets[p.contact]) {
+            const uBudget = trip.user_budgets[p.contact];
+            bJson = {
+                daily: uBudget.daily || '',
+                monthly: uBudget.monthly || '',
+                yearly: uBudget.yearly || ''
+            };
+        }
+        return {
+            id: p.id || null,
+            name: p.name,
+            contact: p.contact || p.name,
+            type: p.type || 'registered',
+            budgets_json: bJson
+        };
+    });
 
     const payload = { 
         name: trip.name, 
@@ -3109,11 +3120,9 @@ window.saveEditTripFromReact = async function(trip) {
 
 
 window.openGroupInfo = function() {
-    // Check multiple potential global variables for the active trip context
-    const tripId = window.currentTripId || window.activeTripId || (window.currentTrip && window.currentTrip.id);
-
-    if (!tripId) {
-        alert(typeof i18n === 'function' ? i18n('error_no_active_trip') : 'No active trip selected.');
+    const groupId = window.currentGroupId || window.currentTripId || window.activeTripId || (window.currentGroup && window.currentGroup.id) || (window.currentTrip && window.currentTrip.id);
+    if (!groupId) {
+        alert(typeof i18n === 'function' ? i18n('error_no_active_group') || 'No active group selected.' : 'No active group selected.');
         return;
     }
 
@@ -3121,7 +3130,7 @@ window.openGroupInfo = function() {
 
     setTimeout(() => {
         if (typeof window.reactOpenEditModal === 'function') {
-            window.reactOpenEditModal(tripId);
+            window.reactOpenEditModal(groupId);
         } else {
             console.warn("React modal function not ready yet.");
         }

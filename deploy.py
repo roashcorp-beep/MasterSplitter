@@ -68,6 +68,7 @@ def run_remote_pull():
         if not console_id:
             print("   -> Creating new 'Deploy Console'...")
             resp = requests.post(f"{BASE_URL}/consoles/", headers=HEADERS, json={'executable': 'bash', 'name': 'Deploy Console'})
+            time.sleep(3)
             resp.raise_for_status()
             console_id = resp.json()['id']
             time.sleep(3) # Wait for console to spin up
@@ -111,3 +112,4 @@ if __name__ == "__main__":
     print(f"Live Site:   https://{PA_DOMAIN}")
     print(f"Admin Panel: https://{PA_DOMAIN}/admin-panel?key={ADMIN_SECRET_KEY}")
     print("=========================================")
+

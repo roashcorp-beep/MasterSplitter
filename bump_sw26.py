@@ -1,0 +1,16 @@
+﻿import glob
+import re
+
+html_files = glob.glob('Templates/*.html')
+for file in html_files:
+    with open(file, 'r', encoding='utf-8') as f:
+        content = f.read()
+    content = content.replace('?v=2.5', '?v=2.6')
+    with open(file, 'w', encoding='utf-8') as f:
+        f.write(content)
+
+with open('Static/sw.js', 'r', encoding='utf-8') as f:
+    sw = f.read()
+sw = re.sub(r"const CACHE_NAME = 'mastersplitter-[^']+';", "const CACHE_NAME = 'mastersplitter-v2.6';", sw)
+with open('Static/sw.js', 'w', encoding='utf-8') as f:
+    f.write(sw)

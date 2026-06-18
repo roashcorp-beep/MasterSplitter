@@ -445,7 +445,7 @@ const GroupsScreen = () => {
                                             
                                             <div className="grid grid-cols-3 gap-2">
                                                 {['daily', 'monthly', 'yearly'].map((type, i) => (
-                                                    <div key={global-} className="flex items-center justify-between bg-white dark:bg-gray-900 p-2 rounded-xl border border-gray-100 dark:border-gray-700">
+                                                    <div key={'global-' + type} className="flex items-center justify-between bg-white dark:bg-gray-900 p-2 rounded-xl border border-gray-100 dark:border-gray-700">
                                                         <span className="text-[10px] font-medium text-gray-600 dark:text-gray-400 pl-1">{type === 'daily' ? 'יומי' : type === 'monthly' ? 'חודשי' : 'שנתי'}</span>
                                                         <div className="relative w-full ml-1">
                                                             <input type="number" value={trip.budgets_json?.[type] || ''} onChange={(e) => updateGlobalBudget(type, e.target.value ? parseFloat(e.target.value) : '')} placeholder="0" className="w-full pl-1 pr-1 py-1 bg-transparent border-none text-[10px] focus:ring-0 outline-none text-gray-900 dark:text-white" />

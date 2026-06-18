@@ -64,13 +64,12 @@
 
     <script type="text/babel">
 {% raw %}
-        import React, { useState, useEffect } from 'react';
+        const { useState, useEffect  } = React;
         const { createRoot } = ReactDOM;
-        import { 
-            User, Image as ImageIcon, Mail, Phone, Lock, Globe, DollarSign, 
+        const { User, Image as ImageIcon, Mail, Phone, Lock, Globe, DollarSign, 
             Moon, Sun, Bell, HelpCircle, MessageSquare, Shield, ChevronLeft, ChevronRight, X, Camera,
             Fingerprint, BookOpen, Send
-        } from 'lucide-react';
+         } = window.lucide;
 
         // i18n Bridge — same pattern as login.html
         const i18n = window.MasterSplitterI18n;

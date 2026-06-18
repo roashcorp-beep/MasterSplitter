@@ -1,6 +1,6 @@
 const { Users, Link, Settings, ChevronDown, Check } = window.lucide;
-﻿const { useState, useEffect } = React;
-import { createRoot } from 'react-dom/client';
+const { useState, useEffect } = React;
+const { createRoot } = ReactDOM;
 
 const GroupsScreen = () => {
     const [trips, setTrips] = useState([]);

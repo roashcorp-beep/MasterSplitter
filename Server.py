@@ -333,6 +333,9 @@ def init_db_updates():
         if 'budgets_json' not in trips_cols:
             cursor.execute("ALTER TABLE Trips ADD COLUMN budgets_json TEXT DEFAULT '{}'")
             logger.info("Migration: added 'budgets_json' column to Trips")
+        if 'user_budgets' not in trips_cols:
+            cursor.execute("ALTER TABLE Trips ADD COLUMN user_budgets TEXT DEFAULT '{}'")
+            logger.info("Migration: added 'user_budgets' column to Trips")
     except sqlite3.Error as e:
         logger.error(f"Trips columns migration error: {e}")
 

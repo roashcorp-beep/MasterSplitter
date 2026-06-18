@@ -3091,6 +3091,7 @@ window.saveEditTripFromReact = async function(trip) {
 
     const payload = { 
         name: trip.name, 
+        budgets_json: trip.budgets_json || {},
         is_budget_per_user: trip.is_budget_per_user,
         is_public_expenses: trip.is_public_expenses,
         allow_member_delete: trip.allow_member_delete,

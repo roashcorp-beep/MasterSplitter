@@ -128,9 +128,9 @@ const GroupsScreen = () => {
     const renderGroupsLobby = () => (
         <div className="relative z-10 w-full max-w-4xl mx-auto p-4 pt-4">
             <div className="lobby-header">
-                <h2 data-i18n="lobby_my_trips">{i18n("lobby_my_trips") || "×”×§×‘×•×¦×•×ª ×©×œ×™"}</h2>
+                <h2 data-i18n="lobby_my_trips">{i18n("lobby_my_trips") || "הקבוצות שלי"}</h2>
                 <button className="primary-btn sm" onClick={() => setIsCreateOpen(true)} data-i18n="lobby_btn_create">
-                    {i18n("lobby_btn_create") || "+ ×¦×•×¨ ×§×‘×•×¦×” ×—×“×©×”"}
+                    {i18n("lobby_btn_create") || "+ צור קבוצה חדשה"}
                 </button>
             </div>
             
@@ -141,73 +141,67 @@ const GroupsScreen = () => {
                             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
                             <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                         </svg>
-                        <p>{i18n("lobby_no_groups") || "No groups yet"}</p>
+                        <p>{i18n("lobby_no_groups") || "אין קבוצות עדיין"}</p>
                     </div>
                 ) : (
                     trips.map((trip, i) => {
                         const initial = trip && trip.name ? String(trip.name).charAt(0).toUpperCase() : '?';
                         const isAdmin = trip.is_admin !== undefined ? trip.is_admin : trip.is_owner;
-                        let cardCurrency = "â‚ª";
+                        let cardCurrency = "₪";
                         let highestBudget = null;
                         let highestBudgetLabel = "";
                         if (trip.budgets_json) {
                             cardCurrency = trip.budgets_json.currency === 'USD' ? '$' : 
-                                      trip.budgets_json.currency === 'EUR' ? 'â‚¬' : 
-                                      trip.budgets_json.currency === 'GBP' ? 'Â£' : 'â‚ª';
+                                      trip.budgets_json.currency === 'EUR' ? '€' : 
+                                      trip.budgets_json.currency === 'GBP' ? '£' : '₪';
                             if (trip.budgets_json.yearly) {
                                 highestBudget = trip.budgets_json.yearly;
-                                highestBudgetLabel = i18n("yearly") || "×©× ×ª×™";
+                                highestBudgetLabel = i18n("yearly") || "שנתי";
                             } else if (trip.budgets_json.monthly) {
                                 highestBudget = trip.budgets_json.monthly;
-                                highestBudgetLabel = i18n("monthly") || "×—×•×“×©×™";
+                                highestBudgetLabel = i18n("monthly") || "חודשי";
                             } else if (trip.budgets_json.daily) {
                                 highestBudget = trip.budgets_json.daily;
-                                highestBudgetLabel = i18n("daily") || "×™×•×ž×™";
+                                highestBudgetLabel = i18n("daily") || "יומי";
                             }
                         }
-                        // If budget is per-user, multiply by participant count
                         if (highestBudget !== null && trip.is_budget_per_user) {
                             const memberCount = trip.participants?.length || 1;
                             highestBudget = highestBudget * memberCount;
                         }
+                        const memberCount = trip.participants?.length || 0;
                         
                         return (
-                            <div key={trip.id} className="trip-card-v2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md rounded-2xl p-4 shadow-lg border border-gray-100 dark:border-gray-700 flex justify-between items-center cursor-pointer hover:shadow-xl transition-all" onClick={() => handleTripClick(trip.id)}>
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-inner" style={{ background: avatarColors[i % avatarColors.length] }}>
-                                        {initial}
-                                    </div>
-
-                                    <div>
-                                        <h3 className="font-bold text-gray-900 dark:text-white text-lg">{trip.name}</h3>
-                                        <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                                            <span className="inline-block w-2 h-2 rounded-full bg-green-500"></span>
-                                            <span data-i18n="active_trip">{i18n("active_trip") || "Active"}</span>
-                                            <span className="mx-1">â€¢</span>
-                                            <span>{trip.participants?.length || 0} Members</span>
-                                        </p>
+                            <div key={trip.id} className="trip-card-v2" onClick={() => handleTripClick(trip.id)}>
+                                <div className="trip-card-avatar" style={{ background: avatarColors[i % avatarColors.length] }}>
+                                    {initial}
+                                </div>
+                                <div className="trip-card-v2-body">
+                                    <div className="trip-card-v2-name">{trip.name}</div>
+                                    <div className="trip-card-v2-meta">
+                                        <span className="meta-item">
+                                            <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                                            {memberCount} {i18n("members") || "חברים"}
+                                        </span>
+                                        {highestBudget !== null && (
+                                            <span className="meta-item">
+                                                <svg viewBox="0 0 24 24" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                                                {cardCurrency}{window.formatNumber ? window.formatNumber(highestBudget) : highestBudget} <span style={{fontSize:'0.7em'}}>({highestBudgetLabel})</span>
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-3 text-right">
-                                    {highestBudget !== null && (
-                                        <div className="border-r border-gray-200 dark:border-gray-700 pr-3 mr-1">
-                                            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                                                {i18n("total_budget") || "Total"} <span className="text-[10px]">({highestBudgetLabel})</span>
-                                            </div>
-                                            <div className="font-bold text-xl text-indigo-600 dark:text-indigo-400 flex items-center justify-end gap-1" dir="ltr">
-                                                <span className="text-sm mr-1">{cardCurrency}</span>
-                                                <span>{window.formatNumber(highestBudget)}</span>
-                                            </div>
-                                        </div>
-                                    )}
+                                <div className="trip-card-v2-right">
                                     {isAdmin && (
                                         <button 
                                             onClick={(e) => { e.stopPropagation(); window.openEditTripModal(trip.id); }} 
-                                            className="border border-gray-300 dark:border-gray-600 rounded-md p-1.5 text-gray-500 hover:text-indigo-600 hover:border-indigo-600 transition-all flex-shrink-0"
+                                            className="trip-edit-btn"
+                                            title="עריכה"
                                         >
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
                                         </button>
                                     )}
+                                    <span className="trip-card-v2-arrow">›</span>
                                 </div>
                             </div>
                         );

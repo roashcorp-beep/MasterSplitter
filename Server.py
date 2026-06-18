@@ -880,8 +880,8 @@ def login():
         cursor.execute("SELECT id, name, password_hash, is_verified FROM Users WHERE name = ? OR email = ?", (username, username))
         user = cursor.fetchone()
         if user and user['password_hash'] and check_password_hash(user['password_hash'], password):
-            if user['is_verified'] == 0:
-                return jsonify({"error": "Please verify your email address first."}), 403
+            # if user['is_verified'] == 0:
+            #     return jsonify({"error": "Please verify your email address first."}), 403
                 
             session['user_id'] = user['id']
             session['username'] = user['name']

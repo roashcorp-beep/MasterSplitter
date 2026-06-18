@@ -35,16 +35,7 @@
     <!-- React & Babel -->
     
     
-    <script type="importmap">
-    {
-      "imports": {
-        "react": "https://esm.sh/react@18.2.0",
-        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-        "react/jsx-runtime": "https://esm.sh/react@18.2.0/jsx-runtime",
-        "lucide-react": "https://esm.sh/lucide-react@0.292.0"
-      }
-    }
-    </script>
+    
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#0a0a1a">
@@ -546,13 +537,13 @@
     </div>
 
     <!-- React Component Inclusion -->
-    <script type="text/babel" data-type="module" src="{{ url_for('static', filename='js/components/GroupsScreen.jsx') }}"></script>
+    <script type="text/babel" src="{{ url_for('static', filename='js/components/GroupsScreen.jsx') }}"></script>
 
     <!-- React Language Sync Component -->
     <div id="react-language-sync"></div>
-    <script type="text/babel" data-type="module">
-      import React, { useEffect, useState } from 'react';
-      import { createRoot } from 'react-dom/client';
+    <script type="text/babel">
+      const { useEffect, useState } = React;
+      const { createRoot } = ReactDOM;
 
       const LanguageSync = () => {
         const [lang, setLang] = useState(localStorage.getItem('lang') || 'he');

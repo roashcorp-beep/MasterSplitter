@@ -1,5 +1,5 @@
-import { Users, Link, Settings, ChevronDown, Check } from "lucide-react";
-﻿import React, { useState, useEffect } from 'react';
+const { Users, Link, Settings, ChevronDown, Check } = window.lucide;
+﻿const { useState, useEffect } = React;
 import { createRoot } from 'react-dom/client';
 
 const GroupsScreen = () => {
@@ -301,6 +301,16 @@ const GroupsScreen = () => {
         const currentPhone = window.currentUser?.phone || window.currentUser?.email;
         const isAdmin = trip.is_admin || trip.is_owner || (trip.participants && trip.participants.some(p => (p.contact === currentPhone || p.id === window.currentUser?.id) && p.is_admin));
 
+        const updateGlobalBudget = (type, value) => {
+            setEditTripDetails(prev => {
+                const currentBudgets = prev.budgets_json || {};
+                return {
+                    ...prev,
+                    budgets_json: { ...currentBudgets, [type]: value }
+                };
+            });
+        };
+
         const togglePermission = (field) => {
             setEditTripDetails(prev => ({ ...prev, [field]: prev[field] === false ? true : false }));
         };
@@ -409,6 +419,33 @@ const GroupsScreen = () => {
 
                                 {trip.showAdvancedBudget && (
                                     <div className="mt-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700 animate-in fade-in slide-in-from-top-2">
+                                        <div className="space-y-3 pt-3 border-t border-gray-200 dark:border-gray-700 mb-4">
+                                            <div className="flex items-center justify-between bg-white dark:bg-gray-900 p-2 rounded-xl border border-gray-100 dark:border-gray-700">
+                                                <label className="text-[12px] font-bold text-gray-700 dark:text-gray-300 pl-1 w-1/3">מטבע קבוצה</label>
+                                                <select value={trip.budgets_json?.currency || 'ILS'} onChange={(e) => updateGlobalBudget('currency', e.target.value)} className="w-2/3 bg-transparent border-none text-[12px] font-medium text-gray-900 dark:text-white focus:ring-0 outline-none dir-rtl">
+                                                    <option value="ILS">ILS (₪)</option>
+                                                    <option value="USD">USD ($)</option>
+                                                    <option value="EUR">EUR (€)</option>
+                                                    <option value="GBP">GBP (£)</option>
+                                                </select>
+                                            </div>
+                                            
+                                            <div className="flex items-center justify-between">
+                                                <label className="text-sm font-bold text-gray-700 dark:text-gray-300">תקציב קבוצתי כללי</label>
+                                            </div>
+                                            
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {['daily', 'monthly', 'yearly'].map((type, i) => (
+                                                    <div key={global-} className="flex items-center justify-between bg-white dark:bg-gray-900 p-2 rounded-xl border border-gray-100 dark:border-gray-700">
+                                                        <span className="text-[10px] font-medium text-gray-600 dark:text-gray-400 pl-1">{type === 'daily' ? 'יומי' : type === 'monthly' ? 'חודשי' : 'שנתי'}</span>
+                                                        <div className="relative w-full ml-1">
+                                                            <input type="number" value={trip.budgets_json?.[type] || ''} onChange={(e) => updateGlobalBudget(type, e.target.value ? parseFloat(e.target.value) : '')} placeholder="0" className="w-full pl-1 pr-1 py-1 bg-transparent border-none text-[10px] focus:ring-0 outline-none text-gray-900 dark:text-white" />
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
                                         <div className="flex items-center justify-between mb-4">
                                             <label className="text-sm font-bold text-gray-700 dark:text-gray-300">תקציב לכל משתתף</label>
                                             <input type="checkbox" checked={trip.is_budget_per_user || false} onChange={() => togglePermission('is_budget_per_user')} className="w-4 h-4 text-indigo-600 rounded cursor-pointer" />
@@ -477,4 +514,5 @@ return (
 
 const root = createRoot(document.getElementById('react-groups-root'));
 root.render(<GroupsScreen />);
+
 

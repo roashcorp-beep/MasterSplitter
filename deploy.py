@@ -70,10 +70,9 @@ def run_remote_pull():
             
         print("   -> Creating new 'Deploy Console'...")
         resp = requests.post(f"{BASE_URL}/consoles/", headers=HEADERS, json={'executable': 'bash', 'name': 'Deploy Console'})
-        time.sleep(3)
         resp.raise_for_status()
         console_id = resp.json()['id']
-        time.sleep(3) # Wait for console to spin up
+        time.sleep(10) # Wait for console to spin up
         
         # 3. Send command to console
         cmd = "cd ~/MasterSplitter && git pull\n"

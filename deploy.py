@@ -77,7 +77,11 @@ def run_remote_pull():
         # 3. Send command to console
         cmd = "cd ~/MasterSplitter && git pull\n"
         print(f"   -> Sending command to console #{console_id}: {cmd.strip()}")
-        resp = requests.post(f"{BASE_URL}/consoles/{console_id}/send_input/", headers=HEADERS, json={'input': cmd})
+        for i in range(10):
+            resp = requests.post(f"{BASE_URL}/consoles/{console_id}/send_input/", headers=HEADERS, json={'input': cmd})
+            if resp.status_code == 200:
+                break
+            time.sleep(2)
         resp.raise_for_status()
         
         print("✅ Remote git pull triggered. Waiting 5 seconds for completion...")
@@ -113,5 +117,6 @@ if __name__ == "__main__":
     print(f"Live Site:   https://{PA_DOMAIN}")
     print(f"Admin Panel: https://{PA_DOMAIN}/admin-panel?key={ADMIN_SECRET_KEY}")
     print("=========================================")
+
 
 

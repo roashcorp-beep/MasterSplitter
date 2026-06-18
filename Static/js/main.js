@@ -3121,7 +3121,8 @@ window.saveEditTripFromReact = async function(trip) {
 
 window.openGroupInfo = function() {
     // Aggressively find the current group ID
-    let groupId = window.currentTripId || window.activeTripId || window.currentGroupId;
+    let groupId = currentTripId || window.currentTripId || window.activeTripId || window.currentGroupId;
+    if (!groupId && typeof currentTripData !== 'undefined' && currentTripData) groupId = currentTripData.id;
     if (!groupId && window.currentTrip && window.currentTrip.id) groupId = window.currentTrip.id;
     if (!groupId && window.currentGroup && window.currentGroup.id) groupId = window.currentGroup.id;
     if (!groupId) {

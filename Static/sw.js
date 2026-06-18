@@ -1,5 +1,5 @@
 // MasterSplitter Service Worker — Network-First with Cache Fallback
-const CACHE_NAME = 'mastersplitter-v2.4';
+const CACHE_NAME = 'mastersplitter-v2.5';
 
 const PRE_CACHE_URLS = [
     '/',

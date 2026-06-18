@@ -1,3 +1,5 @@
+/** @jsx React.createElement */
+/** @jsxFrag React.Fragment */
 const { useState, useEffect } = React;
 
 // Inline SVGs to replace lucide-react dependencies safely

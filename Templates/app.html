@@ -36,6 +36,8 @@
     
     
     
+        <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#0a0a1a">
@@ -542,13 +544,13 @@
     <!-- React Language Sync Component -->
     <div id="react-language-sync"></div>
     <script type="text/babel">
-      const { useEffect, useState } = React;
-      const { createRoot } = ReactDOM;
+      
+      
 
       const LanguageSync = () => {
-        const [lang, setLang] = useState(localStorage.getItem('lang') || 'he');
+        const [lang, setLang] = React.useState(localStorage.getItem('lang') || 'he');
         
-        useEffect(() => {
+        React.useEffect(() => {
           const handleStorage = (e) => {
             if (e.key === 'lang' && e.newValue) {
               setLang(e.newValue);
@@ -562,7 +564,7 @@
         return null; // Invisible component, just handles React State logic for languages
       };
 
-      const root = createRoot(document.getElementById('react-language-sync'));
+      const root = ReactDOM.createRoot(document.getElementById('react-language-sync'));
       root.render(<LanguageSync />);
     </script>
 </body>

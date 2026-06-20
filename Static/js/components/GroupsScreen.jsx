@@ -10,6 +10,8 @@ const IconChevronDown = ({size=16, ...props}) => <svg {...props} width={size} he
 const IconCheck = ({size=18, ...props}) => <svg {...props} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>;
 const IconPlus = ({size=18, ...props}) => <svg {...props} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
 const IconEdit2 = ({size=16, ...props}) => <svg {...props} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>;
+const IconUserMinus = ({size=18, ...props}) => <svg {...props} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="23" y1="11" x2="17" y2="11"/></svg>;
+const IconTrash = ({size=18, ...props}) => <svg {...props} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>;
 
 const GroupsScreen = () => {
     const [trips, setTrips] = useState([]);
@@ -349,6 +351,38 @@ const GroupsScreen = () => {
             }
         };
 
+        const handleLeaveTrip = async () => {
+            if (window.confirm("האם אתה בטוח שברצונך לעזוב את הקבוצה? הקבוצה תעבור למצב קריאה בלבד.")) {
+                try {
+                    const res = await fetch(`/api/trips/${trip.id}/leave`, { method: 'POST', headers: { 'Authorization': `Bearer ${window.authToken}` } });
+                    if (res.ok) {
+                        window.location.reload();
+                    } else {
+                        const err = await res.json();
+                        alert(err.error || "שגיאה בעזיבת הקבוצה");
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+        };
+
+        const handleHideTrip = async () => {
+            if (window.confirm("האם אתה בטוח שברצונך למחוק את הקבוצה מהרשימה שלך?")) {
+                try {
+                    const res = await fetch(`/api/trips/${trip.id}/hide`, { method: 'POST', headers: { 'Authorization': `Bearer ${window.authToken}` } });
+                    if (res.ok) {
+                        window.location.reload();
+                    } else {
+                        const err = await res.json();
+                        alert(err.error || "שגיאה במחיקת הקבוצה");
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+        };
+
         const participants = trip?.participants?.length > 0 ? trip.participants : [
             { name: window.currentUser?.username || (window.currentUser?.email ? window.currentUser.email.split('@')[0] : 'Me'), role: 'admin' }
         ];
@@ -416,7 +450,8 @@ const GroupsScreen = () => {
                         <div className="p-4">
                             <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 mb-3 px-2">משתתפים</h3>
                             <div className="space-y-2">
-                                {participants.map((p, idx) => {
+                                {participants.map((participant, idx) => {
+                                    const p = typeof participant === 'string' ? { name: participant, contact: participant } : participant;
                                     const name = p.name || p.contact || p.username || p.email || p.phone || '?';
                                     const initial = name && name !== '?' ? String(name).charAt(0).toUpperCase() : '?';
                                     const isParticipantAdmin = p.is_admin || p.role === 'admin';
@@ -517,7 +552,8 @@ const GroupsScreen = () => {
                                         
                                         {trip.is_budget_per_user && (
                                             <div className="space-y-3 pt-3 border-t border-gray-200 dark:border-gray-700 mb-4">
-                                                {participants.map((p, idx) => {
+                                                {participants.map((participant, idx) => {
+                                                    const p = typeof participant === 'string' ? { name: participant, contact: participant } : participant;
                                                     const key = p.contact || p.email || p.phone || p.name;
                                                     const uBudget = trip.user_budgets?.[key] || { daily: '', monthly: '', yearly: '' };
                                                     const pName = p.name || p.username || p.email || p.phone || '?';
@@ -567,9 +603,19 @@ const GroupsScreen = () => {
                     </div>
 
                     {/* Footer */}
-                    <div className="p-4 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
-                        <button onClick={() => window.saveEditTripFromReact(trip)} className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 dark:shadow-none transition-all flex items-center justify-center gap-2 active:scale-95">
-                            <IconCheck size={18} /> שמור שינויים
+                    <div className="p-4 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 space-y-3">
+                        {!trip.is_readonly && (
+                            <button onClick={() => window.saveEditTripFromReact(trip)} className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 dark:shadow-none transition-all flex items-center justify-center gap-2 active:scale-95">
+                                <IconCheck size={18} /> שמור שינויים
+                            </button>
+                        )}
+                        {!trip.is_readonly && (
+                            <button onClick={handleLeaveTrip} className="w-full py-3 bg-orange-100 hover:bg-orange-200 text-orange-700 font-bold rounded-xl transition-all flex items-center justify-center gap-2 active:scale-95">
+                                <IconUserMinus size={18} /> עזוב קבוצה
+                            </button>
+                        )}
+                        <button onClick={handleHideTrip} className="w-full py-3 bg-red-100 hover:bg-red-200 text-red-700 font-bold rounded-xl transition-all flex items-center justify-center gap-2 active:scale-95">
+                            <IconTrash size={18} /> מחק קבוצה מהרשימה
                         </button>
                     </div>
 

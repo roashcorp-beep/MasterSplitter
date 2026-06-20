@@ -472,6 +472,16 @@ async function openTrip(tripId) {
             const firstWord = escapeHTML(currentTripData.name.split(' ')[0]);
             titleEl.innerHTML = `<span class="purple-text">${firstWord}</span>`;
         }
+
+        const navAddWrapper = document.querySelector('.nav-add-btn-wrapper');
+        const aiFab = document.getElementById('ai-fab');
+        if (currentTripData.is_readonly) {
+            if (navAddWrapper) navAddWrapper.style.display = 'none';
+            if (aiFab) aiFab.style.display = 'none';
+        } else {
+            if (navAddWrapper) navAddWrapper.style.display = '';
+            if (aiFab) aiFab.style.display = '';
+        }
     }
     showView('dashboard');
     switchTab('home');
@@ -780,8 +790,8 @@ async function openEditTripModalAsync(tripId) {
     try {
         const res = await fetch(`/api/trips/${tripId}`);
         const data = await res.json();
-        if (res.ok && data.success) {
-            const trip = data.trip;
+        if (res.ok && !data.error) {
+            const trip = data.trip || data;
             if (typeof window.reactSetEditTripDetails === 'function') {
                 window.reactSetEditTripDetails(trip);
             }

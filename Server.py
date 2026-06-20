@@ -373,6 +373,19 @@ def init_db_updates():
     except sqlite3.Error as e:
         logger.error(f"TripMembers is_admin migration error: {e}")
 
+    # --- Add is_hidden and is_left to TripMembers ---
+    try:
+        cursor.execute("PRAGMA table_info(TripMembers)")
+        tm_cols_hide = [c['name'] for c in cursor.fetchall()]
+        if 'is_hidden' not in tm_cols_hide:
+            cursor.execute("ALTER TABLE TripMembers ADD COLUMN is_hidden INTEGER DEFAULT 0")
+            logger.info("Migration: added 'is_hidden' column to TripMembers")
+        if 'is_left' not in tm_cols_hide:
+            cursor.execute("ALTER TABLE TripMembers ADD COLUMN is_left INTEGER DEFAULT 0")
+            logger.info("Migration: added 'is_left' column to TripMembers")
+    except sqlite3.Error as e:
+        logger.error(f"TripMembers hide/leave migration error: {e}")
+
     # --- Add is_public_expenses to Trips ---
     try:
         cursor.execute("PRAGMA table_info(Trips)")
@@ -1560,12 +1573,17 @@ def get_trips():
             (SELECT GROUP_CONCAT(COALESCE(u.name, tm2.guest_name))
              FROM TripMembers tm2 
              LEFT JOIN Users u ON tm2.user_id = u.id 
-             WHERE tm2.trip_id = t.id) as members
+             WHERE tm2.trip_id = t.id AND COALESCE(tm2.is_hidden, 0) = 0) as members,
+            (SELECT COALESCE(tm3.is_left, 0) FROM TripMembers tm3 WHERE tm3.trip_id = t.id AND tm3.user_id = ?) as is_readonly
         FROM Trips t
         LEFT JOIN TripMembers tm ON t.id = tm.trip_id
-        WHERE t.owner_id = ? OR tm.user_id = ?
+        WHERE (t.owner_id = ? OR tm.user_id = ?)
+          AND NOT EXISTS (
+              SELECT 1 FROM TripMembers tm4 
+              WHERE tm4.trip_id = t.id AND tm4.user_id = ? AND tm4.is_hidden = 1
+          )
         ORDER BY t.id DESC
-    """, (session['user_id'], session['user_id']))
+    """, (session['user_id'], session['user_id'], session['user_id'], session['user_id']))
     trips = cursor.fetchall()
     conn.close()
     result = []
@@ -1581,7 +1599,8 @@ def get_trips():
             'invite_token': t['invite_token'],
             'image_url': t['image_url'] if 'image_url' in t.keys() else None,
             'budgets_json': json.loads(t['budgets_json']) if t['budgets_json'] else {},
-            'participants': participants
+            'participants': participants,
+            'is_readonly': bool(t['is_readonly'])
         })
     return jsonify(result)
 
@@ -1743,6 +1762,10 @@ def get_trip(trip_id):
                 'budgets_json': {}
             })
 
+        cursor.execute("SELECT COALESCE(is_left, 0) FROM TripMembers WHERE trip_id = ? AND user_id = ?", (trip_id, session['user_id']))
+        row = cursor.fetchone()
+        is_readonly = bool(row[0]) if row else False
+
         return jsonify({
             'id': trip['id'],
             'name': trip['destination'],
@@ -1756,7 +1779,8 @@ def get_trip(trip_id):
             'invite_token': trip['invite_token'],
             'is_public_expenses': bool(trip['is_public_expenses']) if 'is_public_expenses' in trip.keys() else False,
             'allow_member_delete': bool(trip['allow_member_delete']) if 'allow_member_delete' in trip.keys() else True,
-            'participants': participants
+            'participants': participants,
+            'is_readonly': is_readonly
         })
     except sqlite3.Error as e:
         logger.error(f"Get trip error: {e}")
@@ -1984,6 +2008,58 @@ def update_trip_settings(trip_id):
     conn.commit()
     conn.close()
     return jsonify({"success": True})
+
+@app.route('/api/trips/<int:trip_id>/leave', methods=['POST'])
+@login_required
+@require_trip_access
+def leave_trip(trip_id):
+    """Leave a trip (becomes read-only). If owner leaves, assign new owner."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        user_id = session['user_id']
+        cursor.execute("UPDATE TripMembers SET is_left = 1 WHERE trip_id = ? AND user_id = ?", (trip_id, user_id))
+        
+        # Check if user was the owner
+        cursor.execute("SELECT owner_id FROM Trips WHERE id = ?", (trip_id,))
+        trip = cursor.fetchone()
+        if trip and trip['owner_id'] == user_id:
+            # Reassign owner
+            cursor.execute("""
+                SELECT user_id FROM TripMembers 
+                WHERE trip_id = ? AND user_id != ? AND user_id IS NOT NULL AND is_left = 0
+                ORDER BY id ASC LIMIT 1
+            """, (trip_id, user_id))
+            next_owner = cursor.fetchone()
+            if next_owner:
+                new_owner_id = next_owner['user_id']
+                cursor.execute("UPDATE Trips SET owner_id = ? WHERE id = ?", (new_owner_id, trip_id))
+                cursor.execute("UPDATE TripMembers SET is_admin = 1 WHERE trip_id = ? AND user_id = ?", (trip_id, new_owner_id))
+                logger.info(f"Trip {trip_id} owner reassigned to {new_owner_id} because {user_id} left.")
+        conn.commit()
+        return jsonify({"success": True})
+    except sqlite3.Error as e:
+        logger.error(f"Error leaving trip: {e}")
+        return jsonify({"error": "שגיאה בעזיבת הקבוצה."}), 500
+    finally:
+        conn.close()
+
+@app.route('/api/trips/<int:trip_id>/hide', methods=['POST'])
+@login_required
+@require_trip_access
+def hide_trip(trip_id):
+    """Hide a trip from the dashboard."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("UPDATE TripMembers SET is_hidden = 1 WHERE trip_id = ? AND user_id = ?", (trip_id, session['user_id']))
+        conn.commit()
+        return jsonify({"success": True})
+    except sqlite3.Error as e:
+        logger.error(f"Error hiding trip: {e}")
+        return jsonify({"error": "שגיאה במחיקת הקבוצה מהרשימה."}), 500
+    finally:
+        conn.close()
 
 
 @app.route('/api/trips/<int:trip_id>/upload-avatar', methods=['POST'])

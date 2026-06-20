@@ -2937,9 +2937,20 @@ document.addEventListener('DOMContentLoaded', () => {
             const selects = document.querySelectorAll('select.currency-select-dynamic, select[name="currency"]');
             selects.forEach(select => {
                 const currentVal = select.value || 'ILS';
-                const opts = data.map(c => `<option value="${c.code}">${c.code} (${c.symbol})</option>`).join('');
+                const opts = data.map(c => {
+                    const isHe = window.currentLanguage === 'he' || document.documentElement.lang === 'he';
+                    const name = isHe ? c.name_he : c.name_en;
+                    return `<option value="${c.code}">${c.code} - ${name} (${c.symbol})</option>`;
+                }).join('');
                 select.innerHTML = opts;
                 select.value = currentVal;
+                
+                const editSelect = document.getElementById('edit-expense-currency');
+                if (editSelect) {
+                    const currentEditVal = editSelect.value || 'ILS';
+                    editSelect.innerHTML = opts;
+                    editSelect.value = currentEditVal;
+                }
             });
             window.dispatchEvent(new Event('currenciesLoaded'));
         }).catch(err => console.error("Error loading currencies:", err));

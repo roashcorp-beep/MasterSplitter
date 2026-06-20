@@ -417,8 +417,8 @@ const GroupsScreen = () => {
                             <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 mb-3 px-2">משתתפים</h3>
                             <div className="space-y-2">
                                 {participants.map((p, idx) => {
-                                    const name = p.name || p.username || p.email || p.phone || '?';
-                                    const initial = name ? String(name).charAt(0).toUpperCase() : '?';
+                                    const name = p.name || p.contact || p.username || p.email || p.phone || '?';
+                                    const initial = name && name !== '?' ? String(name).charAt(0).toUpperCase() : '?';
                                     const isParticipantAdmin = p.is_admin || p.role === 'admin';
                                     return (
                                         <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700">
@@ -474,16 +474,18 @@ const GroupsScreen = () => {
                                         <div className="space-y-3 pt-3 border-t border-gray-200 dark:border-gray-700 mb-4">
                                             <div className="flex items-center justify-between bg-white dark:bg-gray-900 p-2 rounded-xl border border-gray-100 dark:border-gray-700">
                                                 <label className="text-[12px] font-bold text-gray-700 dark:text-gray-300 pl-1 w-1/3">מטבע קבוצה</label>
-                                                <select value={trip.budgets_json?.currency || 'ILS'} onChange={(e) => updateGlobalBudget('currency', e.target.value)} className="w-2/3 bg-transparent border-none text-[12px] font-medium text-gray-900 dark:text-white focus:ring-0 outline-none dir-rtl">
-                                                    <option value="ILS">ILS (₪)</option>
-                                                    <option value="USD">USD ($)</option>
-                                                    <option value="EUR">EUR (€)</option>
-                                                    <option value="GBP">GBP (£)</option>
-                                                    <option value="THB">THB (฿)</option>
-                                                    <option value="JPY">JPY (¥)</option>
-                                                    <option value="CAD">CAD ($)</option>
-                                                    <option value="AUD">AUD ($)</option>
-                                                    <option value="CHF">CHF</option>
+                                                <select value={trip.budgets_json?.currency || 'ILS'} onChange={(e) => updateGlobalBudget('currency', e.target.value)} className="w-2/3 bg-transparent border-none text-[12px] font-medium text-gray-900 dark:text-white focus:ring-0 outline-none dir-rtl" style={{ textOverflow: 'ellipsis' }}>
+                                                    {window.globalCurrencies && window.globalCurrencies.length > 0 ? window.globalCurrencies.map(c => {
+                                                        const isHe = window.currentLanguage === 'he' || document.documentElement.lang === 'he';
+                                                        const name = isHe ? c.name_he : c.name_en;
+                                                        return <option key={c.code} value={c.code}>{c.code} - {name} ({c.symbol})</option>;
+                                                    }) : (
+                                                        <>
+                                                            <option value="ILS">ILS - שקל חדש (₪)</option>
+                                                            <option value="USD">USD - דולר ארה"ב ($)</option>
+                                                            <option value="EUR">EUR - אירו (€)</option>
+                                                        </>
+                                                    )}
                                                 </select>
                                             </div>
                                             

@@ -187,8 +187,8 @@ const GroupsScreen = () => {
                         
                         return (
                             <div key={trip.id} className="trip-card-v2" onClick={() => handleTripClick(trip.id)}>
-                                <div className="trip-card-avatar" style={{ background: avatarColors[i % avatarColors.length] }}>
-                                    {initial}
+                                <div className="trip-card-avatar overflow-hidden" style={{ background: avatarColors[i % avatarColors.length] }}>
+                                    {trip.image_url ? <img src={trip.image_url} className="w-full h-full object-cover" /> : initial}
                                 </div>
                                 <div className="trip-card-v2-body">
                                     <div className="trip-card-v2-name">{trip.name}</div>
@@ -433,7 +433,12 @@ const GroupsScreen = () => {
                                                 <span className="font-medium text-gray-900 dark:text-white">{name}</span>
                                             </div>
                                             {isParticipantAdmin ? 
-                                                <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/30 px-2.5 py-1 rounded-full">מנהל</span> :
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/30 px-2.5 py-1 rounded-full">מנהל</span>
+                                                    {isAdmin && !p.is_owner && (
+                                                        <button onClick={() => { if(window.removeMemberAdmin) window.removeMemberAdmin(trip, p.contact); }} className="text-xs font-medium text-gray-600 bg-gray-100 hover:bg-red-100 hover:text-red-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-red-900/30 px-2.5 py-1.5 rounded-full transition-colors shadow-sm">הסר מניהול</button>
+                                                    )}
+                                                </div> :
                                                 isAdmin && !p.is_owner ? (
                                                     <div className="flex items-center gap-1.5">
                                                         <button onClick={() => { if(window.makeMemberAdmin) window.makeMemberAdmin(trip, p.contact); }} className="text-xs font-medium text-indigo-600 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 px-2.5 py-1.5 rounded-full transition-colors shadow-sm">ניהול</button>
@@ -479,13 +484,13 @@ const GroupsScreen = () => {
                                                 <label className="text-sm font-bold text-gray-700 dark:text-gray-300">תקציב קבוצתי</label>
                                             </div>
                                             
-                                            <div className="grid grid-cols-3 gap-2">
+                                            <div className="grid grid-cols-3 gap-2 mt-2">
                                                 {['daily', 'monthly', 'yearly'].map((type, i) => (
-                                                    <div key={'global-' + type} className="flex items-center justify-between bg-white dark:bg-gray-900 p-2 rounded-xl border border-gray-100 dark:border-gray-700">
-                                                        <span className="text-[10px] font-medium text-gray-600 dark:text-gray-400 pl-1">{type === 'daily' ? 'יומי' : type === 'monthly' ? 'חודשי' : 'שנתי'}</span>
-                                                        <div className="relative w-full ml-1">
-                                                            <input type="number" value={trip.budgets_json?.[type] || ''} onChange={(e) => updateGlobalBudget(type, e.target.value ? parseFloat(e.target.value) : '')} placeholder="0" className="w-full pl-1 pr-1 py-1 bg-transparent border-none text-[10px] focus:ring-0 outline-none text-gray-900 dark:text-white" />
-                                                        </div>
+                                                    <div key={'global-' + type} className="flex flex-col gap-1 w-full">
+                                                        <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300 text-center">{type === 'daily' ? 'תקציב יומי' : type === 'monthly' ? 'תקציב חודשי' : 'תקציב שנתי'}</span>
+                                                        <button type="button" onClick={() => setBudgetPopup({ key: 'global', type, value: trip.budgets_json?.[type] || '', name: 'כל הקבוצה' })} className="w-full text-center py-2.5 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 text-xs font-bold text-gray-900 dark:text-white shadow-sm hover:border-indigo-300 transition-colors">
+                                                            {trip.budgets_json?.[type] ? `${trip.budgets_json?.[type]} ${currencySymbol}` : 'הזן סכום'}
+                                                        </button>
                                                     </div>
                                                 ))}
                                             </div>
@@ -510,15 +515,13 @@ const GroupsScreen = () => {
                                                     return (
                                                         <div key={idx} className="mb-4">
                                                             <div className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">{pName}</div>
-                                                            <div className="grid grid-cols-3 gap-2">
+                                                            <div className="grid grid-cols-3 gap-2 mt-2">
                                                                 {['daily', 'monthly', 'yearly'].map((type, i) => (
-                                                                    <div key={i} className="flex items-center justify-between bg-white dark:bg-gray-900 p-2 rounded-xl border border-gray-100 dark:border-gray-700">
-                                                                        <span className="text-[10px] font-medium text-gray-500">{type === 'daily' ? 'יומי' : type === 'monthly' ? 'חודשי' : 'שנתי'}</span>
-                                                                        <div className="relative w-full ml-1">
-                                                                            <button type="button" onClick={() => setBudgetPopup({ key, type, value: uBudget[type] || '', name: pName })} className="w-full text-right pr-2 py-1 bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-600 text-[11px] font-bold text-gray-900 dark:text-white">
-                                                                                {uBudget[type] ? `${uBudget[type]} ${currencySymbol}` : 'הזן סכום'}
-                                                                            </button>
-                                                                        </div>
+                                                                    <div key={i} className="flex flex-col gap-1 w-full">
+                                                                        <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300 text-center">{type === 'daily' ? 'תקציב יומי' : type === 'monthly' ? 'תקציב חודשי' : 'תקציב שנתי'}</span>
+                                                                        <button type="button" onClick={() => setBudgetPopup({ key, type, value: uBudget[type] || '', name: pName })} className="w-full text-center py-2.5 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-bold text-gray-900 dark:text-white shadow-sm hover:border-indigo-300 transition-colors">
+                                                                            {uBudget[type] ? `${uBudget[type]} ${currencySymbol}` : 'הזן סכום'}
+                                                                        </button>
                                                                     </div>
                                                                 ))}
                                                             </div>
@@ -583,7 +586,14 @@ const GroupsScreen = () => {
                                 
                                 <div className="flex gap-2">
                                     <button onClick={() => setBudgetPopup(null)} className="flex-1 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 rounded-xl transition-colors">ביטול</button>
-                                    <button onClick={() => { updateBudget(budgetPopup.key, budgetPopup.type, budgetPopup.value); setBudgetPopup(null); }} className="flex-1 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors">אישור</button>
+                                    <button onClick={() => { 
+                                        if (budgetPopup.key === 'global') {
+                                            updateGlobalBudget(budgetPopup.type, budgetPopup.value);
+                                        } else {
+                                            updateBudget(budgetPopup.key, budgetPopup.type, budgetPopup.value);
+                                        }
+                                        setBudgetPopup(null); 
+                                    }} className="flex-1 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors">אישור</button>
                                 </div>
                             </div>
                         </div>

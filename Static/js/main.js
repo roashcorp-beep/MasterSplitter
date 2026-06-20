@@ -769,7 +769,7 @@ window.removeCreatingParticipant = function(idx) {
     renderFriendsChips();
 };
 
-async function openEditTripModal(tripId) {
+async function openEditTripModalAsync(tripId) {
     editTripId = tripId;
     window.currentEditingParticipants = [];
     if (typeof window.reactOpenEditModal === 'function') {
@@ -1005,11 +1005,14 @@ async function pickContact(mode, type) {
             const email = contact.email ? contact.email[0] : '';
             
             if (type === 'wa' && phone) {
-                document.getElementById(`${mode}-wa-phone`).value = phone;
-                sendWhatsAppInviteFromTab(mode, name);
+                const el = document.getElementById(`${mode}-wa-phone`);
+                if (el) el.value = phone;
+                sendWhatsAppInviteFromTab(mode, name, phone);
             } else if (type === 'email') {
-                if (name) document.getElementById(`${mode}-email-name`).value = name;
-                if (email) document.getElementById(`${mode}-email-addr`).value = email;
+                const nEl = document.getElementById(`${mode}-email-name`);
+                if (nEl && name) nEl.value = name;
+                const eEl = document.getElementById(`${mode}-email-addr`);
+                if (eEl && email) eEl.value = email;
                 sendEmailInviteFromTab(mode);
             }
         }
@@ -1070,16 +1073,19 @@ function switchInviteTab(tabName, mode) {
     });
 }
 
-function sendWhatsAppInviteFromTab(mode, providedName = null) {
-    const phoneInput = document.getElementById(mode === 'create' ? 'create-wa-phone' : 'edit-wa-phone');
-    const phone = phoneInput?.value.trim();
+function sendWhatsAppInviteFromTab(mode, providedName = null, providedPhone = null) {
+    let phone = providedPhone;
+    if (!phone) {
+        const phoneInput = document.getElementById(mode === 'create' ? 'create-wa-phone' : 'edit-wa-phone');
+        phone = phoneInput?.value.trim();
+    }
     if (!phone) return;
 
     const list = mode === 'create' ? window.currentCreatingParticipants : window.currentEditingParticipants;
     list.push({
         contact: phone,
         name: providedName || phone,
-        type: 'registered',
+        type: 'guest',
         inviteMethod: 'whatsapp'
     });
     
@@ -1087,7 +1093,7 @@ function sendWhatsAppInviteFromTab(mode, providedName = null) {
         renderFriendsChips();
     } else {
         renderEditFriendsChips();
-        if (typeof window.reactAddParticipantToEditTrip === 'function') window.reactAddParticipantToEditTrip({ contact: phone, name: providedName || phone, type: 'registered' });
+        if (typeof window.reactAddParticipantToEditTrip === 'function') window.reactAddParticipantToEditTrip({ contact: phone, name: providedName || phone, type: 'guest' });
         if (editTripId) {
             const trip = allTrips.find(t => t.id === editTripId);
             if (trip && trip.invite_token) {
@@ -1118,14 +1124,14 @@ async function sendEmailInviteFromTab(mode) {
     list.push({
         contact: email,
         name: name,
-        type: 'registered',
+        type: 'guest',
         inviteMethod: 'email'
     });
     
     if (mode === 'create') renderFriendsChips();
     else {
         renderEditFriendsChips();
-        if (typeof window.reactAddParticipantToEditTrip === 'function') window.reactAddParticipantToEditTrip({ contact: email, name: name, type: 'registered' });
+        if (typeof window.reactAddParticipantToEditTrip === 'function') window.reactAddParticipantToEditTrip({ contact: email, name: name, type: 'guest' });
     }
     
     nameInput.value = '';
@@ -3059,7 +3065,33 @@ window.makeMemberAdmin = async function(trip, contact) {
             showToast("Member promoted to admin", "success");
             await loadLobby(); // reload trips to update state
             // If the modal is open, we should also update its state by re-triggering openEditTripModal or it will auto-update if we re-fetch.
-            openEditTripModal(tripId);
+            openEditTripModalAsync(tripId);
+        } else {
+            showToast(data.error || "Error", "error");
+        }
+    } catch(e) {
+        showToast("Network error", "error");
+    }
+};
+
+window.removeMemberAdmin = async function(trip, contact) {
+    if (!trip) return;
+    const tripId = trip.id;
+    const member = trip.participants.find(p => p.contact === contact || p.email === contact || p.phone === contact);
+    if (!member || member.type === 'guest') {
+        return;
+    }
+    
+    if (!window.confirm("האם אתה בטוח שברצונך להסיר הרשאת ניהול ממשתמש זה?")) return;
+    
+    try {
+        // Demote endpoint uses POST according to Server.py line 2048
+        const res = await fetch(`/api/trips/${tripId}/demote/${member.id}`, { method: 'POST' });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            showToast("הרשאת הניהול הוסרה בהצלחה", "success");
+            await loadLobby(); // reload trips to update state
+            openEditTripModalAsync(tripId);
         } else {
             showToast(data.error || "Error", "error");
         }
@@ -3075,7 +3107,7 @@ window.removeTripMember = async function(tripId, contact) {
         if (res.ok && data.success) {
             showToast("Member removed", "success");
             await loadLobby();
-            openEditTripModal(tripId);
+            openEditTripModalAsync(tripId);
         } else {
             showToast(data.error || "Error", "error");
         }
@@ -3089,9 +3121,10 @@ window.saveEditTripFromReact = async function(trip) {
 
     // Remove duplicates or match participants
     const participants = (trip.participants || []).map(p => {
-        let bJson = {};
-        if (trip.is_budget_per_user && trip.user_budgets && trip.user_budgets[p.contact]) {
-            const uBudget = trip.user_budgets[p.contact];
+        const key = p.contact || p.email || p.phone || p.name;
+        let bJson = p.budgets_json || {};
+        if (trip.is_budget_per_user && trip.user_budgets && trip.user_budgets[key]) {
+            const uBudget = trip.user_budgets[key];
             bJson = {
                 daily: uBudget.daily || '',
                 monthly: uBudget.monthly || '',
@@ -3159,7 +3192,7 @@ window.openGroupInfo = function() {
 
     setTimeout(() => {
         if (typeof window.reactOpenEditModal === 'function') {
-            window.reactOpenEditModal(parseInt(groupId, 10));
+            openEditTripModalAsync(parseInt(groupId, 10));
         } else {
             console.error("reactOpenEditModal is not available.");
         }
@@ -3171,9 +3204,7 @@ window.openGroupInfo = function() {
 
 window.openEditTripModal = function(id, event) {
     if(event) event.stopPropagation();
-    if (typeof window.reactOpenEditModal === 'function') {
-        window.reactOpenEditModal(id);
-    }
+    openEditTripModalAsync(id);
 };
 
 

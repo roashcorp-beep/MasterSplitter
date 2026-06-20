@@ -432,7 +432,14 @@ const GroupsScreen = () => {
                                                 )}
                                                 <span className="font-medium text-gray-900 dark:text-white">{name}</span>
                                             </div>
-                                            {isParticipantAdmin ? 
+                                            {p.type === 'pending' ? (
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="text-[10px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-900/30 px-2 py-1 rounded-md border border-amber-200 dark:border-amber-700/50 shadow-sm whitespace-nowrap">ממתין</span>
+                                                    {isAdmin && (
+                                                        <button onClick={() => removeUser(p.contact)} className="text-xs font-medium text-red-600 bg-red-100 hover:bg-red-200 dark:bg-red-900/20 px-2.5 py-1.5 rounded-full transition-colors shadow-sm">הסר</button>
+                                                    )}
+                                                </div>
+                                            ) : isParticipantAdmin ? 
                                                 <div className="flex items-center gap-1.5">
                                                     <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/30 px-2.5 py-1 rounded-full">מנהל</span>
                                                     {isAdmin && !p.is_owner && (

@@ -1085,7 +1085,7 @@ function sendWhatsAppInviteFromTab(mode, providedName = null, providedPhone = nu
     list.push({
         contact: phone,
         name: providedName || phone,
-        type: 'guest',
+        type: 'registered',
         inviteMethod: 'whatsapp'
     });
     
@@ -1093,7 +1093,7 @@ function sendWhatsAppInviteFromTab(mode, providedName = null, providedPhone = nu
         renderFriendsChips();
     } else {
         renderEditFriendsChips();
-        if (typeof window.reactAddParticipantToEditTrip === 'function') window.reactAddParticipantToEditTrip({ contact: phone, name: providedName || phone, type: 'guest' });
+        if (typeof window.reactAddParticipantToEditTrip === 'function') window.reactAddParticipantToEditTrip({ contact: phone, name: providedName || phone, type: 'registered' });
         if (editTripId) {
             const trip = allTrips.find(t => t.id === editTripId);
             if (trip && trip.invite_token) {
@@ -1124,14 +1124,14 @@ async function sendEmailInviteFromTab(mode) {
     list.push({
         contact: email,
         name: name,
-        type: 'guest',
+        type: 'registered',
         inviteMethod: 'email'
     });
     
     if (mode === 'create') renderFriendsChips();
     else {
         renderEditFriendsChips();
-        if (typeof window.reactAddParticipantToEditTrip === 'function') window.reactAddParticipantToEditTrip({ contact: email, name: name, type: 'guest' });
+        if (typeof window.reactAddParticipantToEditTrip === 'function') window.reactAddParticipantToEditTrip({ contact: email, name: name, type: 'registered' });
     }
     
     nameInput.value = '';

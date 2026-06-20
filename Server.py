@@ -1890,25 +1890,38 @@ def update_trip(trip_id):
 def get_trip_members(trip_id):
     conn = get_db_connection()
     cursor = conn.cursor()
-    # Registered users (include avatar_url)
+    # Registered users (include avatar_url, phone, email, budgets_json)
     cursor.execute("""
-        SELECT u.id, u.name, u.avatar_url, COALESCE(tm.is_admin, 0) as is_admin
+        SELECT u.id, u.name, u.phone, u.email, u.avatar_url, COALESCE(tm.is_admin, 0) as is_admin, tm.budgets_json
         FROM Users u
         JOIN TripMembers tm ON u.id = tm.user_id
         WHERE tm.trip_id = ? AND tm.user_id IS NOT NULL
     """, (trip_id,))
     registered = [{
         'id': m['id'], 'name': m['name'], 'type': 'user',
+        'contact': m['email'] or m['phone'] or '',
         'is_admin': bool(m['is_admin']),
-        'avatar_url': m['avatar_url'] or None
+        'avatar_url': m['avatar_url'] or None,
+        'budgets_json': json.loads(m['budgets_json']) if m['budgets_json'] else {}
     } for m in cursor.fetchall()]
 
     # Guest (virtual) members
     cursor.execute("""
-        SELECT guest_name FROM TripMembers
+        SELECT guest_name, budgets_json FROM TripMembers
         WHERE trip_id = ? AND user_id IS NULL AND guest_name IS NOT NULL
     """, (trip_id,))
-    guests = [{'id': f'guest_{i}', 'name': g['guest_name'], 'type': 'guest', 'avatar_url': None} for i, g in enumerate(cursor.fetchall())]
+    guests = [{
+        'id': f'guest_{i}', 'name': g['guest_name'], 'type': 'guest', 'contact': g['guest_name'],
+        'avatar_url': None,
+        'budgets_json': json.loads(g['budgets_json']) if g['budgets_json'] else {}
+    } for i, g in enumerate(cursor.fetchall())]
+
+    # Pending invitations
+    cursor.execute("SELECT invitee_phone_or_email FROM trip_invitations WHERE trip_id = ? AND status = 'PENDING'", (trip_id,))
+    pending = [{
+        'id': f'pending_{i}', 'name': p['invitee_phone_or_email'], 'contact': p['invitee_phone_or_email'],
+        'type': 'pending', 'avatar_url': None, 'is_admin': False, 'budgets_json': {}
+    } for i, p in enumerate(cursor.fetchall())]
 
     # Local participants (Legacy support)
     cursor.execute("SELECT local_participants FROM Trips WHERE id = ?", (trip_id,))
@@ -1921,7 +1934,7 @@ def get_trip_members(trip_id):
             local = [{'id': f'local_{i}', 'name': n, 'type': 'local', 'avatar_url': None} for i, n in enumerate(names)]
         except (json.JSONDecodeError, TypeError):
             logger.warning(f"Invalid local_participants JSON for trip {trip_id}")
-    return jsonify(registered + guests + local)
+    return jsonify(registered + guests + pending + local)
 
 
 # =====================

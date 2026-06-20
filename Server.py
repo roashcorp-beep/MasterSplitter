@@ -77,6 +77,20 @@ def get_db_connection():
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
+def check_db_schema():
+    """Ensure database has the latest schema modifications."""
+    conn = get_db_connection()
+    try:
+        conn.execute("ALTER TABLE Trips ADD COLUMN image_url TEXT")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass # Column already exists
+    conn.close()
+
+check_db_schema()
+
+# ---- Authentication Helpers ----
+
 
 def init_db_updates():
     """Create tables if missing and run safe migrations for new columns."""

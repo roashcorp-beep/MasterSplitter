@@ -3027,12 +3027,9 @@ window.applyGlobalTranslations = function() {
 // =====================
 //  REACT MODAL ACTIONS
 // =====================
-window.makeMemberAdmin = async function(tripId, contact) {
-    // 1. Resolve contact to member_id if needed, or backend can do it.
-    // Wait, the API takes member_id: PUT /api/trips/<int:trip_id>/members/<int:member_id>/promote
-    // But we only have `contact`. We need to find the member id from `window.currentEditingParticipants` or `allTrips`.
-    const trip = allTrips.find(t => t.id === tripId);
+window.makeMemberAdmin = async function(trip, contact) {
     if (!trip) return;
+    const tripId = trip.id;
     const member = trip.participants.find(p => p.contact === contact || p.email === contact || p.phone === contact);
     if (!member || member.type === 'guest') {
         showToast("Guests cannot be admins.", "error");

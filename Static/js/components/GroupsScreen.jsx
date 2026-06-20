@@ -50,15 +50,17 @@ const GroupsScreen = () => {
                 let participants = trip.participants || [];
                 if (window.currentUser) {
                     const currentPhone = window.currentUser.phone || window.currentUser.email;
-                    if (!participants.some(p => p.contact === currentPhone || p.id === window.currentUser.id)) {
+                    if (!participants.some(p => p.id == window.currentUser.id)) {
                         participants = [
                             {
                                 id: window.currentUser.id,
-                                name: window.currentUser.name || "Me",
+                                name: window.currentUser.name || window.currentUser.username || "Me",
                                 contact: currentPhone,
                                 is_owner: true,
                                 is_admin: true,
-                                type: "registered"
+                                type: "registered",
+                                avatar_url: window.currentUser.avatar_url,
+                                budgets_json: {}
                             },
                             ...participants
                         ];
@@ -227,7 +229,11 @@ const GroupsScreen = () => {
                                             className="trip-edit-btn"
                                             title="ערוך קבוצה"
                                         >
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                                            {trip.budget > 0 && (
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-gray-700 dark:text-gray-300 bg-white/50 dark:bg-gray-700/50 px-2 py-1.5 rounded-lg border border-gray-100 dark:border-gray-600 shadow-sm backdrop-blur-sm">
+                            <span dir="ltr">{currencySymbol}{trip.budget}</span>
+                        </div>
+                    )}<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
                                         </button>
                                     )}
                                     <span className="trip-card-v2-arrow"></span>
@@ -348,13 +354,14 @@ const GroupsScreen = () => {
         };
 
         const updateBudget = (contact, type, value) => {
+            const key = contact;
             setEditTripDetails(prev => {
                 const currentBudgets = prev.user_budgets || {};
-                const userBudget = typeof currentBudgets[contact] === 'object' ? { ...currentBudgets[contact] } : { daily: currentBudgets[contact] || '', monthly: '', yearly: '' };
+                const userBudget = typeof currentBudgets[key] === 'object' ? { ...currentBudgets[key] } : { daily: currentBudgets[key] || '', monthly: '', yearly: '' };
                 userBudget[type] = value;
                 return {
                     ...prev,
-                    user_budgets: { ...currentBudgets, [contact]: userBudget }
+                    user_budgets: { ...currentBudgets, [key]: userBudget }
                 };
             });
         };
@@ -429,7 +436,7 @@ const GroupsScreen = () => {
                             <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 mb-3 px-2">משתתפים</h3>
                             <div className="space-y-2">
                                 {participants.map((p, idx) => {
-                                    const name = p.name || p.username || (p.email ? String(p.email).split('@')[0] : '');
+                                    const name = p.name || p.username || p.email || p.phone || '?';
                                     const initial = name ? String(name).charAt(0).toUpperCase() : '?';
                                     const isParticipantAdmin = p.is_admin || p.role === 'admin';
                                     return (
@@ -448,7 +455,7 @@ const GroupsScreen = () => {
                                                 <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/30 px-2.5 py-1 rounded-full">מנהל</span> :
                                                 isAdmin && !p.is_owner ? (
                                                     <div className="flex items-center gap-1.5">
-                                                        <button onClick={() => { if(window.makeMemberAdmin) window.makeMemberAdmin(trip.id, p.contact); }} className="text-xs font-medium text-indigo-600 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 px-2.5 py-1.5 rounded-full transition-colors shadow-sm">ניהול</button>
+                                                        <button onClick={() => { if(window.makeMemberAdmin) window.makeMemberAdmin(trip, p.contact); }} className="text-xs font-medium text-indigo-600 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 px-2.5 py-1.5 rounded-full transition-colors shadow-sm">ניהול</button>
                                                         <button onClick={() => removeUser(p.contact)} className="text-xs font-medium text-red-600 bg-red-100 hover:bg-red-200 dark:bg-red-900/20 px-2.5 py-1.5 rounded-full transition-colors shadow-sm">הסר</button>
                                                     </div>
                                                 ) : null
@@ -479,6 +486,11 @@ const GroupsScreen = () => {
                                                     <option value="USD">USD ($)</option>
                                                     <option value="EUR">EUR (€)</option>
                                                     <option value="GBP">GBP (£)</option>
+                                                    <option value="THB">THB (฿)</option>
+                                                    <option value="JPY">JPY (¥)</option>
+                                                    <option value="CAD">CAD ($)</option>
+                                                    <option value="AUD">AUD ($)</option>
+                                                    <option value="CHF">CHF</option>
                                                 </select>
                                             </div>
                                             
@@ -511,17 +523,19 @@ const GroupsScreen = () => {
                                         {trip.is_budget_per_user && (
                                             <div className="space-y-3 pt-3 border-t border-gray-200 dark:border-gray-700 mb-4">
                                                 {participants.map((p, idx) => {
-                                                    const uBudget = trip.user_budgets?.[p.contact] || { daily: '', monthly: '', yearly: '' };
+                                                    const key = p.contact || p.email || p.phone || p.name;
+                                                    const uBudget = trip.user_budgets?.[key] || { daily: '', monthly: '', yearly: '' };
+                                                    const pName = p.name || p.username || p.email || p.phone || '?';
                                                     return (
                                                         <div key={idx} className="mb-4">
-                                                            <div className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">{p.name}</div>
+                                                            <div className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">{pName}</div>
                                                             <div className="grid grid-cols-3 gap-2">
                                                                 {['daily', 'monthly', 'yearly'].map((type, i) => (
                                                                     <div key={i} className="flex items-center justify-between bg-white dark:bg-gray-900 p-2 rounded-xl border border-gray-100 dark:border-gray-700">
                                                                         <span className="text-[10px] font-medium text-gray-600 dark:text-gray-400 pl-1">{type === 'daily' ? 'יומי' : type === 'monthly' ? 'חודשי' : 'שנתי'}</span>
                                                                         <div className="relative w-full ml-1">
                                                                             <span className="absolute inset-y-0 left-0 pl-1 flex items-center text-gray-500 pointer-events-none text-[10px]"></span>
-                                                                            <input type="number" value={uBudget[type] || ''} onChange={(e) => updateBudget(p.contact, type, e.target.value)} placeholder="0" className="w-full pl-4 pr-1 py-1 bg-transparent border-none text-[10px] focus:ring-0 outline-none text-gray-900 dark:text-white" />
+                                                                            <input type="number" value={uBudget[type] || ''} onChange={(e) => updateBudget(key, type, e.target.value)} placeholder="0" className="w-full pl-4 pr-1 py-1 bg-transparent border-none text-[10px] focus:ring-0 outline-none text-gray-900 dark:text-white" />
                                                                         </div>
                                                                     </div>
                                                                 ))}

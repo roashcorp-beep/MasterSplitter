@@ -299,6 +299,7 @@ const LEGAL_TEXTS = {
                 avatar_url: '',
             });
             const [currencies, setCurrencies] = useState(window.globalCurrencies || []);
+            const [settingsData, setSettingsData] = useState({
                 language: 'he',
                 default_currency: 'ILS',
                 is_google_auth: false,
@@ -314,10 +315,24 @@ const LEGAL_TEXTS = {
 
             useEffect(() => {
                 fetchProfile();
+                fetchCurrencies();
+                
                 const handleCurrenciesLoaded = () => setCurrencies(window.globalCurrencies || []);
                 window.addEventListener('currenciesLoaded', handleCurrenciesLoaded);
                 return () => window.removeEventListener('currenciesLoaded', handleCurrenciesLoaded);
             }, []);
+
+            const fetchCurrencies = async () => {
+                try {
+                    const res = await fetch('/api/currencies');
+                    if (res.ok) {
+                        window.globalCurrencies = await res.json();
+                        setCurrencies(window.globalCurrencies);
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch currencies:", e);
+                }
+            };
 
             const fetchProfile = async () => {
                 try {

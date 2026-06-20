@@ -113,6 +113,48 @@ def init_db_updates():
             avatar_url TEXT
         )
     """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS Currencies (
+            code TEXT PRIMARY KEY,
+            symbol TEXT NOT NULL,
+            name_en TEXT NOT NULL,
+            name_he TEXT NOT NULL
+        )
+    """)
+    
+    # Seed currencies if empty
+    cursor.execute("SELECT COUNT(*) FROM Currencies")
+    if cursor.fetchone()[0] == 0:
+        default_currencies = [
+            ('ILS', '₪', 'Israeli New Shekel', 'שקל חדש'),
+            ('USD', '$', 'US Dollar', 'דולר ארה"ב'),
+            ('EUR', '€', 'Euro', 'אירו'),
+            ('GBP', '£', 'British Pound', 'לירה שטרלינג'),
+            ('THB', '฿', 'Thai Baht', 'באט תאילנדי'),
+            ('JPY', '¥', 'Japanese Yen', 'ין יפני'),
+            ('CAD', 'C$', 'Canadian Dollar', 'דולר קנדי'),
+            ('AUD', 'A$', 'Australian Dollar', 'דולר אוסטרלי'),
+            ('CHF', 'Fr', 'Swiss Franc', 'פרנק שוויצרי'),
+            ('CNY', '¥', 'Chinese Yuan', 'יואן סיני'),
+            ('RUB', '₽', 'Russian Ruble', 'רובל רוסי'),
+            ('INR', '₹', 'Indian Rupee', 'רופי הודי'),
+            ('BRL', 'R$', 'Brazilian Real', 'ריאל ברזילאי'),
+            ('ZAR', 'R', 'South African Rand', 'ראנד דרום אפריקאי'),
+            ('MXN', '$', 'Mexican Peso', 'פזו מקסיקני'),
+            ('SGD', 'S$', 'Singapore Dollar', 'דולר סינגפורי'),
+            ('HKD', 'HK$', 'Hong Kong Dollar', 'דולר הונג קונגי'),
+            ('NZD', 'NZ$', 'New Zealand Dollar', 'דולר ניו זילנדי'),
+            ('SEK', 'kr', 'Swedish Krona', 'קרונה שוודית'),
+            ('KRW', '₩', 'South Korean Won', 'וון דרום קוריאני'),
+            ('TRY', '₺', 'Turkish Lira', 'לירה טורקית'),
+            ('AED', 'د.إ', 'UAE Dirham', 'דירהם'),
+            ('SAR', 'ر.س', 'Saudi Riyal', 'ריאל סעודי'),
+            ('ARS', '$', 'Argentine Peso', 'פזו ארגנטינאי'),
+            ('COP', '$', 'Colombian Peso', 'פזו קולומביאני'),
+            ('PHP', '₱', 'Philippine Peso', 'פזו פיליפיני')
+        ]
+        cursor.executemany("INSERT INTO Currencies (code, symbol, name_en, name_he) VALUES (?, ?, ?, ?)", default_currencies)
+        conn.commit()
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS Trips (
@@ -3368,6 +3410,15 @@ def get_activity(trip_id):
 # =====================
 #   HEALTH CHECK
 # =====================
+
+@app.route('/api/currencies', methods=['GET'])
+def get_currencies():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT code, symbol, name_en, name_he FROM Currencies ORDER BY code ASC")
+    rows = cursor.fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
 
 @app.route('/api/health', methods=['GET'])
 def health_check():

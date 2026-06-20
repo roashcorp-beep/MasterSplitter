@@ -2922,6 +2922,22 @@ document.addEventListener('DOMContentLoaded', () => {
     // Init theme which includes dynamic background
     initTheme();
 
+    // Fetch currencies
+    window.globalCurrencies = [];
+    fetch('/api/currencies')
+        .then(res => res.json())
+        .then(data => {
+            window.globalCurrencies = data;
+            const selects = document.querySelectorAll('select.currency-select-dynamic, select[name="currency"]');
+            selects.forEach(select => {
+                const currentVal = select.value || 'ILS';
+                const opts = data.map(c => `<option value="${c.code}">${c.code} (${c.symbol})</option>`).join('');
+                select.innerHTML = opts;
+                select.value = currentVal;
+            });
+            window.dispatchEvent(new Event('currenciesLoaded'));
+        }).catch(err => console.error("Error loading currencies:", err));
+
     const params = new URLSearchParams(window.location.search);
     const inviteToken = params.get('invite');
     if (inviteToken) {

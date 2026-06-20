@@ -27,6 +27,7 @@ const GroupsScreen = () => {
     const [editTripId, setEditTripId] = useState(null);
     const [editShowBudget, setEditShowBudget] = useState(false);
     const [editTripDetails, setEditTripDetails] = useState(null);
+    const [budgetPopup, setBudgetPopup] = useState(null);
 
     useEffect(() => {
         const i18nSync = (e) => {
@@ -48,24 +49,6 @@ const GroupsScreen = () => {
             const trip = window.allTrips ? window.allTrips.find(t => t.id === id) : trips.find(t => t.id === id);
             if (trip) {
                 let participants = trip.participants || [];
-                if (window.currentUser) {
-                    const currentPhone = window.currentUser.phone || window.currentUser.email;
-                    if (!participants.some(p => p.id == window.currentUser.id)) {
-                        participants = [
-                            {
-                                id: window.currentUser.id,
-                                name: window.currentUser.name || window.currentUser.username || "Me",
-                                contact: currentPhone,
-                                is_owner: true,
-                                is_admin: true,
-                                type: "registered",
-                                avatar_url: window.currentUser.avatar_url,
-                                budgets_json: {}
-                            },
-                            ...participants
-                        ];
-                    }
-                }
                 const updatedTrip = { ...trip, participants };
                 
                 if (!updatedTrip.user_budgets) updatedTrip.user_budgets = {};
@@ -216,7 +199,6 @@ const GroupsScreen = () => {
                                         </span>
                                         {highestBudget !== null && (
                                             <span className="meta-item">
-                                                <svg viewBox="0 0 24 24" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                                                 {cardCurrency}{window.formatNumber ? window.formatNumber(highestBudget) : highestBudget} <span style={{fontSize:'0.7em'}}>({highestBudgetLabel})</span>
                                             </span>
                                         )}
@@ -229,11 +211,7 @@ const GroupsScreen = () => {
                                             className="trip-edit-btn"
                                             title="ערוך קבוצה"
                                         >
-                                            {trip.budget > 0 && (
-                        <div className="flex items-center gap-1.5 text-xs font-bold text-gray-700 dark:text-gray-300 bg-white/50 dark:bg-gray-700/50 px-2 py-1.5 rounded-lg border border-gray-100 dark:border-gray-600 shadow-sm backdrop-blur-sm">
-                            <span dir="ltr">{currencySymbol}{trip.budget}</span>
-                        </div>
-                    )}<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
                                         </button>
                                     )}
                                     <span className="trip-card-v2-arrow"></span>
@@ -354,14 +332,13 @@ const GroupsScreen = () => {
         };
 
         const updateBudget = (contact, type, value) => {
-            const key = contact;
             setEditTripDetails(prev => {
                 const currentBudgets = prev.user_budgets || {};
-                const userBudget = typeof currentBudgets[key] === 'object' ? { ...currentBudgets[key] } : { daily: currentBudgets[key] || '', monthly: '', yearly: '' };
+                const userBudget = typeof currentBudgets[contact] === 'object' ? { ...currentBudgets[contact] } : { daily: currentBudgets[contact] || '', monthly: '', yearly: '' };
                 userBudget[type] = value;
                 return {
                     ...prev,
-                    user_budgets: { ...currentBudgets, [key]: userBudget }
+                    user_budgets: { ...currentBudgets, [contact]: userBudget }
                 };
             });
         };
@@ -375,6 +352,10 @@ const GroupsScreen = () => {
         const participants = trip?.participants?.length > 0 ? trip.participants : [
             { name: window.currentUser?.username || (window.currentUser?.email ? window.currentUser.email.split('@')[0] : 'Me'), role: 'admin' }
         ];
+
+        const currencySymbol = trip.budgets_json?.currency === 'USD' ? '$' : 
+                               trip.budgets_json?.currency === 'EUR' ? '€' : 
+                               trip.budgets_json?.currency === 'GBP' ? '£' : '₪';
 
         return (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md" dir={isRTL ? 'rtl' : 'ltr'}>
@@ -532,10 +513,11 @@ const GroupsScreen = () => {
                                                             <div className="grid grid-cols-3 gap-2">
                                                                 {['daily', 'monthly', 'yearly'].map((type, i) => (
                                                                     <div key={i} className="flex items-center justify-between bg-white dark:bg-gray-900 p-2 rounded-xl border border-gray-100 dark:border-gray-700">
-                                                                        <span className="text-[10px] font-medium text-gray-600 dark:text-gray-400 pl-1">{type === 'daily' ? 'יומי' : type === 'monthly' ? 'חודשי' : 'שנתי'}</span>
+                                                                        <span className="text-[10px] font-medium text-gray-500">{type === 'daily' ? 'יומי' : type === 'monthly' ? 'חודשי' : 'שנתי'}</span>
                                                                         <div className="relative w-full ml-1">
-                                                                            <span className="absolute inset-y-0 left-0 pl-1 flex items-center text-gray-500 pointer-events-none text-[10px]"></span>
-                                                                            <input type="number" value={uBudget[type] || ''} onChange={(e) => updateBudget(key, type, e.target.value)} placeholder="0" className="w-full pl-4 pr-1 py-1 bg-transparent border-none text-[10px] focus:ring-0 outline-none text-gray-900 dark:text-white" />
+                                                                            <button type="button" onClick={() => setBudgetPopup({ key, type, value: uBudget[type] || '', name: pName })} className="w-full text-right pr-2 py-1 bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-600 text-[11px] font-bold text-gray-900 dark:text-white">
+                                                                                {uBudget[type] ? `${uBudget[type]} ${currencySymbol}` : 'הזן סכום'}
+                                                                            </button>
                                                                         </div>
                                                                     </div>
                                                                 ))}
@@ -578,6 +560,34 @@ const GroupsScreen = () => {
                             <IconCheck size={18} /> שמור שינויים
                         </button>
                     </div>
+
+                    {budgetPopup && (
+                        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" dir="rtl">
+                            <div className="bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-2xl w-full max-w-xs transform scale-100 animate-in zoom-in-95 duration-200">
+                                <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-1">
+                                    תקציב {budgetPopup.type === 'daily' ? 'יומי' : budgetPopup.type === 'monthly' ? 'חודשי' : 'שנתי'}
+                                </h4>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">עבור {budgetPopup.name}</p>
+                                
+                                <div className="relative mb-5 flex items-center bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500">
+                                    <span className="pl-3 pr-4 text-gray-500 font-bold border-l border-gray-200 dark:border-gray-700">{currencySymbol}</span>
+                                    <input 
+                                        type="number" 
+                                        autoFocus
+                                        value={budgetPopup.value} 
+                                        onChange={(e) => setBudgetPopup({ ...budgetPopup, value: e.target.value })} 
+                                        className="w-full text-center text-lg font-bold py-3 bg-transparent border-none outline-none dir-ltr dark:text-white"
+                                        placeholder="0"
+                                    />
+                                </div>
+                                
+                                <div className="flex gap-2">
+                                    <button onClick={() => setBudgetPopup(null)} className="flex-1 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 rounded-xl transition-colors">ביטול</button>
+                                    <button onClick={() => { updateBudget(budgetPopup.key, budgetPopup.type, budgetPopup.value); setBudgetPopup(null); }} className="flex-1 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors">אישור</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         );

@@ -17,13 +17,14 @@ const GroupsScreen = () => {
 
     // Create Modal State
     const [isCreateOpen, setIsCreateOpen] = useState(false);
-    const [createTab, setCreateTab] = useState("whatsapp");
+    const [createTab, setCreateTab] = React.useState("whatsapp");
+    const [editTab, setEditTab] = React.useState("whatsapp");
+    const fileInputRef = React.useRef(null);
     const [createShowBudget, setCreateShowBudget] = useState(false);
 
     // Edit Modal State
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [editTripId, setEditTripId] = useState(null);
-    const [editTab, setEditTab] = useState("whatsapp");
     const [editShowBudget, setEditShowBudget] = useState(false);
     const [editTripDetails, setEditTripDetails] = useState(null);
 
@@ -67,6 +68,9 @@ const GroupsScreen = () => {
                 
                 if (!updatedTrip.user_budgets) updatedTrip.user_budgets = {};
                 participants.forEach(p => {
+                    if (p.budgets_json) {
+                        updatedTrip.user_budgets[p.contact] = { ...p.budgets_json };
+                    }
                     if (typeof updatedTrip.user_budgets[p.contact] !== 'object') {
                         updatedTrip.user_budgets[p.contact] = {
                             daily: updatedTrip.user_budgets[p.contact] || '',
@@ -116,6 +120,31 @@ const GroupsScreen = () => {
         }
     };
 
+    const handleUploadTripImage = async (tripId, file) => {
+        if (!file) return;
+        const formData = new FormData();
+        formData.append("avatar", file);
+        try {
+            const res = await fetch(`/api/trips/${tripId}/upload-avatar`, {
+                method: "POST",
+                body: formData
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                if (window.showToast) window.showToast("התמונה עודכנה בהצלחה", "success");
+                setEditTripDetails(prev => ({ ...prev, image_url: data.avatar_url }));
+                // update global list as well
+                setTrips(prev => prev.map(t => t.id === tripId ? { ...t, image_url: data.avatar_url } : t));
+                if (window.loadLobby) window.loadLobby();
+            } else {
+                if (window.showToast) window.showToast(data.error || "שגיאה בהעלאת התמונה", "error");
+            }
+        } catch (e) {
+            console.error(e);
+            if (window.showToast) window.showToast("שגיאת רשת", "error");
+        }
+    };
+
     const avatarColors = [
         "linear-gradient(135deg, #a855f7, #6366f1)",
         "linear-gradient(135deg, #06d6a0, #22d3ee)",
@@ -128,9 +157,9 @@ const GroupsScreen = () => {
     const renderGroupsLobby = () => (
         <div className="relative z-10 w-full max-w-4xl mx-auto p-4 pt-4">
             <div className="lobby-header">
-                <h2 data-i18n="lobby_my_trips">{i18n("lobby_my_trips") || " "}</h2>
+                <h2 data-i18n="lobby_my_trips">{i18n("lobby_my_trips") || "הקבוצות שלי"}</h2>
                 <button className="primary-btn sm" onClick={() => setIsCreateOpen(true)} data-i18n="lobby_btn_create">
-                    {i18n("lobby_btn_create") || "+   "}
+                    {i18n("lobby_btn_create") || "+ יצירת קבוצה"}
                 </button>
             </div>
             
@@ -141,7 +170,7 @@ const GroupsScreen = () => {
                             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
                             <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                         </svg>
-                        <p>{i18n("lobby_no_groups") || "  "}</p>
+                        <p>{i18n("lobby_no_groups") || "אין קבוצות עדיין"}</p>
                     </div>
                 ) : (
                     trips.map((trip, i) => {
@@ -152,17 +181,17 @@ const GroupsScreen = () => {
                         let highestBudgetLabel = "";
                         if (trip.budgets_json) {
                             cardCurrency = trip.budgets_json.currency === 'USD' ? '$' : 
-                                      trip.budgets_json.currency === 'EUR' ? '' : 
-                                      trip.budgets_json.currency === 'GBP' ? '' : '';
+                                      trip.budgets_json.currency === 'EUR' ? '€' : 
+                                      trip.budgets_json.currency === 'GBP' ? '£' : '₪';
                             if (trip.budgets_json.yearly) {
                                 highestBudget = trip.budgets_json.yearly;
-                                highestBudgetLabel = i18n("yearly") || "";
+                                highestBudgetLabel = i18n("yearly") || "שנתי";
                             } else if (trip.budgets_json.monthly) {
                                 highestBudget = trip.budgets_json.monthly;
-                                highestBudgetLabel = i18n("monthly") || "";
+                                highestBudgetLabel = i18n("monthly") || "חודשי";
                             } else if (trip.budgets_json.daily) {
                                 highestBudget = trip.budgets_json.daily;
-                                highestBudgetLabel = i18n("daily") || "";
+                                highestBudgetLabel = i18n("daily") || "יומי";
                             }
                         }
                         if (highestBudget !== null && trip.is_budget_per_user) {
@@ -181,7 +210,7 @@ const GroupsScreen = () => {
                                     <div className="trip-card-v2-meta">
                                         <span className="meta-item">
                                             <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                                            {memberCount} {i18n("members") || ""}
+                                            {memberCount} {i18n("members") || "משתתפים"}
                                         </span>
                                         {highestBudget !== null && (
                                             <span className="meta-item">
@@ -196,7 +225,7 @@ const GroupsScreen = () => {
                                         <button 
                                             onClick={(e) => { e.stopPropagation(); window.openEditTripModal(trip.id); }} 
                                             className="trip-edit-btn"
-                                            title=""
+                                            title="ערוך קבוצה"
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
                                         </button>
@@ -348,7 +377,18 @@ const GroupsScreen = () => {
                     <div className="p-6 bg-gradient-to-b from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 flex flex-col items-center relative">
                         <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 bg-gray-100 dark:bg-gray-700 rounded-full p-2 transition-colors">✕</button>
                         
-                        <div className="relative group cursor-pointer mb-3">
+                        <input 
+                            type="file" 
+                            ref={fileInputRef} 
+                            className="hidden" 
+                            accept="image/*" 
+                            onChange={(e) => {
+                                if (e.target.files && e.target.files[0]) {
+                                    handleUploadTripImage(trip.id, e.target.files[0]);
+                                }
+                            }} 
+                        />
+                        <div className="relative group cursor-pointer mb-3" onClick={() => fileInputRef.current?.click()}>
                             <div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-4xl shadow-lg border-4 border-white dark:border-gray-800 overflow-hidden" style={{ background: avatarColors[trip.id % avatarColors.length] }}>
                                 {trip?.image_url ? <img src={trip.image_url} className="w-full h-full object-cover" /> : (trip?.name ? String(trip.name).charAt(0).toUpperCase() : '?')}
                             </div>
@@ -395,14 +435,23 @@ const GroupsScreen = () => {
                                     return (
                                         <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-lg">
-                                                    {initial}
-                                                </div>
+                                                {p.avatar_url ? (
+                                                    <img src={p.avatar_url} className="w-10 h-10 rounded-full object-cover border border-indigo-100" />
+                                                ) : (
+                                                    <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-lg">
+                                                        {initial}
+                                                    </div>
+                                                )}
                                                 <span className="font-medium text-gray-900 dark:text-white">{name}</span>
                                             </div>
                                             {isParticipantAdmin ? 
                                                 <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/30 px-2.5 py-1 rounded-full">מנהל</span> :
-                                                isAdmin && !p.is_owner ? <button onClick={() => removeUser(p.contact)} className="text-xs font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 px-2.5 py-1 rounded-full transition-colors">הסר</button> : null
+                                                isAdmin && !p.is_owner ? (
+                                                    <div className="flex items-center gap-1.5">
+                                                        <button onClick={() => { if(window.makeMemberAdmin) window.makeMemberAdmin(trip.id, p.contact); }} className="text-xs font-medium text-indigo-600 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 px-2.5 py-1.5 rounded-full transition-colors shadow-sm">ניהול</button>
+                                                        <button onClick={() => removeUser(p.contact)} className="text-xs font-medium text-red-600 bg-red-100 hover:bg-red-200 dark:bg-red-900/20 px-2.5 py-1.5 rounded-full transition-colors shadow-sm">הסר</button>
+                                                    </div>
+                                                ) : null
                                             }
                                         </div>
                                     );
@@ -451,7 +500,12 @@ const GroupsScreen = () => {
 
                                         <div className="flex items-center justify-between mb-4">
                                             <label className="text-sm font-bold text-gray-700 dark:text-gray-300">תקציב אישי לכל משתתף</label>
-                                            <input type="checkbox" checked={trip.is_budget_per_user || false} onChange={() => togglePermission('is_budget_per_user')} className="w-4 h-4 text-indigo-600 rounded cursor-pointer" />
+                                            <div 
+                                                className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ease-in-out ${trip.is_budget_per_user ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                                                onClick={() => togglePermission('is_budget_per_user')}
+                                            >
+                                                <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${trip.is_budget_per_user ? 'translate-x-0' : '-translate-x-5'}`}></div>
+                                            </div>
                                         </div>
                                         
                                         {trip.is_budget_per_user && (
@@ -481,11 +535,21 @@ const GroupsScreen = () => {
                                         <div className="pt-3 border-t border-gray-200 dark:border-gray-700 space-y-3">
                                             <div className="flex items-center justify-between">
                                                 <label className="text-sm text-gray-700 dark:text-gray-300">הצג הוצאות לכולם</label>
-                                                <input type="checkbox" checked={trip.is_public_expenses !== false} onChange={() => togglePermission('is_public_expenses')} className="w-4 h-4 text-indigo-600 rounded cursor-pointer" />
+                                                <div 
+                                                    className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ease-in-out ${trip.is_public_expenses !== false ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                                                    onClick={() => togglePermission('is_public_expenses')}
+                                                >
+                                                    <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${trip.is_public_expenses !== false ? 'translate-x-0' : '-translate-x-5'}`}></div>
+                                                </div>
                                             </div>
                                             <div className="flex items-center justify-between">
                                                 <label className="text-sm text-gray-700 dark:text-gray-300">אפשר למשתתפים למחוק הוצאות</label>
-                                                <input type="checkbox" checked={trip.allow_member_delete !== false} onChange={() => togglePermission('allow_member_delete')} className="w-4 h-4 text-indigo-600 rounded cursor-pointer" />
+                                                <div 
+                                                    className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ease-in-out ${trip.allow_member_delete !== false ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                                                    onClick={() => togglePermission('allow_member_delete')}
+                                                >
+                                                    <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${trip.allow_member_delete !== false ? 'translate-x-0' : '-translate-x-5'}`}></div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

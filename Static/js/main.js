@@ -3142,7 +3142,7 @@ window.openGroupInfo = function() {
         return;
     }
 
-    if (typeof window.switchTab === 'function') window.switchTab('groups');
+    if (typeof showView === 'function') showView('lobby');
 
     setTimeout(() => {
         if (typeof window.reactOpenEditModal === 'function') {

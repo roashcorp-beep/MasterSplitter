@@ -1653,7 +1653,7 @@ def get_trip(trip_id):
 
         # Get members
         cursor.execute("""
-            SELECT tm.*, u.name, u.phone, u.email 
+            SELECT tm.*, u.name, u.phone, u.email, u.avatar_url 
             FROM TripMembers tm
             LEFT JOIN Users u ON tm.user_id = u.id
             WHERE tm.trip_id = ?
@@ -1667,6 +1667,7 @@ def get_trip(trip_id):
                 'id': m['user_id'],
                 'name': m['name'] or m['guest_name'],
                 'contact': contact,
+                'avatar_url': m['avatar_url'] if 'avatar_url' in m.keys() else None,
                 'type': 'guest' if not m['user_id'] else 'registered',
                 'is_admin': bool(m['is_admin']),
                 'is_owner': m['user_id'] == trip['owner_id'] if m['user_id'] else False,
@@ -1688,6 +1689,7 @@ def get_trip(trip_id):
         return jsonify({
             'id': trip['id'],
             'name': trip['destination'],
+            'image_url': trip['image_url'] if 'image_url' in trip.keys() else None,
             'budget': trip['budget'],
             'budget_type': trip['budget_type'] or 'none',
             'is_budget_per_user': bool(trip['is_budget_per_user']),
@@ -1914,6 +1916,54 @@ def update_trip_settings(trip_id):
     return jsonify({"success": True})
 
 
+@app.route('/api/trips/<int:trip_id>/upload-avatar', methods=['POST'])
+@login_required
+@require_trip_access
+def upload_trip_avatar(trip_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    # Only admins can change trip picture
+    cursor.execute("SELECT COALESCE(is_admin, 0) as is_admin FROM TripMembers WHERE trip_id = ? AND user_id = ?",
+                   (trip_id, session['user_id']))
+    member = cursor.fetchone()
+    if not member or not member['is_admin']:
+        conn.close()
+        return jsonify({"error": "Only admins can change trip picture."}), 403
+
+    if 'avatar' not in request.files:
+        conn.close()
+        return jsonify({"error": "No file part"}), 400
+    file = request.files['avatar']
+    if file.filename == '':
+        conn.close()
+        return jsonify({"error": "No selected file"}), 400
+        
+    if file:
+        ext = file.filename.rsplit('.', 1)[-1].lower()
+        if ext not in ['jpg', 'jpeg', 'png', 'gif', 'webp']:
+            conn.close()
+            return jsonify({"error": "Invalid file type"}), 400
+            
+        import secrets
+        filename = f"trip_{trip_id}_{secrets.token_hex(4)}.{ext}"
+        filepath = os.path.join(UPLOAD_FOLDER, filename)
+        file.save(filepath)
+        
+        avatar_url = f"/static/avatars/{filename}"
+        
+        try:
+            cursor.execute("UPDATE Trips SET image_url = ? WHERE id = ?", (avatar_url, trip_id))
+            conn.commit()
+            return jsonify({"success": True, "avatar_url": avatar_url})
+        except sqlite3.Error as e:
+            logger.error(f"Trip Avatar upload error: {e}")
+            return jsonify({"error": "Database error"}), 500
+        finally:
+            conn.close()
+    conn.close()
+    return jsonify({"error": "Unknown error"}), 400
+
+
 @app.route('/api/trips/<int:trip_id>/members/<int:member_id>/promote', methods=['PUT'])
 @login_required
 @require_trip_access
@@ -2002,11 +2052,17 @@ def remove_member(trip_id, contact):
             return jsonify({"error": "Cannot remove the creator of the group."}), 403
         
         cursor.execute("DELETE FROM TripMembers WHERE trip_id = ? AND user_id = ?", (trip_id, member_id))
+        deleted_count = cursor.rowcount
+        cursor.execute("DELETE FROM trip_invitations WHERE trip_id = ? AND invitee_phone_or_email = ?", (trip_id, contact))
+        deleted_count += cursor.rowcount
     else:
-        # Might be a guest name
+        # Might be a guest name or a pending invite for unregistered contact
         cursor.execute("DELETE FROM TripMembers WHERE trip_id = ? AND user_id IS NULL AND guest_name = ?", (trip_id, contact))
+        deleted_count = cursor.rowcount
+        cursor.execute("DELETE FROM trip_invitations WHERE trip_id = ? AND invitee_phone_or_email = ?", (trip_id, contact))
+        deleted_count += cursor.rowcount
 
-    if cursor.rowcount == 0:
+    if deleted_count == 0:
         conn.close()
         return jsonify({"error": "Member not found."}), 404
         

@@ -128,9 +128,9 @@ const GroupsScreen = () => {
     const renderGroupsLobby = () => (
         <div className="relative z-10 w-full max-w-4xl mx-auto p-4 pt-4">
             <div className="lobby-header">
-                <h2 data-i18n="lobby_my_trips">{i18n("lobby_my_trips") || "הקבוצות שלי"}</h2>
+                <h2 data-i18n="lobby_my_trips">{i18n("lobby_my_trips") || " "}</h2>
                 <button className="primary-btn sm" onClick={() => setIsCreateOpen(true)} data-i18n="lobby_btn_create">
-                    {i18n("lobby_btn_create") || "+ צור קבוצה חדשה"}
+                    {i18n("lobby_btn_create") || "+   "}
                 </button>
             </div>
             
@@ -141,28 +141,28 @@ const GroupsScreen = () => {
                             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
                             <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                         </svg>
-                        <p>{i18n("lobby_no_groups") || "אין קבוצות עדיין"}</p>
+                        <p>{i18n("lobby_no_groups") || "  "}</p>
                     </div>
                 ) : (
                     trips.map((trip, i) => {
                         const initial = trip && trip.name ? String(trip.name).charAt(0).toUpperCase() : '?';
                         const isAdmin = trip.is_admin !== undefined ? trip.is_admin : trip.is_owner;
-                        let cardCurrency = "₪";
+                        let cardCurrency = "";
                         let highestBudget = null;
                         let highestBudgetLabel = "";
                         if (trip.budgets_json) {
                             cardCurrency = trip.budgets_json.currency === 'USD' ? '$' : 
-                                      trip.budgets_json.currency === 'EUR' ? '€' : 
-                                      trip.budgets_json.currency === 'GBP' ? '£' : '₪';
+                                      trip.budgets_json.currency === 'EUR' ? '' : 
+                                      trip.budgets_json.currency === 'GBP' ? '' : '';
                             if (trip.budgets_json.yearly) {
                                 highestBudget = trip.budgets_json.yearly;
-                                highestBudgetLabel = i18n("yearly") || "שנתי";
+                                highestBudgetLabel = i18n("yearly") || "";
                             } else if (trip.budgets_json.monthly) {
                                 highestBudget = trip.budgets_json.monthly;
-                                highestBudgetLabel = i18n("monthly") || "חודשי";
+                                highestBudgetLabel = i18n("monthly") || "";
                             } else if (trip.budgets_json.daily) {
                                 highestBudget = trip.budgets_json.daily;
-                                highestBudgetLabel = i18n("daily") || "יומי";
+                                highestBudgetLabel = i18n("daily") || "";
                             }
                         }
                         if (highestBudget !== null && trip.is_budget_per_user) {
@@ -181,7 +181,7 @@ const GroupsScreen = () => {
                                     <div className="trip-card-v2-meta">
                                         <span className="meta-item">
                                             <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                                            {memberCount} {i18n("members") || "חברים"}
+                                            {memberCount} {i18n("members") || ""}
                                         </span>
                                         {highestBudget !== null && (
                                             <span className="meta-item">
@@ -196,12 +196,12 @@ const GroupsScreen = () => {
                                         <button 
                                             onClick={(e) => { e.stopPropagation(); window.openEditTripModal(trip.id); }} 
                                             className="trip-edit-btn"
-                                            title="עריכה"
+                                            title=""
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
                                         </button>
                                     )}
-                                    <span className="trip-card-v2-arrow">›</span>
+                                    <span className="trip-card-v2-arrow"></span>
                                 </div>
                             </div>
                         );
@@ -217,7 +217,7 @@ const GroupsScreen = () => {
             <div id="create-trip-modal" className="modal-overlay open">
                 <div className="modal-card">
                     <div className="modal-header">
-                        <h3>{i18n("create_trip_title") || "×¦×•×¨ ×§×‘×•×¦×” ×—×“×©×”"}</h3>
+                        <h3>{i18n("create_trip_title") || "צור קבוצה חדשה"}</h3>
                         <button className="modal-close-x" onClick={() => setIsCreateOpen(false)}>
                             <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                         </button>
@@ -225,56 +225,56 @@ const GroupsScreen = () => {
 
                     <div className="modal-body-content space-y-4">
                     <div className="form-group">
-                        <label>{i18n("create_trip_name") || "×©× ×”×§×‘×•×¦×”"}</label>
-                        <input type="text" id="create-trip-name" placeholder={i18n("create_trip_name_ph") || "×œ×ž×©×œ: ×“×™×¨×”, ×—×•×¤×©×”, ×ž×©×¨×“..."} />
+                        <label>{i18n("create_trip_name") || "שם הקבוצה"}</label>
+                        <input type="text" id="create-trip-name" placeholder={i18n("create_trip_name_ph") || "למשל: דירה, חופשה, משרד..."} />
                     </div>
 
                     <div className="form-group">
-                        <label>{i18n("invite_members_title") || "×”×–×ž×Ÿ ×—×‘×¨×™×"}</label>
+                        <label>{i18n("invite_members_title") || "הזמן חברים"}</label>
                         <button type="button" className="w-full mb-3 flex items-center justify-center p-3 rounded-xl bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 text-gray-800 dark:text-white border-0 outline-none transition-all" onClick={() => window.pickContact && window.pickContact('create', 'wa')}>
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '8px', display: 'inline-block'}}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                            <span>{i18n("invite_add_contacts") || "×”×•×¡×£ ×ž×× ×©×™ ×§×©×¨"}</span>
+                            <span>{i18n("invite_add_contacts") || "הוסף אנשי קשר"}</span>
                         </button>
                         <div className="invite-tabs-container">
                             <div className="invite-tabs-header">
                                 <button type="button" className={`invite-tab-btn ${createTab === 'whatsapp' ? 'active' : ''}`} onClick={() => setCreateTab('whatsapp')}>
-                                    <span>{i18n("invite_tab_whatsapp") || "×•×•××˜×¡××¤"}</span>
+                                    <span>{i18n("invite_tab_whatsapp") || "ווטסאפ"}</span>
                                 </button>
                                 <button type="button" className={`invite-tab-btn ${createTab === 'email' ? 'active' : ''}`} onClick={() => setCreateTab('email')}>
-                                    <span>{i18n("invite_tab_email") || "××™×ž×™×™×œ"}</span>
+                                    <span>{i18n("invite_tab_email") || "אימייל"}</span>
                                 </button>
                                 <button type="button" className={`invite-tab-btn ${createTab === 'guest' ? 'active' : ''}`} onClick={() => setCreateTab('guest')}>
-                                    <span>{i18n("invite_tab_guest") || "××•×¨×—"}</span>
+                                    <span>{i18n("invite_tab_guest") || "אורח"}</span>
                                 </button>
                             </div>
 
                             <div className={`invite-tab-panel ${createTab === 'whatsapp' ? 'active' : ''}`} style={{ display: createTab === 'whatsapp' ? 'block' : 'none' }}>
                                 <div className="invite-input-group">
-                                    <input type="text" id="create-wa-phone" placeholder={i18n("invite_phone_ph") || "×ž×¡×¤×¨ ×˜×œ×¤×•×Ÿ"} />
+                                    <input type="text" id="create-wa-phone" placeholder={i18n("invite_phone_ph") || "מספר טלפון"} />
                                 </div>
                                 
                                 <button type="button" className="invite-action-btn whatsapp" onClick={() => window.sendWhatsAppInviteFromTab('create')}>
-                                    <span>{i18n("invite_send_whatsapp") || "×©×œ×— ×”×–×ž× ×” ×‘×•×•××˜×¡××¤"}</span>
+                                    <span>{i18n("invite_send_whatsapp") || "שלח הזמנה בווטסאפ"}</span>
                                 </button>
                             </div>
 
                             <div className={`invite-tab-panel ${createTab === 'email' ? 'active' : ''}`} style={{ display: createTab === 'email' ? 'block' : 'none' }}>
                                 <div className="invite-input-group">
-                                    <input type="text" id="create-email-name" placeholder={i18n("invite_name_ph") || "×©×"} />
-                                    <input type="email" id="create-email-addr" placeholder={i18n("invite_email_ph") || "×›×ª×•×‘×ª ××™×ž×™×™×œ"} />
+                                    <input type="text" id="create-email-name" placeholder={i18n("invite_name_ph") || "שם"} />
+                                    <input type="email" id="create-email-addr" placeholder={i18n("invite_email_ph") || "כתובת אימייל"} />
                                 </div>
                                 <button type="button" className="invite-action-btn email-invite" onClick={() => window.sendEmailInviteFromTab('create')}>
-                                    <span>{i18n("invite_send_email") || "×©×œ×— ×”×–×ž× ×” ×‘××™×ž×™×™×œ"}</span>
+                                    <span>{i18n("invite_send_email") || "שלח הזמנה באימייל"}</span>
                                 </button>
                             </div>
 
                             <div className={`invite-tab-panel ${createTab === 'guest' ? 'active' : ''}`} style={{ display: createTab === 'guest' ? 'block' : 'none' }}>
                                 <div className="invite-input-group">
-                                    <input type="text" id="create-guest-name" placeholder={i18n("invite_name_ph") || "×©×"} />
-                                    <p className="text-xs text-gray-400 mt-1" style={{ textAlign: 'right' }}>{i18n("guest_offline_note") || "×¢×‘×•×¨ ×ž×©×ª×ž×© ×©××™× ×• ×ž×§×•×•×Ÿ"}</p>
+                                    <input type="text" id="create-guest-name" placeholder={i18n("invite_name_ph") || "שם"} />
+                                    <p className="text-xs text-gray-400 mt-1" style={{ textAlign: 'right' }}>{i18n("guest_offline_note") || "עבור משתמש שאינו מקוון"}</p>
                                 </div>
                                 <button type="button" className="invite-action-btn guest" onClick={() => window.addGuestFromTab('create')}>
-                                    <span>{i18n("invite_add_guest") || "×”×•×¡×£ ××•×¨×—"}</span>
+                                    <span>{i18n("invite_add_guest") || "הוסף אורח"}</span>
                                 </button>
                             </div>
                         </div>
@@ -285,8 +285,8 @@ const GroupsScreen = () => {
                     </div>
                     </div>
                     <div className="modal-actions">
-                        <button className="secondary-btn" onClick={() => setIsCreateOpen(false)}>{i18n("btn_cancel") || "×‘×™×˜×•×œ"}</button>
-                        <button className="primary-btn" onClick={() => window.createTrip()}>{i18n("create_trip_btn") || "×¦×•×¨ ×§×‘×•×¦×”"}</button>
+                        <button className="secondary-btn" onClick={() => setIsCreateOpen(false)}>{i18n("btn_cancel") || "ביטול"}</button>
+                        <button className="primary-btn" onClick={() => window.createTrip()}>{i18n("create_trip_btn") || "צור קבוצה"}</button>
                     </div>
                 </div>
             </div>
@@ -380,7 +380,7 @@ const GroupsScreen = () => {
                             )}
                             <button onClick={() => window.copyInviteLink(trip.id, trip.invite_token)} className="flex flex-col items-center gap-1.5 text-indigo-600 dark:text-indigo-400 hover:scale-105 transition-transform">
                                 <div className="p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-full shadow-sm"><IconLink size={22} /></div>
-                                <span className="text-xs font-medium">קישור הזמנה</span>
+                                <span className="text-xs font-medium">העתק קישור</span>
                             </button>
                         </div>
 
@@ -389,7 +389,7 @@ const GroupsScreen = () => {
                             <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 mb-3 px-2">משתתפים</h3>
                             <div className="space-y-2">
                                 {participants.map((p, idx) => {
-                                    const name = p.name || p.username || (p.email ? String(p.email).split('@')[0] : 'משתמש');
+                                    const name = p.name || p.username || (p.email ? String(p.email).split('@')[0] : '');
                                     const initial = name ? String(name).charAt(0).toUpperCase() : '?';
                                     const isParticipantAdmin = p.is_admin || p.role === 'admin';
                                     return (
@@ -415,7 +415,7 @@ const GroupsScreen = () => {
                             <div className="p-4 border-t border-gray-100 dark:border-gray-700">
                                 <button onClick={() => setEditTripDetails(prev => ({...prev, showAdvancedBudget: !prev.showAdvancedBudget}))} className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-2xl transition-colors border border-gray-100 dark:border-gray-700">
                                     <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200 font-medium">
-                                        <IconSettings size={18} className="text-indigo-500" /> הגדרות קבוצה ותקציב
+                                        <IconSettings size={18} className="text-indigo-500" /> הגדרות מנהל  
                                     </div>
                                     <IconChevronDown size={16} className={`text-gray-500 transition-transform duration-300 ${trip.showAdvancedBudget ? 'rotate-180' : ''}`} />
                                 </button>
@@ -434,7 +434,7 @@ const GroupsScreen = () => {
                                             </div>
                                             
                                             <div className="flex items-center justify-between">
-                                                <label className="text-sm font-bold text-gray-700 dark:text-gray-300">תקציב קבוצתי כללי</label>
+                                                <label className="text-sm font-bold text-gray-700 dark:text-gray-300">תקציב קבוצתי</label>
                                             </div>
                                             
                                             <div className="grid grid-cols-3 gap-2">
@@ -450,7 +450,7 @@ const GroupsScreen = () => {
                                         </div>
 
                                         <div className="flex items-center justify-between mb-4">
-                                            <label className="text-sm font-bold text-gray-700 dark:text-gray-300">תקציב לכל משתתף</label>
+                                            <label className="text-sm font-bold text-gray-700 dark:text-gray-300">תקציב אישי לכל משתתף</label>
                                             <input type="checkbox" checked={trip.is_budget_per_user || false} onChange={() => togglePermission('is_budget_per_user')} className="w-4 h-4 text-indigo-600 rounded cursor-pointer" />
                                         </div>
                                         
@@ -466,7 +466,7 @@ const GroupsScreen = () => {
                                                                     <div key={i} className="flex items-center justify-between bg-white dark:bg-gray-900 p-2 rounded-xl border border-gray-100 dark:border-gray-700">
                                                                         <span className="text-[10px] font-medium text-gray-600 dark:text-gray-400 pl-1">{type === 'daily' ? 'יומי' : type === 'monthly' ? 'חודשי' : 'שנתי'}</span>
                                                                         <div className="relative w-full ml-1">
-                                                                            <span className="absolute inset-y-0 left-0 pl-1 flex items-center text-gray-500 pointer-events-none text-[10px]">₪</span>
+                                                                            <span className="absolute inset-y-0 left-0 pl-1 flex items-center text-gray-500 pointer-events-none text-[10px]"></span>
                                                                             <input type="number" value={uBudget[type] || ''} onChange={(e) => updateBudget(p.contact, type, e.target.value)} placeholder="0" className="w-full pl-4 pr-1 py-1 bg-transparent border-none text-[10px] focus:ring-0 outline-none text-gray-900 dark:text-white" />
                                                                         </div>
                                                                     </div>
@@ -484,7 +484,7 @@ const GroupsScreen = () => {
                                                 <input type="checkbox" checked={trip.is_public_expenses !== false} onChange={() => togglePermission('is_public_expenses')} className="w-4 h-4 text-indigo-600 rounded cursor-pointer" />
                                             </div>
                                             <div className="flex items-center justify-between">
-                                                <label className="text-sm text-gray-700 dark:text-gray-300">אפשר לחברים למחוק</label>
+                                                <label className="text-sm text-gray-700 dark:text-gray-300">אפשר למשתתפים למחוק הוצאות</label>
                                                 <input type="checkbox" checked={trip.allow_member_delete !== false} onChange={() => togglePermission('allow_member_delete')} className="w-4 h-4 text-indigo-600 rounded cursor-pointer" />
                                             </div>
                                         </div>

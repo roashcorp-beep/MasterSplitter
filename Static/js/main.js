@@ -447,12 +447,17 @@ function showView(view) {
     }
 }
 
-function renderTripsList(tripsArray) {
-    const tripsToRender = tripsArray || (typeof allTrips !== 'undefined' ? allTrips : []) || currentUser?.trips || [];
+function renderTripsList(tripsArray, retryCount = 0) {
+    const tripsToRender = tripsArray || (typeof allTrips !== 'undefined' ? allTrips : []) || window.currentUser?.trips || [];
     if (window.reactUpdateTrips) {
         window.reactUpdateTrips(tripsToRender);
     } else {
-        console.warn("React GroupsScreen not yet mounted.");
+        console.warn("React GroupsScreen not yet mounted. Retrying...");
+        if (retryCount < 50) {
+            setTimeout(() => renderTripsList(tripsArray, retryCount + 1), 100);
+        } else {
+            console.error("React GroupsScreen failed to mount after 5 seconds.");
+        }
     }
 }
 

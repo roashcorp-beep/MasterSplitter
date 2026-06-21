@@ -3522,6 +3522,15 @@ def get_currencies():
     conn.close()
     return jsonify([dict(r) for r in rows])
 
+@app.route('/api/force-update-currencies', methods=['GET'])
+def force_update_currencies():
+    try:
+        from update_currencies import update_db
+        update_db(DB_PATH)
+        return jsonify({"status": "success", "message": "Currencies updated in " + DB_PATH})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Health check endpoint for monitoring."""

@@ -2656,36 +2656,7 @@ body.light-theme .list-item:hover {
     display: none;
 }
 
-.split-toggle-slider {
-    position: relative;
-    width: 44px;
-    height: 24px;
-    background: rgba(255, 255, 255, 0.15);
-    border-radius: 20px;
-    transition: background 0.3s;
-    border: 1px solid var(--border);
-}
 
-.split-toggle-slider::before {
-    content: '';
-    position: absolute;
-    width: 18px;
-    height: 18px;
-    left: 2px;
-    bottom: 2px;
-    background: white;
-    border-radius: 50%;
-    transition: transform 0.3s;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-}
-
-.split-toggle-label input:checked+.split-toggle-slider {
-    background: var(--primary);
-}
-
-.split-toggle-label input:checked+.split-toggle-slider::before {
-    transform: translateX(20px);
-}
 
 .custom-splits-container {
     background: rgba(255, 255, 255, 0.03);

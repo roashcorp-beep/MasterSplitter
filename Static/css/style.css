@@ -1926,9 +1926,17 @@ body.light-theme .list-item:hover {
     flex-shrink: 0;
 }
 
-.currency-row select {
+.currency-row select,
+.currency-row .currency-picker-btn {
     padding: 13px 8px;
     font-size: 0.92rem;
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: transparent;
+    color: var(--text-main);
+    cursor: pointer;
+    text-align: center;
 }
 
 /* ============================================

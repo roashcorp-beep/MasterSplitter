@@ -222,7 +222,7 @@
                         </div>
                         <div class="currency-col">
                             <input type="hidden" id="currency" name="currency" value="ILS">
-                            <button type="button" id="currency-btn" class="currency-picker-btn" onclick="openCurrencyPicker(val => { document.getElementById('currency').value = val; document.getElementById('currency-btn').innerText = getCurrencySymbol(val); })" style="width:100%; height:100%; border:none; background:transparent; font-size:1.2rem; font-weight:bold; color:var(--text-main); cursor:pointer;">₪</button>
+                            <button type="button" id="currency-btn" class="currency-picker-btn" onclick="openCurrencyPicker(val => { document.getElementById('currency').value = val; document.getElementById('currency-btn').innerText = getCurrencySymbol(val); })">₪</button>
                         </div>
                     </div>
 
@@ -313,9 +313,26 @@
                     </div>
                     <div class="currency-col">
                             <input type="hidden" id="edit-expense-currency">
-                            <button type="button" id="edit-expense-currency-btn" class="currency-picker-btn" onclick="openCurrencyPicker(val => { document.getElementById('edit-expense-currency').value = val; document.getElementById('edit-expense-currency-btn').innerText = getCurrencySymbol(val); })" style="width:100%; height:100%; border:none; background:transparent; font-size:1.2rem; font-weight:bold; color:var(--text-main); cursor:pointer;">₪</button>
+                            <button type="button" id="edit-expense-currency-btn" class="currency-picker-btn" onclick="openCurrencyPicker(val => { document.getElementById('edit-expense-currency').value = val; document.getElementById('edit-expense-currency-btn').innerText = getCurrencySymbol(val); })">₪</button>
                     </div>
                 </div>
+            </div>
+
+            <!-- Participants Custom Splits -->
+            <div class="form-group" id="edit-expense-participants-group">
+                <label style="margin-top:16px;" data-i18n="expense_for_who">עבור מי?</label>
+                <div class="participants-pills" id="edit-participants-container"></div>
+
+                <!-- Split Mode Toggle in Edit Modal -->
+                <div class="split-toggle-wrapper" style="margin-top:14px; display:flex; flex-direction:column; align-items:flex-start; gap:10px;">
+                    <label class="split-toggle-label" style="width:100%; display:flex; align-items:center; justify-content:space-between;">
+                        <input type="checkbox" id="edit-split-mode-toggle" onchange="toggleEditSplitMode()">
+                        <span class="split-toggle-slider"></span>
+                        <span class="split-toggle-text" data-i18n="split_custom">סכומים מותאמים</span>
+                    </label>
+                </div>
+                <div id="edit-custom-splits-container" class="custom-splits-container" style="display:none; margin-top:10px;"></div>
+                <div id="edit-split-validation-msg" class="split-validation-msg" style="display:none;"></div>
             </div>
 
             <div class="form-group">

@@ -2718,16 +2718,22 @@ def add_expense():
                         (expense_id, s_uid, s_amt)
                     )
         else:
-            # Auto-generate equal splits for all trip members
-            cursor.execute("SELECT user_id FROM TripMembers WHERE trip_id = ? AND user_id IS NOT NULL", (trip_id,))
-            members = cursor.fetchall()
-            if members:
-                per_person = amount / len(members)
-                for m in members:
-                    cursor.execute(
-                        "INSERT INTO ExpenseSplits (expense_id, user_id, amount) VALUES (?, ?, ?)",
-                        (expense_id, m['user_id'], per_person)
-                    )
+            if is_personal:
+                cursor.execute(
+                    "INSERT INTO ExpenseSplits (expense_id, user_id, amount) VALUES (?, ?, ?)",
+                    (expense_id, session['user_id'], amount)
+                )
+            else:
+                # Auto-generate equal splits for all trip members
+                cursor.execute("SELECT user_id FROM TripMembers WHERE trip_id = ? AND user_id IS NOT NULL", (trip_id,))
+                members = cursor.fetchall()
+                if members:
+                    per_person = amount / len(members)
+                    for m in members:
+                        cursor.execute(
+                            "INSERT INTO ExpenseSplits (expense_id, user_id, amount) VALUES (?, ?, ?)",
+                            (expense_id, m['user_id'], per_person)
+                        )
 
         conn.commit()
         logger.info(f"Expense added: {currency} {amount} for trip {trip_id} by user {session['user_id']}")
@@ -2819,6 +2825,31 @@ def edit_expense(expense_id):
         if updates:
             params.append(expense_id)
             cursor.execute(f"UPDATE Expenses SET {', '.join(updates)} WHERE id = ?", params)
+            
+        if 'splits' in data:
+            splits = data['splits']
+            if isinstance(splits, list):
+                # Validate sum
+                split_total = sum(float(s.get('amount', 0)) for s in splits)
+                if abs(split_total - final_amount) > 0.01 and len(splits) > 0:
+                    conn.rollback()
+                    conn.close()
+                    return jsonify({"error": "Split amounts must sum to the total expense amount."}), 400
+                
+                # Drop existing splits
+                cursor.execute("DELETE FROM ExpenseSplits WHERE expense_id = ?", (expense_id,))
+                
+                # Insert new splits
+                for s in splits:
+                    s_uid = int(s['user_id'])
+                    s_amt = float(s['amount'])
+                    if s_amt > 0:
+                        cursor.execute(
+                            "INSERT INTO ExpenseSplits (expense_id, user_id, amount) VALUES (?, ?, ?)",
+                            (expense_id, s_uid, s_amt)
+                        )
+                        
+        if updates or 'splits' in data:
             conn.commit()
             logger.info(f"Expense {expense_id} updated by user {session['user_id']}")
             # Log activity

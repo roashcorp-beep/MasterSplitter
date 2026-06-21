@@ -1632,6 +1632,7 @@ async function fetchExpenses() {
         if (full) full.innerHTML = html;
         if (home) home.innerHTML = html;
 
+        window.currentExpenses = expenses; // Store globally for edit modal
         renderCategoryChart(expenses);
     } catch (e) { console.error('Fetch expenses error:', e); }
 }
@@ -1660,17 +1661,156 @@ function openEditExpenseModal(id, amount, desc, category, currency) {
     const currSelect = document.getElementById('edit-expense-currency');
     if (currSelect) {
         currSelect.value = currency || 'ILS';
-        // Update custom dropdown UI
         currSelect.dispatchEvent(new Event('change', { bubbles: true }));
     }
     
-    // Also update category custom dropdown
     const catSelect = document.getElementById('edit-expense-category');
     if (catSelect) {
         catSelect.dispatchEvent(new Event('change', { bubbles: true }));
     }
     
+    // Setup participants and splits
+    const expense = window.currentExpenses ? window.currentExpenses.find(e => e.id === id) : null;
+    const isPersonal = expense ? expense.is_personal : 0;
+    
+    const participantsContainer = document.getElementById('edit-participants-container');
+    const splitsContainer = document.getElementById('edit-custom-splits-container');
+    const splitToggle = document.getElementById('edit-split-mode-toggle');
+    
+    if (isPersonal) {
+        document.getElementById('edit-expense-participants-group').style.display = 'none';
+    } else {
+        document.getElementById('edit-expense-participants-group').style.display = 'block';
+        
+        // Render participants pills
+        if (participantsContainer && window.tripMembers) {
+            const expSplits = expense ? (expense.splits || []) : [];
+            const involvedIds = expSplits.map(s => String(s.user_id));
+            
+            participantsContainer.innerHTML = window.tripMembers.map(m => {
+                const safeName = escapeHTML(m.name);
+                const initial = escapeHTML(m.name.charAt(0));
+                // Only select those who were in the original split, or all if empty
+                const isSelected = (involvedIds.length === 0) || involvedIds.includes(String(m.id));
+                const selectedClass = isSelected ? 'selected' : '';
+                return `
+                <div class="participant-pill ${selectedClass}" data-id="${escapeHTML(String(m.id))}" onclick="toggleEditPill(this)">
+                    <span class="pill-avatar">${initial}</span>
+                    <span>${safeName}</span>
+                    <span class="pill-check">✓</span>
+                </div>`;
+            }).join('');
+        }
+        
+        // Render custom splits amounts if they exist and are uneven, or just show toggle off
+        if (expense && expense.splits && expense.splits.length > 0) {
+            // Check if splits are evenly divided among participants
+            const numSplits = expense.splits.length;
+            const expectedEven = amount / numSplits;
+            let isUneven = false;
+            for (let s of expense.splits) {
+                if (Math.abs(s.amount - expectedEven) > 0.01) {
+                    isUneven = true;
+                    break;
+                }
+            }
+            
+            splitToggle.checked = isUneven;
+            renderEditCustomSplits(expense.splits);
+        } else {
+            splitToggle.checked = false;
+            renderEditCustomSplits([]);
+        }
+        toggleEditSplitMode();
+    }
+    
     document.getElementById('edit-expense-modal').classList.add('open');
+}
+
+function toggleEditPill(el) {
+    el.classList.toggle('selected');
+    if (document.getElementById('edit-split-mode-toggle')?.checked) {
+        renderEditCustomSplits();
+    }
+}
+
+function toggleEditSplitMode() {
+    const container = document.getElementById('edit-custom-splits-container');
+    const msg = document.getElementById('edit-split-validation-msg');
+    const isChecked = document.getElementById('edit-split-mode-toggle')?.checked;
+    if (isChecked) {
+        container.style.display = 'flex';
+        msg.style.display = 'block';
+        renderEditCustomSplits();
+    } else {
+        container.style.display = 'none';
+        msg.style.display = 'none';
+    }
+}
+
+function renderEditCustomSplits(existingSplits = []) {
+    const container = document.getElementById('edit-custom-splits-container');
+    if (!container) return;
+    
+    const selectedIds = Array.from(document.querySelectorAll('#edit-participants-container .participant-pill.selected')).map(pill => pill.dataset.id);
+    const selectedMembers = (window.tripMembers || []).filter(m => selectedIds.includes(String(m.id)));
+    
+    if (selectedMembers.length === 0) {
+        container.innerHTML = `<div style="padding:10px; color:var(--text-sec); font-size:0.9rem;" data-i18n="select_participants_first">בחר משתתפים קודם</div>`;
+        return;
+    }
+    
+    // Map existing splits by user_id for quick lookup
+    const splitsMap = {};
+    existingSplits.forEach(s => splitsMap[String(s.user_id)] = parseFloat(s.amount));
+    
+    // If no existing splits passed in, attempt to grab them from current DOM inputs to preserve changes during toggle
+    if (!existingSplits.length) {
+        selectedMembers.forEach(m => {
+            const currentInput = document.getElementById(`edit-split-user-${m.id}`);
+            if (currentInput) {
+                splitsMap[String(m.id)] = parseFloat(currentInput.value) || 0;
+            }
+        });
+    }
+
+    let totalSaved = 0;
+    container.innerHTML = selectedMembers.map(m => {
+        const uid = String(m.id);
+        const name = escapeHTML(m.name);
+        const val = splitsMap[uid] !== undefined ? splitsMap[uid] : 0;
+        totalSaved += val;
+        return `
+        <div class="split-user-row">
+            <span class="split-user-name">${name}</span>
+            <div class="split-input-wrapper">
+                <span class="split-currency">₪</span>
+                <input type="number" id="edit-split-user-${escapeHTML(uid)}" class="split-amount-input" step="0.01" min="0" value="${val ? val.toFixed(2) : ''}" placeholder="0" oninput="updateEditSplitSum()">
+            </div>
+        </div>`;
+    }).join('');
+    
+    updateEditSplitSum();
+}
+
+function updateEditSplitSum() {
+    const msg = document.getElementById('edit-split-validation-msg');
+    if (!msg) return;
+    const inputs = document.querySelectorAll('.split-amount-input[id^="edit-split-user-"]');
+    let sum = 0;
+    inputs.forEach(i => sum += (parseFloat(i.value) || 0));
+    const totalAmount = parseFloat(document.getElementById('edit-expense-amount')?.value || 0);
+    
+    const diff = Math.abs(sum - totalAmount);
+    if (diff > 0.01) {
+        msg.style.color = '#ff4d4f';
+        const sumText = typeof i18n === 'function' ? i18n('split_sum_current') : 'סכום כרגע:';
+        const neededText = typeof i18n === 'function' ? i18n('split_sum_needed') : 'חסר/עודף:';
+        msg.textContent = `${sumText} ₪${sum.toFixed(2)} | ${neededText} ₪${Math.abs(totalAmount - sum).toFixed(2)}`;
+    } else {
+        msg.style.color = '#4caf50';
+        msg.textContent = typeof i18n === 'function' ? i18n('split_sum_ok') : 'הסכום תקין! ✓';
+    }
 }
 
 function closeEditExpenseModal() {
@@ -1688,12 +1828,53 @@ async function saveEditExpense() {
         alert(typeof i18n === 'function' ? i18n('err_fill_all') : 'יש למלא את כל השדות.');
         return;
     }
+    
+    // Process splits if not personal
+    const expense = window.currentExpenses ? window.currentExpenses.find(e => e.id === parseInt(id, 10)) : null;
+    const isPersonal = expense ? expense.is_personal : 0;
+    
+    let splits = null;
+    if (!isPersonal) {
+        const selectedIds = Array.from(document.querySelectorAll('#edit-participants-container .participant-pill.selected')).map(pill => pill.dataset.id);
+        const validParts = selectedIds.filter(pid => !isNaN(parseInt(pid, 10)));
+        
+        if (validParts.length === 0) {
+            alert(typeof i18n === 'function' ? i18n('err_no_participants') : 'בחר לפחות משתתף אחד.');
+            return;
+        }
+        
+        splits = [];
+        if (document.getElementById('edit-split-mode-toggle')?.checked) {
+            let splitSum = 0;
+            for (const pid of validParts) {
+                const inputVal = parseFloat(document.getElementById(`edit-split-user-${pid}`)?.value || 0);
+                splits.push({ user_id: parseInt(pid, 10), amount: inputVal });
+                splitSum += inputVal;
+            }
+            if (Math.abs(splitSum - parseFloat(amount)) > 0.01) {
+                alert(typeof i18n === 'function' ? i18n('split_sum_error') : 'הסכומים לא תואמים לסכום הכולל');
+                return;
+            }
+        } else {
+            // Split equally
+            const perPerson = parseFloat(amount) / validParts.length;
+            for (const pid of validParts) {
+                splits.push({ user_id: parseInt(pid, 10), amount: perPerson });
+            }
+        }
+    }
 
     try {
         const res = await fetch(`/api/expenses/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ amount: parseFloat(amount), description: desc, category, currency })
+            body: JSON.stringify({ 
+                amount: parseFloat(amount), 
+                description: desc, 
+                category, 
+                currency,
+                splits: splits 
+            })
         });
         const data = await res.json();
         if (res.ok && data.success) {
@@ -1749,16 +1930,27 @@ async function addExpense() {
     if (!currentTripId) { alert('לא נבחר טיול.'); return; }
 
     const amount = parseFloat(amountVal);
-    let splits = null;
+    let splits = [];
+    
+    // Filter out non-numeric IDs (e.g. guests)
+    const validParts = parts.filter(pid => !isNaN(parseInt(pid, 10)));
+    const isPersonal = document.getElementById('personal-expense-toggle')?.checked || false;
 
-    if (document.getElementById('split-mode-toggle')?.checked) {
-        splits = [];
+    if (isPersonal) {
+        // Personal expense: 100% to the payer (the logged-in user)
+        // We'll let the backend handle this logic by sending splits=null or an empty array
+        // However, it's safer to let the backend know it's personal and the backend can assign it.
+        // Actually, if we send empty splits, the backend currently assigns to ALL.
+        // Let's modify the backend to handle isPersonal properly. 
+        // For now, we will send an empty array, and we MUST update Server.py to handle empty splits + isPersonal
+        splits = []; 
+    } else if (document.getElementById('split-mode-toggle')?.checked) {
         let splitSum = 0;
         
         if (typeof currentSplitType !== 'undefined' && currentSplitType === 'item') {
             let totalItems = 0;
             const itemCounts = {};
-            for (const pid of parts) {
+            for (const pid of validParts) {
                 const count = parseFloat(document.getElementById(`split-user-${pid}`)?.value || 0);
                 itemCounts[pid] = count;
                 totalItems += count;
@@ -1767,14 +1959,14 @@ async function addExpense() {
                 alert("סך הפריטים/היחס חייב להיות גדול מ-0");
                 return;
             }
-            for (const pid of parts) {
+            for (const pid of validParts) {
                 const userAmount = (itemCounts[pid] / totalItems) * amount;
-                splits.push({ user_id: parseInt(pid), amount: userAmount });
+                splits.push({ user_id: parseInt(pid, 10), amount: userAmount });
             }
         } else {
-            for (const pid of parts) {
+            for (const pid of validParts) {
                 const inputVal = parseFloat(document.getElementById(`split-user-${pid}`)?.value || 0);
-                splits.push({ user_id: parseInt(pid), amount: inputVal });
+                splits.push({ user_id: parseInt(pid, 10), amount: inputVal });
                 splitSum += inputVal;
             }
 
@@ -1782,6 +1974,14 @@ async function addExpense() {
                 const sumErr = typeof i18n === 'function' ? i18n('split_sum_error') : 'הסכומים לא תואמים לסכום הכולל';
                 alert(sumErr);
                 return;
+            }
+        }
+    } else {
+        // Split equally among selected valid participants
+        if (validParts.length > 0) {
+            const perPerson = amount / validParts.length;
+            for (const pid of validParts) {
+                splits.push({ user_id: parseInt(pid, 10), amount: perPerson });
             }
         }
     }
@@ -3437,7 +3637,16 @@ window.renderCurrenciesList = function(query) {
     const container = document.getElementById('currency-list-container');
     if (!container) return;
     
-    let list = [...ALL_CURRENCIES];
+    let baseList = (window.globalCurrencies && window.globalCurrencies.length > 0) ? window.globalCurrencies : ALL_CURRENCIES;
+    
+    // Normalize properties for mapping and search
+    let list = baseList.map(c => ({
+        code: c.code,
+        symbol: c.symbol,
+        name: c.name_he || c.name || c.name_en || c.code,
+        search: (c.search || `${c.name_he || ''} ${c.name || ''} ${c.name_en || ''} ${c.symbol || ''} ${c.code || ''}`).toLowerCase()
+    }));
+
     if (query) {
         list = list.filter(c => c.search.includes(query));
     } else {

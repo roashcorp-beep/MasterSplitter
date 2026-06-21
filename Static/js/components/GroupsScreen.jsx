@@ -393,11 +393,11 @@ const GroupsScreen = () => {
 
         return (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md" dir={isRTL ? 'rtl' : 'ltr'}>
-                <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl border border-white/20 dark:border-gray-700 shadow-2xl rounded-[2rem] w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col max-h-[90vh]">
+                <div className="bg-white/85 dark:bg-[#0f172a]/85 backdrop-blur-2xl border border-indigo-200/50 dark:border-indigo-500/30 shadow-[0_0_40px_-10px_rgba(99,102,241,0.5)] dark:shadow-[0_0_40px_-10px_rgba(99,102,241,0.4)] rounded-[2rem] w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col max-h-[90vh] relative">
                     
-                    {/* Header - WhatsApp Style */}
-                    <div className="p-6 bg-gradient-to-b from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 flex flex-col items-center relative">
-                        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 bg-gray-100 dark:bg-gray-700 rounded-full p-2 transition-colors">✕</button>
+                    {/* Header - Gemini Style */}
+                    <div className="p-6 bg-gradient-to-b from-indigo-50/50 to-white/50 dark:from-indigo-900/30 dark:to-transparent border-b border-indigo-100/50 dark:border-indigo-800/30 flex flex-col items-center relative">
+                        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-300 bg-white/50 dark:bg-gray-800/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 rounded-full p-2 transition-colors backdrop-blur-sm">✕</button>
                         
                         <input 
                             type="file" 
@@ -600,23 +600,23 @@ const GroupsScreen = () => {
                                 )}
                             </div>
                         )}
-                    </div>
 
-                    {/* Footer */}
-                    <div className="p-4 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 space-y-3">
-                        {!trip.is_readonly && (
-                            <button onClick={() => window.saveEditTripFromReact(trip)} className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 dark:shadow-none transition-all flex items-center justify-center gap-2 active:scale-95">
-                                <IconCheck size={18} /> שמור שינויים
+                        {/* Action Buttons inside scroll area */}
+                        <div className="mt-8 mb-4 space-y-3 px-2">
+                            {!trip.is_readonly && (
+                                <button onClick={() => window.saveEditTripFromReact(trip)} className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-[0_0_15px_rgba(99,102,241,0.4)] transition-all flex items-center justify-center gap-2 active:scale-95">
+                                    <IconCheck size={18} /> שמור שינויים
+                                </button>
+                            )}
+                            {!trip.is_readonly && (
+                                <button onClick={handleLeaveTrip} className="w-full py-3 bg-orange-100/80 hover:bg-orange-200 dark:bg-orange-900/30 dark:hover:bg-orange-800/50 text-orange-700 dark:text-orange-400 font-bold rounded-xl transition-all flex items-center justify-center gap-2 active:scale-95 border border-orange-200/50 dark:border-orange-800/30">
+                                    <IconUserMinus size={18} /> עזוב קבוצה
+                                </button>
+                            )}
+                            <button onClick={handleHideTrip} className="w-full py-3 bg-red-100/80 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-800/50 text-red-700 dark:text-red-400 font-bold rounded-xl transition-all flex items-center justify-center gap-2 active:scale-95 border border-red-200/50 dark:border-red-800/30">
+                                <IconTrash size={18} /> מחק קבוצה מהרשימה
                             </button>
-                        )}
-                        {!trip.is_readonly && (
-                            <button onClick={handleLeaveTrip} className="w-full py-3 bg-orange-100 hover:bg-orange-200 text-orange-700 font-bold rounded-xl transition-all flex items-center justify-center gap-2 active:scale-95">
-                                <IconUserMinus size={18} /> עזוב קבוצה
-                            </button>
-                        )}
-                        <button onClick={handleHideTrip} className="w-full py-3 bg-red-100 hover:bg-red-200 text-red-700 font-bold rounded-xl transition-all flex items-center justify-center gap-2 active:scale-95">
-                            <IconTrash size={18} /> מחק קבוצה מהרשימה
-                        </button>
+                        </div>
                     </div>
 
                     {budgetPopup && (

@@ -299,6 +299,7 @@ const LEGAL_TEXTS = {
                 avatar_url: '',
             });
             const [currencies, setCurrencies] = useState(window.globalCurrencies || []);
+            const [currencySearch, setCurrencySearch] = useState('');
             const [settingsData, setSettingsData] = useState({
                 language: 'he',
                 default_currency: 'ILS',
@@ -656,11 +657,20 @@ const LEGAL_TEXTS = {
                     </Modal>
 
                     <Modal isOpen={activeModal === 'currency'} onClose={() => setActiveModal(null)} title={t('profileCurrency')}>
-                        <div className="grid grid-cols-3 gap-2">
-                            {currencies.map(c => {
+                        <input type="text" placeholder={lang === 'he' ? 'חפש מטבע...' : 'Search currency...'} 
+                            value={currencySearch || ''} 
+                            onChange={(e) => setCurrencySearch(e.target.value)}
+                            className="w-full p-2 mb-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                        <div className="grid grid-cols-4 gap-1.5" style={{maxHeight: '320px', overflowY: 'auto', paddingRight: '4px'}}>
+                            {currencies.filter(c => {
+                                if (!currencySearch) return true;
+                                const q = currencySearch.toLowerCase();
+                                return c.code.toLowerCase().includes(q) || (c.name_he || '').includes(q) || (c.name_en || '').toLowerCase().includes(q) || c.symbol.includes(q);
+                            }).map(c => {
                                 return (
-                                <button key={c.code} onClick={() => handleUpdateProfile('default_currency', c.code)} className={`p-3 rounded-xl border transition-colors text-sm font-semibold ${profileData.default_currency === c.code ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400' : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white'}`}>
-                                    {c.code} ({c.symbol})
+                                <button key={c.code} onClick={() => handleUpdateProfile('default_currency', c.code)} className={`p-2 rounded-lg border transition-colors text-xs font-semibold ${profileData.default_currency === c.code ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400' : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white'}`}>
+                                    {c.symbol} {c.code}
                                 </button>
                             )})}
                         </div>

@@ -5117,3 +5117,141 @@ body.light-theme .mini-toggle-slider::before {
 .modal-member-chip.email .chip-avatar {
     background: linear-gradient(135deg, #3b82f6, #6366f1);
 }
+
+/* ============================================
+   EXPENSE SPLITS AND PARTICIPANTS
+   ============================================ */
+
+.primary-amount {
+    font-weight: 800;
+}
+
+.original-currency {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    display: block;
+    font-weight: 500;
+    margin-top: 2px;
+}
+
+.expense-expandable {
+    cursor: pointer;
+    transition: background 0.2s, box-shadow 0.2s;
+}
+
+.expense-expandable:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+body.light-theme .expense-expandable:hover {
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.expense-participants-names {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-sec);
+    margin-top: 4px;
+}
+
+.expense-participants-avatars {
+    display: flex;
+    align-items: center;
+    margin-top: 6px;
+}
+
+.split-mini-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid var(--surface-card);
+    margin-left: -8px; /* overlapping effect */
+    background: var(--surface-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+    font-weight: bold;
+    color: white;
+}
+
+.split-mini-avatar:first-child {
+    margin-left: 0;
+}
+
+[dir="ltr"] .split-mini-avatar {
+    margin-left: 0;
+    margin-right: -8px;
+}
+
+[dir="ltr"] .split-mini-avatar:first-child {
+    margin-right: 0;
+}
+
+.split-mini-initial {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+}
+
+.split-mini-more {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-main);
+}
+
+body.light-theme .split-mini-more {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.expense-splits-detail {
+    width: 100%;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--border);
+    animation: fadeInDown 0.3s ease;
+    grid-column: 1 / -1; /* in case parent is grid */
+}
+
+.splits-detail-header {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.split-detail-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-size: 0.85rem;
+}
+
+.split-detail-avatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.55rem;
+    font-weight: bold;
+    color: white;
+}
+
+.split-detail-initial {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+}
+
+.split-detail-name {
+    flex: 1;
+    color: var(--text-main);
+}
+
+.split-detail-amount {
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+/* Ensure flex-wrap for list-item to accommodate full width detail */
+.list-item {
+    flex-wrap: wrap;
+}

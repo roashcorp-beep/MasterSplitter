@@ -2565,7 +2565,7 @@ def get_expenses(trip_id):
     cursor.execute("""
         SELECT e.id, u.name as payer, u.avatar_url as payer_avatar, e.user_id,
                e.amount, e.original_amount, e.currency, e.description,
-               e.category, e.created_at
+               e.category, e.is_personal, e.created_at
         FROM Expenses e
         JOIN Users u ON e.user_id = u.id
         WHERE e.trip_id = ?
@@ -2573,25 +2573,49 @@ def get_expenses(trip_id):
     """, (trip_id,))
     expenses = cursor.fetchall()
 
+    # Build splits lookup for all expenses in one query
+    expense_ids = [e['id'] for e in expenses]
+    splits_map = {}
+    if expense_ids:
+        placeholders = ','.join('?' * len(expense_ids))
+        cursor.execute(f"""
+            SELECT es.expense_id, es.user_id, es.amount, u.name, u.avatar_url
+            FROM ExpenseSplits es
+            JOIN Users u ON es.user_id = u.id
+            WHERE es.expense_id IN ({placeholders})
+            ORDER BY es.amount DESC
+        """, expense_ids)
+        for s in cursor.fetchall():
+            eid = s['expense_id']
+            if eid not in splits_map:
+                splits_map[eid] = []
+            splits_map[eid].append({
+                'user_id': s['user_id'],
+                'name': s['name'],
+                'avatar_url': s['avatar_url'],
+                'amount': s['amount']
+            })
+
+    def enrich(row):
+        d = dict(row)
+        d['splits'] = splits_map.get(d['id'], [])
+        return d
+
     if is_public:
         # Public trip — everyone sees everything
         conn.close()
-        return jsonify([dict(e) for e in expenses])
+        return jsonify([enrich(e) for e in expenses])
 
     # Private mode: only show expenses where user is payer OR is in splits
     result = []
     for e in expenses:
         row = dict(e)
         if row['user_id'] == uid:
-            result.append(row)
+            result.append(enrich(e))
             continue
         # Check if user is in ExpenseSplits for this expense
-        cursor.execute(
-            "SELECT 1 FROM ExpenseSplits WHERE expense_id = ? AND user_id = ?",
-            (row['id'], uid)
-        )
-        if cursor.fetchone():
-            result.append(row)
+        if any(s['user_id'] == uid for s in splits_map.get(row['id'], [])):
+            result.append(enrich(e))
     conn.close()
     return jsonify(result)
 

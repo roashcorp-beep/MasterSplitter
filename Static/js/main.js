@@ -1513,6 +1513,9 @@ async function fetchExpenses() {
         const expenses = await res.json();
         _cachedExpenses = expenses; // Cache for stats modal
 
+        const profileCurrency = window.currentUser?.default_currency || 'ILS';
+        const profileSym = getCurrencySymbol(profileCurrency);
+
         let html = '';
         if (!expenses.length) {
             html = `<div class="loading-state">${typeof i18n === 'function' ? i18n('expenses_no_data') : 'אין הוצאות בינתיים'}</div>`;
@@ -1521,7 +1524,6 @@ async function fetchExpenses() {
                 const safeDesc = escapeHTML(exp.description);
                 const safePayer = escapeHTML(exp.payer);
                 const safeCat = escapeHTML(exp.category || 'כללי');
-                const currSym = getCurrencySymbol(exp.currency || 'ILS');
                 const isPersonal = exp.is_personal ? true : false;
 
                 // Payer avatar: Google image or initial
@@ -1529,35 +1531,81 @@ async function fetchExpenses() {
                     ? `<img class="expense-avatar avatar-img" src="${escapeHTML(exp.payer_avatar)}" alt="${safePayer}" referrerpolicy="no-referrer">`
                     : `<div class="expense-avatar avatar-initial">${escapeHTML(exp.payer.charAt(0))}</div>`;
 
-                // Currency display: show original currency prominently, converted in parens
+                // Currency display: show expense currency, with conversion to profile currency in parens
                 let amountDisplay = '';
-                const userSym = getTripCurrencySymbol();
-                if (exp.original_amount && exp.currency && exp.currency !== (window.currentUser?.default_currency || 'ILS')) {
+                const expCurrency = exp.currency || 'ILS';
+                const expSym = getCurrencySymbol(expCurrency);
+                
+                if (exp.original_amount && expCurrency !== profileCurrency) {
                     // Foreign currency: show original first, converted in parens
-                    const origSym = getCurrencySymbol(exp.currency);
-                    amountDisplay = `<span class="primary-amount">${origSym}${parseFloat(exp.original_amount).toFixed(0)}</span>
-                        <span class="original-currency">(~${userSym}${formatNumber(exp.amount)})</span>`;
+                    amountDisplay = `<span class="primary-amount">${expSym}${parseFloat(exp.original_amount).toFixed(0)}</span>
+                        <span class="original-currency">(~${profileSym}${formatNumber(exp.amount)})</span>`;
                 } else {
-                    amountDisplay = `${userSym}${formatNumber(exp.amount)}`;
+                    amountDisplay = `${expSym}${formatNumber(exp.amount)}`;
                 }
 
                 const canEdit = window.currentUser && exp.user_id === window.currentUser.id;
-                const editBtn = canEdit ? `<button class="edit-expense-btn" onclick="openEditExpenseModal(${exp.id}, ${exp.amount}, '${safeDesc}', '${safeCat}', '${exp.currency}')" title="Edit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>` : '';
+                const editBtn = canEdit ? `<button class="edit-expense-btn" onclick="openEditExpenseModal(${exp.id}, ${exp.original_amount || exp.amount}, '${safeDesc.replace(/'/g, "\\'")}', '${safeCat.replace(/'/g, "\\'")}', '${expCurrency}')" title="Edit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>` : '';
 
-                // Delete button visibility: hide if allow_member_delete is off and user is not admin
+                // Delete button
                 const canDelete = _groupSettings.is_admin || _groupSettings.allow_member_delete;
                 const deleteBtn = canDelete ? `<button class="delete-expense-btn" onclick="deleteExpense(${exp.id})" title="Delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>` : '';
 
                 const personalBadge = isPersonal ? `<span class="personal-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>` : '';
                 const personalClass = isPersonal ? ' personal-expense' : '';
 
+                // Participants display
+                const splits = exp.splits || [];
+                let participantsHTML = '';
+                if (splits.length > 0 && !isPersonal) {
+                    if (splits.length <= 4) {
+                        // Show names
+                        const names = splits.map(s => escapeHTML(s.name)).join(', ');
+                        participantsHTML = `<span class="expense-participants-names">${names}</span>`;
+                    } else {
+                        // Show avatar circles + count
+                        const shown = splits.slice(0, 4);
+                        const rest = splits.length - 4;
+                        let avatarsHtml = shown.map(s => {
+                            if (s.avatar_url) {
+                                return `<img class="split-mini-avatar" src="${escapeHTML(s.avatar_url)}" alt="${escapeHTML(s.name)}" referrerpolicy="no-referrer">`;
+                            }
+                            return `<div class="split-mini-avatar split-mini-initial">${escapeHTML(s.name.charAt(0))}</div>`;
+                        }).join('');
+                        if (rest > 0) {
+                            avatarsHtml += `<div class="split-mini-avatar split-mini-more">+${rest}</div>`;
+                        }
+                        participantsHTML = `<div class="expense-participants-avatars">${avatarsHtml}</div>`;
+                    }
+                }
+
+                // Expandable splits detail
+                let splitsDetailHTML = '';
+                if (splits.length > 0) {
+                    const splitRows = splits.map(s => {
+                        const sAvatar = s.avatar_url
+                            ? `<img class="split-detail-avatar" src="${escapeHTML(s.avatar_url)}" referrerpolicy="no-referrer">`
+                            : `<div class="split-detail-avatar split-detail-initial">${escapeHTML(s.name.charAt(0))}</div>`;
+                        return `<div class="split-detail-row">
+                            ${sAvatar}
+                            <span class="split-detail-name">${escapeHTML(s.name)}</span>
+                            <span class="split-detail-amount">${expSym}${parseFloat(s.amount).toFixed(1)}</span>
+                        </div>`;
+                    }).join('');
+                    splitsDetailHTML = `<div class="expense-splits-detail" id="splits-${exp.id}" style="display:none">
+                        <div class="splits-detail-header">${typeof i18n === 'function' ? i18n('expense_split_detail') || 'פירוט חלוקה' : 'פירוט חלוקה'}</div>
+                        ${splitRows}
+                    </div>`;
+                }
+
                 html += `
-                <div class="list-item${personalClass}" id="expense-${exp.id}">
+                <div class="list-item${personalClass} expense-expandable" id="expense-${exp.id}" onclick="toggleExpenseSplits(${exp.id}, event)">
                     <div class="item-left">
                         ${payerAvatar}
                         <div class="item-details">
                             <h4>${safeDesc} ${personalBadge}</h4>
                             <p>${safePayer} \u2022 ${translateCategory(exp.category || 'כללי')}</p>
+                            ${participantsHTML}
                         </div>
                     </div>
                     <div class="item-right">
@@ -1567,6 +1615,7 @@ async function fetchExpenses() {
                             ${deleteBtn}
                         </div>
                     </div>
+                    ${splitsDetailHTML}
                 </div>`;
             });
         }
@@ -1579,12 +1628,40 @@ async function fetchExpenses() {
     } catch (e) { console.error('Fetch expenses error:', e); }
 }
 
+function toggleExpenseSplits(expId, event) {
+    // Don't toggle if clicking on edit/delete buttons
+    if (event && (event.target.closest('.edit-expense-btn') || event.target.closest('.delete-expense-btn'))) return;
+    const detail = document.getElementById(`splits-${expId}`);
+    if (!detail) return;
+    const isOpen = detail.style.display !== 'none';
+    // Close all others first
+    document.querySelectorAll('.expense-splits-detail').forEach(d => d.style.display = 'none');
+    document.querySelectorAll('.expense-expandable').forEach(d => d.classList.remove('expanded'));
+    if (!isOpen) {
+        detail.style.display = 'block';
+        detail.closest('.expense-expandable')?.classList.add('expanded');
+    }
+}
+
 function openEditExpenseModal(id, amount, desc, category, currency) {
     document.getElementById('edit-expense-id').value = id;
     document.getElementById('edit-expense-desc').value = desc;
     document.getElementById('edit-expense-amount').value = amount;
     document.getElementById('edit-expense-category').value = category;
-    document.getElementById('edit-expense-currency').value = currency;
+    
+    const currSelect = document.getElementById('edit-expense-currency');
+    if (currSelect) {
+        currSelect.value = currency || 'ILS';
+        // Update custom dropdown UI
+        currSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    
+    // Also update category custom dropdown
+    const catSelect = document.getElementById('edit-expense-category');
+    if (catSelect) {
+        catSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    
     document.getElementById('edit-expense-modal').classList.add('open');
 }
 

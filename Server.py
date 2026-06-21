@@ -22,6 +22,11 @@ from flask import Flask, jsonify, request, render_template, session, redirect, u
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+try:
+    from update_currencies import update_db as update_currencies_db
+except ImportError:
+    update_currencies_db = None
+
 # ---------------------
 #   LOGGING SETUP
 # ---------------------
@@ -96,6 +101,12 @@ def init_db_updates():
     """Create tables if missing and run safe migrations for new columns."""
     conn = get_db_connection()
     cursor = conn.cursor()
+
+    if update_currencies_db:
+        try:
+            update_currencies_db('master_splitter.db')
+        except Exception as e:
+            logging.error(f"Failed to update currencies: {e}")
 
     # --- Create core tables if they don't exist ---
     cursor.execute("""

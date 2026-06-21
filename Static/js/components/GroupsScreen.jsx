@@ -16,6 +16,7 @@ const IconTrash = ({size=18, ...props}) => <svg {...props} width={size} height={
 const GroupsScreen = () => {
     const [trips, setTrips] = useState([]);
     const [lang, setLang] = useState(localStorage.getItem("lang") || "he");
+    const [localCurrencies, setLocalCurrencies] = useState(window.globalCurrencies || []);
 
     // Create Modal State
     const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -81,9 +82,16 @@ const GroupsScreen = () => {
         window.reactCloseEditModal = () => setIsEditOpen(false);
         window.reactAddParticipantToEditTrip = (p) => { setEditTripDetails(prev => { if (!prev) return prev; return { ...prev, participants: [...(prev.participants || []), p] }; }); };
 
+        window.addEventListener("storage", i18nSync);
+        const onCurrenciesLoaded = () => setLocalCurrencies([...(window.globalCurrencies || [])]);
+        window.addEventListener("currenciesLoaded", onCurrenciesLoaded);
+        
         if (window.allTrips) setTrips([...window.allTrips]);
 
-        return () => window.removeEventListener("storage", i18nSync);
+        return () => {
+            window.removeEventListener("storage", i18nSync);
+            window.removeEventListener("currenciesLoaded", onCurrenciesLoaded);
+        };
     }, []);
 
     const i18n = (key) => {
@@ -168,7 +176,7 @@ const GroupsScreen = () => {
                         let highestBudgetLabel = "";
                         if (trip.budgets_json) {
                             const cCode = trip.budgets_json.currency || 'ILS';
-                            const cObj = window.globalCurrencies?.find(c => c.code === cCode);
+                            const cObj = localCurrencies?.find(c => c.code === cCode);
                             cardCurrency = cObj?.symbol ? cObj.symbol : (cCode === 'USD' ? '$' : cCode === 'EUR' ? '€' : cCode === 'GBP' ? '£' : '₪');
                             if (trip.budgets_json.yearly) {
                                 highestBudget = trip.budgets_json.yearly;
@@ -388,7 +396,7 @@ const GroupsScreen = () => {
         ];
 
         const cCode = trip.budgets_json?.currency || 'ILS';
-        const cObj = window.globalCurrencies?.find(c => c.code === cCode);
+        const cObj = localCurrencies?.find(c => c.code === cCode);
         const currencySymbol = cObj?.symbol ? cObj.symbol : (cCode === 'USD' ? '$' : cCode === 'EUR' ? '€' : cCode === 'GBP' ? '£' : '₪');
 
         return (
@@ -510,7 +518,7 @@ const GroupsScreen = () => {
                                             <div className="flex items-center justify-between bg-white dark:bg-gray-900 p-2 rounded-xl border border-gray-100 dark:border-gray-700">
                                                 <label className="text-[12px] font-bold text-gray-700 dark:text-gray-300 pl-1 w-1/3">מטבע קבוצה</label>
                                                 <select value={trip.budgets_json?.currency || 'ILS'} onChange={(e) => updateGlobalBudget('currency', e.target.value)} className="w-2/3 bg-transparent border-none text-[12px] font-medium text-gray-900 dark:text-white focus:ring-0 outline-none dir-rtl" style={{ textOverflow: 'ellipsis' }}>
-                                                    {window.globalCurrencies && window.globalCurrencies.length > 0 ? window.globalCurrencies.map(c => {
+                                                    {localCurrencies && localCurrencies.length > 0 ? localCurrencies.map(c => {
                                                         const isHe = window.currentLanguage === 'he' || document.documentElement.lang === 'he';
                                                         const name = isHe ? c.name_he : c.name_en;
                                                         return <option key={c.code} value={c.code}>{c.code} - {name} ({c.symbol})</option>;

@@ -517,19 +517,17 @@ const GroupsScreen = () => {
                                         <div className="space-y-3 pt-3 border-t border-gray-200 dark:border-gray-700 mb-4">
                                             <div className="flex items-center justify-between bg-white dark:bg-gray-900 p-2 rounded-xl border border-gray-100 dark:border-gray-700">
                                                 <label className="text-[12px] font-bold text-gray-700 dark:text-gray-300 pl-1 w-1/3">מטבע קבוצה</label>
-                                                <select value={trip.budgets_json?.currency || 'ILS'} onChange={(e) => updateGlobalBudget('currency', e.target.value)} className="w-2/3 bg-transparent border-none text-[12px] font-medium text-gray-900 dark:text-white focus:ring-0 outline-none dir-rtl" style={{ textOverflow: 'ellipsis' }}>
-                                                    {localCurrencies && localCurrencies.length > 0 ? localCurrencies.map(c => {
-                                                        const isHe = window.currentLanguage === 'he' || document.documentElement.lang === 'he';
-                                                        const name = isHe ? c.name_he : c.name_en;
-                                                        return <option key={c.code} value={c.code}>{c.code} - {name} ({c.symbol})</option>;
-                                                    }) : (
-                                                        <>
-                                                            <option value="ILS">ILS - שקל חדש (₪)</option>
-                                                            <option value="USD">USD - דולר ארה"ב ($)</option>
-                                                            <option value="EUR">EUR - אירו (€)</option>
-                                                        </>
-                                                    )}
-                                                </select>
+                                                <button 
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (typeof window.openCurrencyPicker === 'function') {
+                                                            window.openCurrencyPicker((val) => updateGlobalBudget('currency', val));
+                                                        }
+                                                    }}
+                                                    className="w-2/3 bg-transparent border-none text-[12px] font-medium text-gray-900 dark:text-white focus:ring-0 outline-none dir-rtl text-left cursor-pointer"
+                                                >
+                                                    {trip.budgets_json?.currency || 'ILS'}
+                                                </button>
                                             </div>
                                             
                                             <div className="flex items-center justify-between">

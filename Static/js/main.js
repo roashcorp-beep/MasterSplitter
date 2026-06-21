@@ -1224,8 +1224,16 @@ function switchTab(tabName) {
         if (typeof window.populateCurrencyDropdowns === 'function') {
             window.populateCurrencyDropdowns();
         }
+        let groupCur = (window._groupSettings && window._groupSettings.budgets_json) ? window._groupSettings.budgets_json.currency : '';
+        let defaultCur = groupCur || localStorage.getItem('last_currency') || 'ILS';
+        const curInput = document.getElementById('currency');
+        const curBtn = document.getElementById('currency-btn');
+        if (curInput) curInput.value = defaultCur;
+        if (curBtn) curBtn.innerText = getCurrencySymbol(defaultCur);
     }
-}async function logout() {
+}
+
+async function logout() {
     try { await fetch('/api/logout', { method: 'POST' }); } catch (e) { }
     window.location.href = '/';
 }
@@ -3384,5 +3392,91 @@ window.openEditTripModal = function(id, event) {
     openEditTripModalAsync(id);
 };
 
+// =====================
+// GLOBAL CURRENCY PICKER
+// =====================
 
+window.currencyPickerCallback = null;
+const ALL_CURRENCIES = [
+    { code: 'ILS', symbol: '₪', name: 'Shekel', search: 'israeli shekel ₪ ils שקל' },
+    { code: 'USD', symbol: '$', name: 'US Dollar', search: 'us dollar $ usd דולר ארהב' },
+    { code: 'EUR', symbol: '€', name: 'Euro', search: 'euro € eur יורו אירו' },
+    { code: 'GBP', symbol: '£', name: 'British Pound', search: 'british pound £ gbp פאונד לירה שטרלינג' },
+    { code: 'JPY', symbol: '¥', name: 'Japanese Yen', search: 'japanese yen ¥ jpy ין יפני' },
+    { code: 'THB', symbol: '฿', name: 'Thai Baht', search: 'thai baht ฿ thb באט תאילנדי' },
+    { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar', search: 'canadian dollar c$ cad דולר קנדי' },
+    { code: 'AUD', symbol: 'A$', name: 'Australian Dollar', search: 'australian dollar a$ aud דולר אוסטרלי' },
+    { code: 'CHF', symbol: 'Fr', name: 'Swiss Franc', search: 'swiss franc fr chf פרנק שוויצרי' }
+];
 
+window.openCurrencyPicker = function(callback) {
+    window.currencyPickerCallback = callback;
+    const modal = document.getElementById('currency-picker-modal');
+    if (modal) {
+        modal.style.display = 'flex';
+        document.getElementById('currency-search-input').value = '';
+        renderCurrenciesList('');
+        setTimeout(() => document.getElementById('currency-search-input')?.focus(), 100);
+    }
+};
+
+window.closeCurrencyPicker = function() {
+    const modal = document.getElementById('currency-picker-modal');
+    if (modal) {
+        modal.style.display = 'none';
+        window.currencyPickerCallback = null;
+    }
+};
+
+window.filterCurrencies = function() {
+    const q = (document.getElementById('currency-search-input')?.value || '').toLowerCase();
+    renderCurrenciesList(q);
+};
+
+window.renderCurrenciesList = function(query) {
+    const container = document.getElementById('currency-list-container');
+    if (!container) return;
+    
+    let list = [...ALL_CURRENCIES];
+    if (query) {
+        list = list.filter(c => c.search.includes(query));
+    } else {
+        const lastCur = localStorage.getItem('last_currency');
+        const groupCur = (window._groupSettings && window._groupSettings.budgets_json) ? window._groupSettings.budgets_json.currency : '';
+        const topCodes = ['ILS', 'USD', 'EUR'];
+        list.sort((a, b) => {
+            if (groupCur) {
+                if (a.code === groupCur && b.code !== groupCur) return -1;
+                if (b.code === groupCur && a.code !== groupCur) return 1;
+            }
+            if (lastCur && lastCur !== groupCur) {
+                if (a.code === lastCur && b.code !== lastCur) return -1;
+                if (b.code === lastCur && a.code !== lastCur) return 1;
+            }
+            const aTop = topCodes.indexOf(a.code);
+            const bTop = topCodes.indexOf(b.code);
+            if (aTop !== -1 && bTop !== -1) return aTop - bTop;
+            if (aTop !== -1) return -1;
+            if (bTop !== -1) return 1;
+            return a.code.localeCompare(b.code);
+        });
+    }
+
+    container.innerHTML = list.map(c => `
+        <div class="currency-list-item" style="display:flex; justify-content:space-between; align-items:center; padding:12px; margin-bottom:8px; background:var(--surface-card); border-radius:8px; cursor:pointer; border:1px solid var(--border-color); color:var(--text-main);" 
+             onclick="selectCurrency('${c.code}')">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <span style="font-size:1.5rem; font-weight:bold; color:var(--primary); width:30px; text-align:center;">${c.symbol}</span>
+                <span style="font-size:1rem;">${c.name} <small style="color:var(--text-sec); opacity:0.7;">(${c.code})</small></span>
+            </div>
+        </div>
+    `).join('');
+};
+
+window.selectCurrency = function(code) {
+    if (window.currencyPickerCallback) {
+        window.currencyPickerCallback(code);
+    }
+    localStorage.setItem('last_currency', code);
+    closeCurrencyPicker();
+};

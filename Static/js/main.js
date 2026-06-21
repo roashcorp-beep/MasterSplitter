@@ -2746,8 +2746,8 @@ function setupCustomDropdowns() {
         
         const selectedText = document.createElement('span');
         const defaultOption = select.options[select.selectedIndex];
-        selectedText.textContent = defaultOption ? defaultOption.textContent : '';
-        selectedText.dataset.i18n = defaultOption ? defaultOption.getAttribute('data-i18n') : '';
+        selectedText.textContent = defaultOption ? (defaultOption.dataset.short || defaultOption.textContent) : '';
+        selectedText.dataset.i18n = defaultOption ? (defaultOption.getAttribute('data-i18n') || '') : '';
         
         const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         arrow.setAttribute('viewBox', '0 0 24 24');
@@ -2766,7 +2766,7 @@ function setupCustomDropdowns() {
         
         Array.from(select.options).forEach((option, index) => {
             const optDiv = document.createElement('div');
-            optDiv.className = 'custom-select-option' + (index === select.selectedIndex ? ' selected' : '');
+            optDiv.className = 'custom-select-option' + (option.selected ? ' selected' : '');
             optDiv.textContent = option.textContent;
             if (option.getAttribute('data-i18n')) {
                 optDiv.dataset.i18n = option.getAttribute('data-i18n');
@@ -2776,7 +2776,7 @@ function setupCustomDropdowns() {
             optDiv.addEventListener('click', (e) => {
                 e.stopPropagation();
                 select.value = option.value;
-                selectedText.textContent = option.textContent;
+                selectedText.textContent = option.dataset.short || option.textContent;
                 selectedText.dataset.i18n = option.getAttribute('data-i18n') || '';
                 
                 trigger.classList.remove('open');
@@ -2963,6 +2963,15 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         selects.forEach(select => {
+            if (select.classList.contains('custom-dropdown-initialized')) {
+                select.classList.remove('custom-dropdown-initialized');
+                const container = select.nextElementSibling;
+                if (container && container.classList.contains('custom-select-container')) {
+                    container.remove();
+                }
+                select.style.display = '';
+            }
+
             const currentVal = select.value || lastUsed;
             
             let favHTML = '';
@@ -2997,31 +3006,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 </optgroup>
             `;
             
-            select.innerHTML = html;
-            select.value = currentVal;
-            
-            const updateTexts = (sel) => {
-                Array.from(sel.options).forEach(opt => {
-                    if (opt.dataset.short && opt.dataset.long) {
-                        opt.innerHTML = opt.selected ? opt.dataset.short : opt.dataset.long;
-                    }
-                });
-            };
-            
-            updateTexts(select);
-            select.addEventListener('change', () => updateTexts(select));
-            
             if (select.id === 'currency') {
                 const editSelect = document.getElementById('edit-expense-currency');
                 if (editSelect) {
+                    if (editSelect.classList.contains('custom-dropdown-initialized')) {
+                        editSelect.classList.remove('custom-dropdown-initialized');
+                        const container = editSelect.nextElementSibling;
+                        if (container && container.classList.contains('custom-select-container')) {
+                            container.remove();
+                        }
+                        editSelect.style.display = '';
+                    }
+
                     const currentEditVal = editSelect.value || lastUsed;
                     editSelect.innerHTML = html;
                     editSelect.value = currentEditVal;
-                    updateTexts(editSelect);
-                    editSelect.addEventListener('change', () => updateTexts(editSelect));
                 }
             }
         });
+        
+        // Re-initialize custom dropdowns
+        if (typeof setupCustomDropdowns === 'function') {
+            setupCustomDropdowns();
+        }
     };
 
     // Fetch currencies

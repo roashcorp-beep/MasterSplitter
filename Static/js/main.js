@@ -1219,10 +1219,13 @@ function switchTab(tabName) {
     }
     if (tabName === 'home' || tabName === 'balances') fetchBalances();
     if (tabName === 'expenses') fetchExpenses();
-    if (tabName === 'add') renderParticipants();
-}
-
-async function logout() {
+    if (tabName === 'add') {
+        renderParticipants();
+        if (typeof window.populateCurrencyDropdowns === 'function') {
+            window.populateCurrencyDropdowns();
+        }
+    }
+}async function logout() {
     try { await fetch('/api/logout', { method: 'POST' }); } catch (e) { }
     window.location.href = '/';
 }
@@ -1648,6 +1651,7 @@ async function addExpense() {
     const desc = descInput?.value.trim();
     const category = document.getElementById('category')?.value;
     const currency = document.getElementById('currency')?.value || 'ILS';
+    localStorage.setItem('last_currency', currency);
     const parts = getSelectedParticipants();
 
     const errAmount = typeof i18n === 'function' ? i18n('err_invalid_amount') : 'יש למלא סכום תקין.';
@@ -2938,30 +2942,75 @@ document.addEventListener('DOMContentLoaded', () => {
     // Init theme which includes dynamic background
     initTheme();
 
+    window.populateCurrencyDropdowns = function() {
+        if (!window.globalCurrencies || !window.globalCurrencies.length) return;
+        const selects = document.querySelectorAll('select.currency-select-dynamic, select[name="currency"]');
+        const lastUsed = localStorage.getItem('last_currency') || 'ILS';
+        const isHe = window.currentLanguage === 'he' || document.documentElement.lang === 'he';
+        
+        let tripCurrency = null;
+        if (window.currentTrip && window.currentTrip.budgets_json && window.currentTrip.budgets_json.currency) {
+            tripCurrency = window.currentTrip.budgets_json.currency;
+        }
+
+        const buildOption = (code) => {
+            const c = window.globalCurrencies.find(x => x.code === code);
+            if (!c) return '';
+            const name = isHe ? c.name_he : c.name_en;
+            return `<option value="${c.code}">${c.code} - ${name} (${c.symbol})</option>`;
+        };
+
+        selects.forEach(select => {
+            const currentVal = select.value || lastUsed;
+            
+            let favHTML = '';
+            const favSet = new Set();
+            
+            const addFav = (code) => {
+                if (code && !favSet.has(code)) {
+                    favSet.add(code);
+                    favHTML += buildOption(code);
+                }
+            };
+
+            addFav(tripCurrency);
+            addFav('ILS');
+            addFav('USD');
+            addFav('EUR');
+            addFav(lastUsed);
+
+            const allHTML = window.globalCurrencies.map(c => `<option value="${c.code}">${c.code} - ${isHe ? c.name_he : c.name_en} (${c.symbol})</option>`).join('');
+
+            const html = `
+                <optgroup label="מועדפים">
+                    ${favHTML}
+                </optgroup>
+                <optgroup label="כל המטבעות">
+                    ${allHTML}
+                </optgroup>
+            `;
+            
+            select.innerHTML = html;
+            select.value = currentVal;
+            
+            if (select.id === 'currency') {
+                const editSelect = document.getElementById('edit-expense-currency');
+                if (editSelect) {
+                    const currentEditVal = editSelect.value || lastUsed;
+                    editSelect.innerHTML = html;
+                    editSelect.value = currentEditVal;
+                }
+            }
+        });
+    };
+
     // Fetch currencies
     window.globalCurrencies = [];
     fetch('/api/currencies')
         .then(res => res.json())
         .then(data => {
             window.globalCurrencies = data;
-            const selects = document.querySelectorAll('select.currency-select-dynamic, select[name="currency"]');
-            selects.forEach(select => {
-                const currentVal = select.value || 'ILS';
-                const opts = data.map(c => {
-                    const isHe = window.currentLanguage === 'he' || document.documentElement.lang === 'he';
-                    const name = isHe ? c.name_he : c.name_en;
-                    return `<option value="${c.code}">${c.code} - ${name} (${c.symbol})</option>`;
-                }).join('');
-                select.innerHTML = opts;
-                select.value = currentVal;
-                
-                const editSelect = document.getElementById('edit-expense-currency');
-                if (editSelect) {
-                    const currentEditVal = editSelect.value || 'ILS';
-                    editSelect.innerHTML = opts;
-                    editSelect.value = currentEditVal;
-                }
-            });
+            window.populateCurrencyDropdowns();
             window.dispatchEvent(new Event('currenciesLoaded'));
         }).catch(err => console.error("Error loading currencies:", err));
 

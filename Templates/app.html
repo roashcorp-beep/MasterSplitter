@@ -7,7 +7,7 @@
     <title>MasterSplitter</title>
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800;900&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=3.2">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=3.3">
     <script>
         if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.documentElement.classList.add('dark');
@@ -258,13 +258,13 @@
                     <div class="participants-pills" id="participants-container"></div>
 
                     <!-- Split Mode Toggle -->
-                    <div class="split-toggle-wrapper" style="margin-top:14px; display:flex; align-items:center;">
-                        <label class="split-toggle-label">
+                    <div class="split-toggle-wrapper" style="margin-top:14px; display:flex; flex-direction:column; align-items:flex-start; gap:10px;">
+                        <label class="split-toggle-label" style="width:100%; display:flex; align-items:center;">
                             <input type="checkbox" id="split-mode-toggle" onchange="toggleSplitMode()">
                             <span class="split-toggle-slider"></span>
                             <span class="split-toggle-text" data-i18n="split_custom">סכומים מותאמים</span>
                         </label>
-                        <div id="split-type-toggle-container" style="display:none; margin-inline-start: auto; background:rgba(255,255,255,0.05); padding:2px; border-radius:8px;">
+                        <div id="split-type-toggle-container" style="display:none; background:rgba(255,255,255,0.05); padding:2px; border-radius:8px; align-self:flex-start;">
                             <button id="split-type-amount" class="split-type-btn active" onclick="setSplitType('amount')" style="background:var(--primary); color:#fff; border:none; padding:4px 10px; border-radius:6px; cursor:pointer; font-size:0.8rem;" data-i18n="split_amounts">סכומים</button>
                             <button id="split-type-item" class="split-type-btn" onclick="setSplitType('item')" style="background:transparent; color:var(--text-muted); border:none; padding:4px 10px; border-radius:6px; cursor:pointer; font-size:0.8rem;" data-i18n="split_items">יחס/פריטים</button>
                         </div>
@@ -408,8 +408,8 @@
         </button>
     </div>
 
-    <script src="{{ url_for('static', filename='js/translations.js') }}?v=3.2"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=3.2"></script>
+    <script src="{{ url_for('static', filename='js/translations.js') }}?v=3.3"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=3.3"></script>
     <script>
         function checkCookieConsent() {
             if (!localStorage.getItem('cookieConsent')) {
@@ -544,7 +544,7 @@
     </div>
 
     <!-- React Component Inclusion -->
-    <script type="text/babel" src="{{ url_for('static', filename='js/components/GroupsScreen.jsx') }}?v=3.2">
+    <script type="text/babel" src="{{ url_for('static', filename='js/components/GroupsScreen.jsx') }}?v=3.3">
 /** @jsx React.createElement */
 /** @jsxFrag React.Fragment */
 </script>

@@ -2526,6 +2526,8 @@ body.light-theme .list-item:hover {
     align-items: center;
     gap: 8px;
     font-family: 'Heebo', sans-serif;
+    position: relative;
+    overflow: hidden;
 }
 
 .scan-receipt-btn:hover {
@@ -4578,6 +4580,7 @@ body.light-theme .stats-summary-card {
     left: -50%;
     width: 200%;
     height: 200%;
+    pointer-events: none;
     background: linear-gradient(to bottom right, rgba(255,255,255,0) 40%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0) 60%);
     transform: rotate(45deg);
     animation: glare 3s infinite linear;

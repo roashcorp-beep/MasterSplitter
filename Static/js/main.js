@@ -2957,7 +2957,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const c = window.globalCurrencies.find(x => x.code === code);
             if (!c) return '';
             const name = isHe ? c.name_he : c.name_en;
-            return `<option value="${c.code}">${c.code} - ${name} (${c.symbol})</option>`;
+            const longText = `${c.code} - ${name} (${c.symbol})`;
+            const shortText = `${c.symbol} ${c.code}`;
+            return `<option value="${c.code}" data-short="${shortText}" data-long="${longText}">${longText}</option>`;
         };
 
         selects.forEach(select => {
@@ -2979,7 +2981,12 @@ document.addEventListener('DOMContentLoaded', () => {
             addFav('EUR');
             addFav(lastUsed);
 
-            const allHTML = window.globalCurrencies.map(c => `<option value="${c.code}">${c.code} - ${isHe ? c.name_he : c.name_en} (${c.symbol})</option>`).join('');
+            const allHTML = window.globalCurrencies.map(c => {
+                const name = isHe ? c.name_he : c.name_en;
+                const longText = `${c.code} - ${name} (${c.symbol})`;
+                const shortText = `${c.symbol} ${c.code}`;
+                return `<option value="${c.code}" data-short="${shortText}" data-long="${longText}">${longText}</option>`;
+            }).join('');
 
             const html = `
                 <optgroup label="מועדפים">
@@ -2993,12 +3000,25 @@ document.addEventListener('DOMContentLoaded', () => {
             select.innerHTML = html;
             select.value = currentVal;
             
+            const updateTexts = (sel) => {
+                Array.from(sel.options).forEach(opt => {
+                    if (opt.dataset.short && opt.dataset.long) {
+                        opt.innerHTML = opt.selected ? opt.dataset.short : opt.dataset.long;
+                    }
+                });
+            };
+            
+            updateTexts(select);
+            select.addEventListener('change', () => updateTexts(select));
+            
             if (select.id === 'currency') {
                 const editSelect = document.getElementById('edit-expense-currency');
                 if (editSelect) {
                     const currentEditVal = editSelect.value || lastUsed;
                     editSelect.innerHTML = html;
                     editSelect.value = currentEditVal;
+                    updateTexts(editSelect);
+                    editSelect.addEventListener('change', () => updateTexts(editSelect));
                 }
             }
         });
@@ -3006,7 +3026,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Fetch currencies
     window.globalCurrencies = [];
-    fetch('/api/currencies')
+    fetch('/api/currencies?v=' + new Date().getTime())
         .then(res => res.json())
         .then(data => {
             window.globalCurrencies = data;

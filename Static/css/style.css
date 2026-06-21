@@ -2528,6 +2528,7 @@ body.light-theme .list-item:hover {
     font-family: 'Heebo', sans-serif;
     position: relative;
     overflow: hidden;
+    min-height: 56px;
 }
 
 .scan-receipt-btn:hover {
@@ -2626,8 +2627,8 @@ body.light-theme .list-item:hover {
 }
 
 .scan-text {
-    position: absolute;
-    bottom: -40px;
+    position: relative;
+    z-index: 2;
     color: white;
     font-weight: 700;
     font-size: 1.1rem;

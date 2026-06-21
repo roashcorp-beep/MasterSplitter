@@ -104,7 +104,8 @@ def init_db_updates():
 
     if update_currencies_db:
         try:
-            update_currencies_db('master_splitter.db')
+            # Must use DB_PATH to ensure it targets the correct DB on PythonAnywhere
+            update_currencies_db(DB_PATH)
         except Exception as e:
             logging.error(f"Failed to update currencies: {e}")
 

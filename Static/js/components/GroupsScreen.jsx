@@ -167,9 +167,9 @@ const GroupsScreen = () => {
                         let highestBudget = null;
                         let highestBudgetLabel = "";
                         if (trip.budgets_json) {
-                            cardCurrency = trip.budgets_json.currency === 'USD' ? '$' : 
-                                      trip.budgets_json.currency === 'EUR' ? '€' : 
-                                      trip.budgets_json.currency === 'GBP' ? '£' : '₪';
+                            const cCode = trip.budgets_json.currency || 'ILS';
+                            const cObj = window.globalCurrencies?.find(c => c.code === cCode);
+                            cardCurrency = cObj?.symbol ? cObj.symbol : (cCode === 'USD' ? '$' : cCode === 'EUR' ? '€' : cCode === 'GBP' ? '£' : '₪');
                             if (trip.budgets_json.yearly) {
                                 highestBudget = trip.budgets_json.yearly;
                                 highestBudgetLabel = i18n("yearly") || "שנתי";
@@ -387,13 +387,13 @@ const GroupsScreen = () => {
             { name: window.currentUser?.username || (window.currentUser?.email ? window.currentUser.email.split('@')[0] : 'Me'), role: 'admin' }
         ];
 
-        const currencySymbol = trip.budgets_json?.currency === 'USD' ? '$' : 
-                               trip.budgets_json?.currency === 'EUR' ? '€' : 
-                               trip.budgets_json?.currency === 'GBP' ? '£' : '₪';
+        const cCode = trip.budgets_json?.currency || 'ILS';
+        const cObj = window.globalCurrencies?.find(c => c.code === cCode);
+        const currencySymbol = cObj?.symbol ? cObj.symbol : (cCode === 'USD' ? '$' : cCode === 'EUR' ? '€' : cCode === 'GBP' ? '£' : '₪');
 
         return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md" dir={isRTL ? 'rtl' : 'ltr'}>
-                <div className="bg-white/85 dark:bg-[#0f172a]/85 backdrop-blur-2xl border border-indigo-200/50 dark:border-indigo-500/30 shadow-[0_0_40px_-10px_rgba(99,102,241,0.5)] dark:shadow-[0_0_40px_-10px_rgba(99,102,241,0.4)] rounded-[2rem] w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col max-h-[90vh] relative">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" dir={isRTL ? 'rtl' : 'ltr'}>
+                <div className="bg-white/80 dark:bg-[#0f172a]/80 backdrop-blur-3xl border-2 border-indigo-300 dark:border-indigo-500 rounded-[2rem] w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col max-h-[90vh] relative" style={{ boxShadow: '0 0 50px -10px rgba(99,102,241,0.6)' }}>
                     
                     {/* Header - Gemini Style */}
                     <div className="p-6 bg-gradient-to-b from-indigo-50/50 to-white/50 dark:from-indigo-900/30 dark:to-transparent border-b border-indigo-100/50 dark:border-indigo-800/30 flex flex-col items-center relative">

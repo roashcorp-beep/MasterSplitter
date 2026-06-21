@@ -3006,6 +3006,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 </optgroup>
             `;
             
+            select.innerHTML = html;
+            select.value = currentVal;
+
             if (select.id === 'currency') {
                 const editSelect = document.getElementById('edit-expense-currency');
                 if (editSelect) {

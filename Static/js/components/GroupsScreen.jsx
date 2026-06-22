@@ -552,7 +552,7 @@ const GroupsScreen = () => {
                                                 className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ease-in-out ${trip.is_budget_per_user ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-gray-600'}`}
                                                 onClick={() => togglePermission('is_budget_per_user')}
                                             >
-                                                <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${trip.is_budget_per_user ? 'translate-x-0' : '-translate-x-5'}`}></div>
+                                                <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${trip.is_budget_per_user ? (isRTL ? 'translate-x-0' : 'translate-x-5') : (isRTL ? '-translate-x-5' : 'translate-x-0')}`}></div>
                                             </div>
                                         </div>
                                         
@@ -589,7 +589,7 @@ const GroupsScreen = () => {
                                                     className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ease-in-out ${trip.is_public_expenses !== false ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-gray-600'}`}
                                                     onClick={() => togglePermission('is_public_expenses')}
                                                 >
-                                                    <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${trip.is_public_expenses !== false ? 'translate-x-0' : '-translate-x-5'}`}></div>
+                                                    <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${trip.is_public_expenses !== false ? (isRTL ? 'translate-x-0' : 'translate-x-5') : (isRTL ? '-translate-x-5' : 'translate-x-0')}`}></div>
                                                 </div>
                                             </div>
                                             <div className="flex items-center justify-between">
@@ -598,7 +598,7 @@ const GroupsScreen = () => {
                                                     className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ease-in-out ${trip.allow_member_delete !== false ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-gray-600'}`}
                                                     onClick={() => togglePermission('allow_member_delete')}
                                                 >
-                                                    <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${trip.allow_member_delete !== false ? 'translate-x-0' : '-translate-x-5'}`}></div>
+                                                    <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${trip.allow_member_delete !== false ? (isRTL ? 'translate-x-0' : 'translate-x-5') : (isRTL ? '-translate-x-5' : 'translate-x-0')}`}></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -634,7 +634,7 @@ const GroupsScreen = () => {
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">{i18n("for") || "עבור"} {budgetPopup.name}</p>
                                 
                                 <div className="relative mb-5 flex items-center bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500">
-                                    <span className="pl-3 pr-4 text-gray-500 font-bold border-l border-gray-200 dark:border-gray-700">{currencySymbol}</span>
+                                    <span className={`px-4 text-gray-500 font-bold ${isRTL ? 'border-l' : 'border-r'} border-gray-200 dark:border-gray-700`}>{currencySymbol}</span>
                                     <input 
                                         type="number" 
                                         autoFocus

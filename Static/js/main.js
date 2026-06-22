@@ -1284,9 +1284,16 @@ function renderParticipants() {
         currentPayerId = window.currentUser.id;
     }
 
-    const payerSelect = document.getElementById('payer-select');
-    if (payerSelect) {
-        payerSelect.innerHTML = tripMembers.map(m => `<option value="${m.id}" style="color: #000;" ${String(m.id) === String(currentPayerId) ? 'selected' : ''}>${escapeHTML(m.name)}</option>`).join('');
+    const payerContainer = document.getElementById('payer-container');
+    if (payerContainer) {
+        payerContainer.innerHTML = tripMembers.map(m => {
+            const isSelected = String(m.id) === String(currentPayerId);
+            const style = isSelected ? 'border: 2px solid #a855f7; background-color: rgba(168, 85, 247, 0.1);' : '';
+            return `<div class="participant-pill ${isSelected ? 'selected' : ''}" style="${style}" onclick="currentPayerId = '${escapeHTML(String(m.id))}'; renderParticipants();">
+                <span class="pill-avatar">${escapeHTML(m.name.charAt(0))}</span>
+                <span>${escapeHTML(m.name)}</span>
+            </div>`;
+        }).join('');
     }
 
     container.innerHTML = tripMembers.map(m => {
@@ -1708,7 +1715,7 @@ async function fetchExpenses() {
                             ${participantsHTML}
                         </div>
                     </div>
-                    <div class="item-right">
+                    <div class="item-right" style="align-self: flex-start; margin-top: 4px;">
                         <div class="item-amount">${amountDisplay}</div>
                         <div class="expense-actions">
                             ${isPersonal ? '' : `<button class="edit-expense-btn" onclick="openEditExpenseModal(${exp.id}, ${parseFloat(exp.original_amount || exp.amount)}, '${safeDesc}', '${exp.category || 'כללי'}', '${exp.currency}')">✏️</button>`}
@@ -1798,10 +1805,22 @@ function openEditExpenseModal(id, amount, desc, category, currency) {
     } else {
         document.getElementById('edit-expense-participants-group').style.display = 'block';
         
-        const editPayerSelect = document.getElementById('edit-payer-select');
-        if (editPayerSelect && typeof tripMembers !== 'undefined') {
-            const currentPayerId = expense ? String(expense.user_id) : (window.currentUser ? String(window.currentUser.id) : '');
-            editPayerSelect.innerHTML = tripMembers.map(m => `<option value="${m.id}" style="color: #000;" ${String(m.id) === currentPayerId ? 'selected' : ''}>${escapeHTML(m.name)}</option>`).join('');
+        const editPayerContainer = document.getElementById('edit-payer-container');
+        if (editPayerContainer && typeof tripMembers !== 'undefined') {
+            if (typeof window.currentEditPayerId === 'undefined') {
+                window.currentEditPayerId = expense ? String(expense.user_id) : (window.currentUser ? String(window.currentUser.id) : '');
+            }
+            window.renderEditPayer = function() {
+                editPayerContainer.innerHTML = tripMembers.map(m => {
+                    const isSelected = String(m.id) === String(window.currentEditPayerId);
+                    const style = isSelected ? 'border: 2px solid #a855f7; background-color: rgba(168, 85, 247, 0.1);' : '';
+                    return `<div class="participant-pill ${isSelected ? 'selected' : ''}" style="${style}" onclick="window.currentEditPayerId = '${escapeHTML(String(m.id))}'; window.renderEditPayer();">
+                        <span class="pill-avatar">${escapeHTML(m.name.charAt(0))}</span>
+                        <span>${escapeHTML(m.name)}</span>
+                    </div>`;
+                }).join('');
+            };
+            window.renderEditPayer();
         }
         
         // Render participants pills
@@ -1958,7 +1977,7 @@ async function saveEditExpense() {
         return;
     }
     
-    const editPayerId = document.getElementById('edit-payer-select') ? document.getElementById('edit-payer-select').value : null;
+    const editPayerId = window.currentEditPayerId || null;
 
     // Process splits if not personal
     const expense = (typeof _cachedExpenses !== 'undefined' && _cachedExpenses) ? _cachedExpenses.find(e => e.id === parseInt(id, 10)) : null;

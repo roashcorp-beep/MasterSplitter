@@ -1593,6 +1593,16 @@ async function fetchExpenses() {
                 const safeCat = escapeHTML(exp.category || 'כללי');
                 const isPersonal = exp.is_personal ? true : false;
 
+                let safeDateStr = '';
+                if (exp.created_at) {
+                    const d = new Date(exp.created_at.replace(' ', 'T'));
+                    if (!isNaN(d)) {
+                        const datePart = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+                        const timePart = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                        safeDateStr = (document.documentElement.dir === 'rtl') ? `${timePart} <span style="margin:0 4px;"></span> ${datePart}` : `${datePart} <span style="margin:0 4px;"></span> ${timePart}`;
+                    }
+                }
+
                 // Payer avatar: Google image or initial
                 const payerAvatar = exp.payer_avatar
                     ? `<img class="expense-avatar avatar-img" src="${escapeHTML(exp.payer_avatar)}" alt="${safePayer}" referrerpolicy="no-referrer">`
@@ -1715,9 +1725,10 @@ async function fetchExpenses() {
                             ${participantsHTML}
                         </div>
                     </div>
-                    <div class="item-right" style="align-self: flex-start; margin-top: 4px;">
-                        <div class="item-amount">${amountDisplay}</div>
-                        <div class="expense-actions">
+                    <div class="item-right" style="align-self: stretch; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; padding-top: 4px;">
+                        <div style="font-size: 0.75rem; color: var(--text-sec); font-weight: 500; white-space: nowrap; margin-bottom: 6px;">${safeDateStr}</div>
+                        <div class="item-amount" style="margin-bottom: auto;">${amountDisplay}</div>
+                        <div class="expense-actions" style="margin-top: 8px;">
                             ${isPersonal ? '' : `<button class="edit-expense-btn" onclick="openEditExpenseModal(${exp.id}, ${parseFloat(exp.original_amount || exp.amount)}, '${safeDesc}', '${exp.category || 'כללי'}', '${exp.currency}')">✏️</button>`}
                             ${deleteBtn}
                         </div>

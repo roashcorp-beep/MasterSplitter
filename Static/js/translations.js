@@ -106,6 +106,12 @@ const translations = {
         "balance_settled": "מאוזן",
         "balance_you": " (את/ה)",
         "balance_paid": "שילם: ",
+        "bal_view_currency": "לפי מטבע",
+        "bal_view_converted": "מומר",
+        "suggest_offset": "✨ הצע קיזוז (Settle Up)",
+        "limbo_title": "קיזוז חובות חכם (Settle Up)",
+        "limbo_desc": "המערכת צמצמה את החובות בקבוצה למינימום העברות הנדרשות. האם לסגור את החובות הבאים?",
+        "execute_limbo": "בצע קיזוז",
         
         // Profile
         "profile_title": "פרופיל",
@@ -419,6 +425,12 @@ const translations = {
         "balance_settled": "Settled",
         "balance_you": " (You)",
         "balance_paid": "Paid: ",
+        "bal_view_currency": "By Currency",
+        "bal_view_converted": "Converted",
+        "suggest_offset": "✨ Settle Up (Suggest Offset)",
+        "limbo_title": "Smart Debt Settlement",
+        "limbo_desc": "The system simplified the group debts to the minimum required transfers. Settle the following debts?",
+        "execute_limbo": "Settle All",
         
         // Profile
         "profile_title": "Profile",

@@ -1648,10 +1648,20 @@ async function fetchExpenses() {
                         </div>`;
                     }
 
+                    const numSplits = splits.length;
+                    const expectedEven = parseFloat(exp.amount) / numSplits;
+                    let isCustomSplit = false;
+                    for (let s of splits) {
+                        if (Math.abs(parseFloat(s.amount) - expectedEven) > 0.01) {
+                            isCustomSplit = true;
+                            break;
+                        }
+                    }
+
                     const splitRows = splits.map(s => {
                         const isPayer = String(s.user_id) === String(exp.user_id);
                         const colorStyle = isPayer ? 'color: #6b7280;' : 'color: #dc2626;';
-                        const nameStyle = 'color: var(--text-main);';
+                        const nameStyle = isCustomSplit ? 'color: var(--text-main);' : colorStyle;
                         
                         let displayAmt = parseFloat(s.amount);
                         if (exp.original_amount && parseFloat(exp.original_amount) !== parseFloat(exp.amount)) {
@@ -1846,7 +1856,7 @@ function renderEditCustomSplits(existingSplits = []) {
     if (!container) return;
     
     const selectedIds = Array.from(document.querySelectorAll('#edit-participants-container .participant-pill.selected')).map(pill => pill.dataset.id);
-    const selectedMembers = (window.tripMembers || []).filter(m => selectedIds.includes(String(m.id)));
+    const selectedMembers = (typeof tripMembers !== 'undefined' ? tripMembers : []).filter(m => selectedIds.includes(String(m.id)));
     
     if (selectedMembers.length === 0) {
         container.innerHTML = `<div style="padding:10px; color:var(--text-sec); font-size:0.9rem;" data-i18n="select_participants_first">בחר משתתפים קודם</div>`;
@@ -1867,6 +1877,9 @@ function renderEditCustomSplits(existingSplits = []) {
         });
     }
 
+    const curCode = document.getElementById('edit-expense-currency') ? document.getElementById('edit-expense-currency').value : 'ILS';
+    const curSym = getCurrencySymbol(curCode || 'ILS');
+
     let totalSaved = 0;
     container.innerHTML = selectedMembers.map(m => {
         const uid = String(m.id);
@@ -1877,7 +1890,7 @@ function renderEditCustomSplits(existingSplits = []) {
         <div class="split-user-row">
             <span class="split-user-name">${name}</span>
             <div class="split-input-wrapper">
-                <span class="split-currency">₪</span>
+                <span class="split-currency">${curSym}</span>
                 <input type="number" id="edit-split-user-${escapeHTML(uid)}" class="split-amount-input" step="0.01" min="0" value="${val ? val.toFixed(2) : ''}" placeholder="0" oninput="updateEditSplitSum()">
             </div>
         </div>`;
@@ -1895,11 +1908,15 @@ function updateEditSplitSum() {
     const totalAmount = parseFloat(document.getElementById('edit-expense-amount')?.value || 0);
     
     const diff = Math.abs(sum - totalAmount);
+    
+    const curCode = document.getElementById('edit-expense-currency') ? document.getElementById('edit-expense-currency').value : 'ILS';
+    const curSym = getCurrencySymbol(curCode || 'ILS');
+
     if (diff > 0.01) {
         msg.style.color = '#ff4d4f';
         const sumText = typeof i18n === 'function' ? i18n('split_sum_current') : 'סכום כרגע:';
         const neededText = typeof i18n === 'function' ? i18n('split_sum_needed') : 'חסר/עודף:';
-        msg.textContent = `${sumText} ₪${sum.toFixed(2)} | ${neededText} ₪${Math.abs(totalAmount - sum).toFixed(2)}`;
+        msg.textContent = `${sumText} ${curSym}${sum.toFixed(2)} | ${neededText} ${curSym}${Math.abs(totalAmount - sum).toFixed(2)}`;
     } else {
         msg.style.color = '#4caf50';
         msg.textContent = typeof i18n === 'function' ? i18n('split_sum_ok') : 'הסכום תקין! ✓';
@@ -1923,7 +1940,7 @@ async function saveEditExpense() {
     }
     
     // Process splits if not personal
-    const expense = window.currentExpenses ? window.currentExpenses.find(e => e.id === parseInt(id, 10)) : null;
+    const expense = (typeof _cachedExpenses !== 'undefined' && _cachedExpenses) ? _cachedExpenses.find(e => e.id === parseInt(id, 10)) : null;
     const isPersonal = expense ? expense.is_personal : 0;
     
     let splits = null;
@@ -2860,11 +2877,14 @@ function updateSplitSum() {
             totalItems += parseFloat(document.getElementById(`split-user-${pid}`)?.value || 0);
         }
         
+        const curCode = document.getElementById('currency') ? document.getElementById('currency').value : 'ILS';
+        const curSym = getCurrencySymbol(curCode || 'ILS');
+
         for (const pid of parts) {
             const count = parseFloat(document.getElementById(`split-user-${pid}`)?.value || 0);
             const userAmount = totalItems > 0 ? (count / totalItems) * totalAmount : 0;
             const calcSpan = document.getElementById(`split-calc-${pid}`);
-            if (calcSpan) calcSpan.textContent = `(₪${userAmount.toFixed(2)})`;
+            if (calcSpan) calcSpan.textContent = `(${curSym}${userAmount.toFixed(2)})`;
         }
         
         msg.className = 'split-validation-msg valid';
@@ -2878,6 +2898,10 @@ function updateSplitSum() {
     }
 
     const diff = totalAmount - currentSum;
+    
+    const curCode = document.getElementById('currency') ? document.getElementById('currency').value : 'ILS';
+    const curSym = getCurrencySymbol(curCode || 'ILS');
+
     if (Math.abs(diff) < 0.01) {
         msg.className = 'split-validation-msg valid';
         msg.textContent = typeof i18n === 'function' ? i18n('toast_expense_updated') : 'הסכומים תואמים! ✓';
@@ -2885,9 +2909,9 @@ function updateSplitSum() {
         msg.className = 'split-validation-msg invalid';
         const formattedDiff = Math.abs(diff).toFixed(2);
         if (diff > 0) {
-            msg.textContent = `חסרים עוד ₪${formattedDiff} לסכום הכולל`;
+            msg.textContent = `חסרים עוד ${curSym}${formattedDiff} לסכום הכולל`;
         } else {
-            msg.textContent = `חריגה של ₪${formattedDiff} מהסכום הכולל`;
+            msg.textContent = `חריגה של ${curSym}${formattedDiff} מהסכום הכולל`;
         }
     }
 }

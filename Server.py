@@ -3195,15 +3195,17 @@ GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini
 @login_required
 def ai_parse_expense():
     """Use Gemini to parse a natural language expense description into structured data."""
+    mock_fallback = {"success": True, "parsed": {
+        "description": "הוצאה לדוגמה מ-AI (אין מפתח API / שגיאה)",
+        "amount": 120.0,
+        "category": "כללי",
+        "splits": []
+    }}
+
     api_key = os.environ.get('GEMINI_API_KEY')
-    if not api_key or api_key.strip() == "YOUR_GEMINI_API_KEY_HERE":
+    if not api_key or "YOUR_GEMINI_API_KEY_HERE" in api_key:
         logger.info("AI expense parse: using mock fallback (no GEMINI_API_KEY)")
-        return jsonify({"success": True, "parsed": {
-            "description": "הוצאה לדוגמה מ-AI (אין מפתח API)",
-            "amount": 120.0,
-            "category": "כללי",
-            "splits": []
-        }})
+        return jsonify(mock_fallback)
 
     data = request.json or {}
     text = str(data.get('text', '')).strip()
@@ -3262,7 +3264,7 @@ def ai_parse_expense():
 
         if resp.status_code != 200:
             logger.error(f"Gemini API error {resp.status_code}: {resp.text[:300]}")
-            return jsonify({"error": "AI service returned an error. Try again later."}), 502
+            return jsonify(mock_fallback)
 
         result = resp.json()
         # Extract text from Gemini response
@@ -3295,7 +3297,7 @@ def ai_parse_expense():
         return jsonify({"error": f"Cannot reach AI service: {str(e)}"}), 502
     except Exception as e:
         logger.error(f"AI parse expense error: {e}")
-        return jsonify({"error": f"AI error: {str(e)}"}), 500
+        return jsonify(mock_fallback)
 
 
 @app.route('/api/ai_greeting', methods=['GET'])

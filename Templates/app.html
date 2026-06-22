@@ -412,7 +412,7 @@
     </div>
 
     <script src="{{ url_for('static', filename='js/translations.js') }}?v=3.97"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=3.98"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=3.99"></script>
     <script>
         function checkCookieConsent() {
             if (!localStorage.getItem('cookieConsent')) {
@@ -602,7 +602,7 @@
 
     <!-- Limbo Offset Modal -->
     <div id="limbo-modal" class="modal-overlay" style="display:none; z-index:9999;" onclick="if(event.target===this) closeModal('limbo-modal')">
-        <div class="modal-content" style="max-width:400px; display:flex; flex-direction:column;">
+        <div class="modal-card">
             <div class="modal-header">
                 <h3 data-i18n="limbo_title">קיזוז חובות חכם (Settle Up)</h3>
                 <button class="modal-close-x" onclick="closeModal('limbo-modal')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>

@@ -1716,7 +1716,7 @@ async function fetchExpenses() {
                 }
 
                 html += `
-                <div class="list-item${personalClass} expense-expandable" id="expense-${exp.id}" onclick="toggleExpenseSplits(${exp.id}, event)" style="display: flex; flex-direction: column; align-items: stretch; gap: 0;">
+                <div class="list-item${personalClass} expense-expandable" id="expense-${exp.id}" onclick="toggleExpenseSplits(${exp.id}, event)" style="display: flex; flex-direction: column; align-items: stretch; gap: 0; background: var(--surface-card, rgba(255,255,255,0.03)); border-radius: 16px; padding: 16px; margin-bottom: 12px; border: 1px solid var(--border); box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-bottom: none;">
                     <div class="list-item-main" style="display: flex; flex-wrap: nowrap; justify-content: space-between; align-items: stretch; width: 100%; gap: 10px;">
                         <div class="item-left" style="min-width: 0; flex: 1;">
                             ${payerAvatar}
@@ -2328,7 +2328,7 @@ function renderBalancesList() {
 
         if (isCurrencyView) {
             // Currency View Header Overrides
-            const curBalances = optData.user_currency_balances[b.user_id] || {};
+            const curBalances = (optData.user_currency_balances || {})[b.user_id] || {};
             const curKeys = Object.keys(curBalances);
             
             if (curKeys.length > 0) {
@@ -2345,7 +2345,7 @@ function renderBalancesList() {
 
             // Accordion Body (Currency Split)
             let allDebts = [];
-            for (const cur of Object.keys(optData.currency_settlements)) {
+            for (const cur of Object.keys(optData.currency_settlements || {})) {
                 const cSetts = optData.currency_settlements[cur].filter(s => s.from === b.name || s.to === b.name);
                 cSetts.forEach(s => allDebts.push({...s, currency: cur}));
             }

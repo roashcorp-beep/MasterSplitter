@@ -88,6 +88,7 @@ const translations = {
         "expense_category": "קטגוריה",
         "expense_for_who": "עבור מי?",
         "expense_btn_save": "שמור הוצאה",
+        "expense_split_detail": "פירוט חלוקה",
         
         // Categories
         "cat_food": "אוכל",
@@ -202,7 +203,6 @@ const translations = {
         "profile_current_pwd_ph": "הכנס סיסמה נוכחית",
         "profile_new_pwd_ph": "הכנס סיסמה חדשה",
         "profile_confirm_pwd_ph": "הכנס סיסמה חדשה שוב",
-        "profile_new_name_ph": "הכנס שם תצוגה חדש",
         "profile_logout_btn": "התנתק",
 
         // AI
@@ -292,7 +292,8 @@ const translations = {
         "for": "עבור",
         "btn_confirm": "אישור",
         "all_group": "כל הקבוצה",
-        "expense_paid_by": "שילם/ה: "
+        "expense_paid_by": "שילם/ה: ",
+        "confirm_delete_member": "בטוח שברצונך להסיר את החבר הזה?"
     },
     en: {
         // General
@@ -383,6 +384,7 @@ const translations = {
         "expense_category": "Category",
         "expense_for_who": "For whom?",
         "expense_btn_save": "Save Expense",
+        "expense_split_detail": "Split Details",
         
         // Categories
         "cat_food": "Food",
@@ -497,7 +499,6 @@ const translations = {
         "profile_current_pwd_ph": "Enter current password",
         "profile_new_pwd_ph": "Enter new password",
         "profile_confirm_pwd_ph": "Enter new password again",
-        "profile_new_name_ph": "Enter new display name",
         "profile_logout_btn": "Log Out",
 
         // AI
@@ -587,9 +588,1493 @@ const translations = {
         "for": "For",
         "btn_confirm": "Confirm",
         "all_group": "Whole Group",
-        "expense_paid_by": "Paid by: "
+        "expense_paid_by": "Paid by: ",
+        "confirm_delete_member": "Are you sure you want to remove this member?"
+    },
+    es: {
+        // General
+        "brand_master": "MASTER",
+        "brand_splitter": "SPLITTER",
+        "btn_save": "Guardar",
+        "btn_cancel": "Cancelar",
+        "btn_close": "Cerrar",
+        "only_me": "Solo yo",
+        "add_guest_user": "Añadir invitado",
+        "split_amounts": "Montos",
+        "split_items": "Proporción/Artículos",
+        "profile_feedback": "Enviar comentarios",
+        "modal_join_title": "Unirse al grupo",
+        "modal_join_prompt": "¿Estás seguro de que quieres unirte a este grupo?",
+        "btn_join": "Unirse",
+        "loading": "Cargando...",
+        "error_network": "Error de red.",
+
+        // Login & Auth
+        "login_welcome": "¡Bienvenido!",
+        "login_sub": "Inicia sesión para gestionar tus gastos",
+        "login_username_email": "Usuario o correo",
+        "login_password": "Contraseña",
+        "login_email": "Correo electrónico",
+        "login_phone": "Número de teléfono",
+        "login_btn_login": "Iniciar sesión",
+        "login_forgot": "¿Olvidaste tu contraseña?",
+        "login_or": "o",
+        "login_btn_signup": "Crear cuenta nueva",
+        "login_social_divider": "O continuar con",
+        "signup_title": "Crear cuenta",
+        "signup_sub": "Únete y empieza a dividir gastos",
+        "signup_btn_signup": "Registrarse",
+        "signup_btn_login": "¿Ya tienes cuenta? Inicia sesión",
+        "forgot_email": "Correo electrónico",
+        "forgot_btn": "Enviar enlace de restablecimiento",
+        "forgot_back": "Volver al inicio de sesión",
+        "forgot_title": "¿Olvidaste tu contraseña?",
+        "forgot_sub": "Ingresa tu correo y te enviaremos un enlace de restablecimiento",
+
+        // Lobby
+        "lobby_hello": "Hola, ",
+        "lobby_my_trips": "Mis grupos",
+        "lobby_no_trips": "Aún no hay grupos. ¡Crea uno nuevo!",
+        "lobby_btn_create": "+ Crear nuevo grupo",
+        "create_trip_title": "Crear nuevo grupo",
+        "create_trip_name": "Nombre del grupo",
+        "create_trip_name_ph": "Ej: Apartamento, Vacaciones, Oficina...",
+        "create_trip_budget": "Presupuesto",
+        "create_trip_budget_type": "Tipo de presupuesto",
+        "budget_type_none": "Ninguno",
+        "budget_type_monthly": "Mensual",
+        "budget_type_yearly": "Anual",
+        "create_trip_invite": "Invitar amigos (correo o teléfono)",
+        "create_trip_invite_ph": "Ingresa teléfono o correo",
+        "create_trip_btn": "Crear grupo",
+        "trip_budget_label": "Presupuesto: ",
+
+        // Dashboard Home
+        "menu_my_trips": "Mis grupos",
+        "menu_dashboard": "Panel",
+        "menu_balances": "Balances",
+        "menu_profile": "Perfil",
+        "menu_logout": "Cerrar sesión",
+        "tab_home": "Inicio",
+        "tab_expenses": "Gastos",
+        "tab_add": "Añadir",
+        "tab_balances": "Balances",
+        "tab_profile": "Perfil",
+
+        "home_total_budget": "Presupuesto total",
+        "home_total_expenses": "Gastos totales",
+        "home_spent": "Gastado",
+        "home_left": "Restante",
+        "home_recent_expenses": "Gastos recientes",
+        "home_view_all": "Ver todo",
+
+        // Expenses
+        "expenses_title": "Todos los gastos",
+        "expenses_no_data": "Aún no hay gastos",
+        "expense_paid_by": "Pagado por: ",
+        "expense_add_title": "Añadir gasto",
+        "expense_what": "¿En qué fue?",
+        "expense_what_ph": "Ej: Cena, Taxi...",
+        "expense_amount": "Monto",
+        "expense_currency": "Moneda",
+        "expense_category": "Categoría",
+        "expense_for_who": "¿Para quién?",
+        "expense_btn_save": "Guardar gasto",
+        "expense_split_detail": "Detalle de división",
+
+        // Categories
+        "cat_food": "Comida",
+        "cat_lodging": "Alojamiento",
+        "cat_transport": "Transporte",
+        "cat_attractions": "Atracciones",
+        "cat_general": "General",
+
+        // Balances
+        "balances_title": "Resúmenes y balances",
+        "balances_no_data": "Sin datos",
+        "balance_receive": "Te deben",
+        "balance_pay": "Debes",
+        "balance_settled": "Saldado",
+        "balance_you": " (Tú)",
+        "balance_paid": "Pagó: ",
+
+        // Profile
+        "profile_title": "Perfil",
+        "profile_display_name": "Nombre para mostrar",
+        "profile_new_name": "Nuevo nombre",
+        "profile_new_name_ph": "Ingresa nuevo nombre",
+        "profile_btn_save_name": "Guardar",
+        "profile_language": "Idioma",
+        "profile_change_pwd": "Cambiar contraseña",
+        "profile_current_pwd": "Contraseña actual",
+        "profile_new_pwd": "Nueva contraseña",
+        "profile_confirm_pwd": "Confirmar nueva contraseña",
+        "profile_btn_update_pwd": "Actualizar contraseña",
+
+        // Reset Password
+        "reset_title": "Restablecer contraseña",
+        "reset_btn": "Restablecer contraseña",
+
+        // Modals
+        "modal_edit_trip": "Editar grupo",
+        "modal_edit_expense": "Editar gasto",
+        "modal_invite_new": "Invitar nuevos amigos",
+
+        // Group Info
+        "group_info_title": "Info del grupo",
+        "group_info_members": "Miembros",
+        "group_info_admin": "Administrador",
+        "group_info_leave": "Salir del grupo",
+        "group_info_leave_confirm": "¿Seguro que quieres salir del grupo?",
+        "group_info_public_expenses": "Mostrar gastos a todos",
+        "group_info_public_hint": "Cuando está desactivado, los miembros solo ven gastos que pagaron o en los que participan.",
+        "group_info_allow_delete": "Permitir a miembros eliminar gastos",
+        "group_info_allow_delete_hint": "Cuando está desactivado, solo los administradores pueden eliminar gastos.",
+        "promote_question": "¿Hacer administrador?",
+        "menu_activity": "Registro de actividad",
+        "menu_stats": "Estadísticas",
+        "profile_change_currency": "Moneda predeterminada",
+        "profile_save_currency_btn": "Guardar moneda",
+
+        // Alerts & Toasts
+        "toast_trip_created": "¡Grupo creado exitosamente!",
+        "toast_trip_updated": "¡Grupo actualizado exitosamente!",
+        "toast_expense_added": "¡Gasto añadido!",
+        "toast_expense_deleted": "Gasto eliminado",
+        "toast_expense_updated": "¡Gasto actualizado!",
+        "toast_name_updated": "¡Nombre actualizado exitosamente!",
+        "toast_pwd_updated": "¡Contraseña actualizada exitosamente!",
+        "toast_left_group": "Saliste del grupo.",
+        "confirm_delete_expense": "¿Eliminar este gasto?",
+
+        // Errors
+        "err_fill_all": "Por favor completa todos los campos.",
+        "err_invalid_amount": "Ingresa un monto válido.",
+        "err_no_participants": "Selecciona al menos un participante.",
+
+        // Receipt Scanning
+        "scan_receipt": "📸 Escanear / Subir recibo",
+        "scan_scanning": "Escaneando...",
+        "scan_items_found": "Artículos encontrados",
+        "scan_add_items": "Añadir artículos",
+        "scan_no_image": "Selecciona una imagen para escanear",
+
+        // Unequal Splits
+        "split_equal": "División equitativa",
+        "split_custom": "Montos personalizados",
+        "split_sum_error": "Los montos no coinciden con el total",
+
+        // Settle Up
+        "settle_up": "Saldar deuda",
+        "settle_confirm": "¿Saldar esta deuda?",
+        "toast_settled": "¡Deuda saldada!",
+
+        // Activity Feed
+        "activity_title": "Actividad",
+        "tab_activity": "Actividad",
+        "activity_no_data": "Sin actividad aún",
+        "activity_expense_added": "Gasto añadido",
+        "activity_expense_edited": "Gasto editado",
+        "activity_expense_deleted": "Gasto eliminado",
+        "activity_settlement": "Liquidación de deuda",
+
+        // Profile Page (extended)
+        "profile_phone": "Teléfono",
+        "profile_no_phone": "No especificado",
+        "profile_no_email": "No especificado",
+        "profile_back": "Volver",
+        "profile_change_username": "Cambiar nombre para mostrar",
+        "profile_change_language": "Idioma",
+        "profile_verify_pwd": "Verificar contraseña",
+        "profile_verify_btn": "Verificar contraseña",
+        "profile_new_pwd_section": "Nueva contraseña",
+        "profile_confirm_pwd_section": "Confirmar nueva contraseña",
+        "profile_save_pwd": "Actualizar contraseña",
+        "profile_save_name_btn": "Guardar nombre",
+        "profile_save_lang_btn": "Guardar idioma",
+        "profile_current_pwd_ph": "Ingresa contraseña actual",
+        "profile_new_pwd_ph": "Ingresa nueva contraseña",
+        "profile_confirm_pwd_ph": "Ingresa nueva contraseña otra vez",
+        "profile_logout_btn": "Cerrar sesión",
+
+        // AI
+        "ai_smart_add": "Añadir con IA",
+        "ai_placeholder": "Describe el gasto en lenguaje natural",
+        "ai_analyze": "Analizar",
+        "ai_success": "¡IA completó el formulario exitosamente!",
+        "ai_modal_hint": "Describe el gasto en lenguaje natural y la IA llenará el formulario automáticamente",
+
+        // Settings (legacy keys)
+        "settings_title": "Configuración del grupo",
+        "settings_public_expenses": "Mostrar gastos a todos",
+        "settings_public_hint": "Cuando está desactivado, los miembros solo ven gastos que pagaron o en los que participan.",
+        "settings_members": "Miembros",
+
+        // Phase 2 additions
+        "demote_question": "¿Quitar administrador?",
+        "demote_success": "Administrador removido",
+        "invite_link_copied": "¡Enlace de invitación copiado!",
+        "invite_joined": "¡Te uniste al grupo!",
+        "invite_link_btn": "Crear enlace de invitación",
+        "profile_change_phone": "Actualizar número de teléfono",
+        "profile_phone_ph": "Nuevo número de teléfono",
+        "profile_save_phone_btn": "Guardar teléfono",
+        "profile_phone_required": "Ingresa un número de teléfono",
+        "profile_phone_saved": "Teléfono actualizado exitosamente",
+        "profile_tutorial": "Tutorial",
+        "profile_tutorial_coming": "¡Video tutorial próximamente!",
+        "profile_tutorial_desc": "Aquí aparecerá un video tutorial para aprender a usar la aplicación.",
+        "getFinancialTipBtn": "Asistente financiero ✨",
+        "loadingThinking": "Pensando...",
+
+        // Step 7 - Groups Overhaul
+        "budget_type_daily": "Diario",
+        "budget_per_user": "Presupuesto por usuario",
+        "budget_per_user_hint": "El presupuesto se aplica a cada miembro individualmente",
+        "budget_amount_label": "Monto del presupuesto",
+        "invite_tab_whatsapp": "WhatsApp",
+        "invite_tab_email": "Correo",
+        "invite_tab_guest": "Invitado",
+        "invite_name_ph": "Nombre",
+        "invite_phone_ph": "Número de teléfono",
+        "invite_email_ph": "Correo electrónico",
+        "invite_send_whatsapp": "Enviar invitación por WhatsApp",
+        "invite_send_email": "Enviar invitación por correo",
+        "invite_add_guest": "Añadir invitado",
+        "invite_whatsapp_note": "El usuario se unirá al grupo cuando haga clic en el enlace.",
+        "invite_email_sent": "¡Invitación enviada por correo!",
+        "invite_email_note": "La invitación se enviará al correo proporcionado.",
+        "lobby_no_groups": "Aún no hay grupos. ¡Crea uno nuevo!",
+        "members_count": "miembros",
+        "invite_members_title": "Invitar miembros",
+        "budget_currency": "Moneda del grupo",
+        "btn_add_participant": "Añadir participante",
+        "invite_name_placeholder": "Nombre",
+        "invite_phone_placeholder": "Número de teléfono",
+        "invite_email_placeholder": "Correo electrónico",
+        "btn_send_email": "Enviar invitación por correo",
+        "btn_add_guest": "Añadir invitado",
+        "total_budget": "Presupuesto total",
+        "members_count_label": "Miembros",
+        "edit_group": "Editar grupo",
+
+        // GroupsScreen additions
+        "edit_trip_change": "Cambiar",
+        "edit_trip_image": "Imagen",
+        "members": "Miembros",
+        "add_member": "Añadir miembro",
+        "copy_link": "Copiar enlace",
+        "participants": "Participantes",
+        "status_pending": "Pendiente",
+        "btn_remove": "Eliminar",
+        "admin_settings": "Configuración de administrador",
+        "trip_currency": "Moneda del grupo",
+        "global_budget": "Presupuesto global",
+        "personal_budget_per_user": "Presupuesto personal por usuario",
+        "public_expenses": "Mostrar gastos a todos",
+        "allow_member_delete_lbl": "Permitir a miembros eliminar gastos",
+        "save_changes": "Guardar cambios",
+        "leave_trip": "Salir del grupo",
+        "hide_trip": "Ocultar grupo de la lista",
+        "budget_daily": "Presupuesto diario",
+        "budget_monthly": "Presupuesto mensual",
+        "budget_yearly": "Presupuesto anual",
+        "enter_amount": "Ingresa monto",
+        "budget": "Presupuesto",
+        "for": "Para",
+        "btn_confirm": "Confirmar",
+        "all_group": "Todo el grupo",
+        "expense_paid_by": "Pagado por: ",
+        "confirm_delete_member": "¿Estás seguro de que quieres eliminar a este miembro?"
+    },
+    ru: {
+        // General
+        "brand_master": "MASTER",
+        "brand_splitter": "SPLITTER",
+        "btn_save": "Сохранить",
+        "btn_cancel": "Отмена",
+        "btn_close": "Закрыть",
+        "only_me": "Только я",
+        "add_guest_user": "Добавить гостя",
+        "split_amounts": "Суммы",
+        "split_items": "Пропорции/Позиции",
+        "profile_feedback": "Отправить отзыв",
+        "modal_join_title": "Присоединиться к группе",
+        "modal_join_prompt": "Вы уверены, что хотите присоединиться к этой группе?",
+        "btn_join": "Присоединиться",
+        "loading": "Загрузка...",
+        "error_network": "Ошибка сети.",
+
+        // Login & Auth
+        "login_welcome": "Добро пожаловать!",
+        "login_sub": "Войдите, чтобы управлять расходами",
+        "login_username_email": "Имя пользователя или email",
+        "login_password": "Пароль",
+        "login_email": "Email",
+        "login_phone": "Номер телефона",
+        "login_btn_login": "Войти",
+        "login_forgot": "Забыли пароль?",
+        "login_or": "или",
+        "login_btn_signup": "Создать аккаунт",
+        "login_social_divider": "Или войти через",
+        "signup_title": "Создать аккаунт",
+        "signup_sub": "Присоединяйтесь и делите расходы",
+        "signup_btn_signup": "Зарегистрироваться",
+        "signup_btn_login": "Уже есть аккаунт? Войти",
+        "forgot_email": "Email адрес",
+        "forgot_btn": "Отправить ссылку для сброса",
+        "forgot_back": "Назад к входу",
+        "forgot_title": "Забыли пароль?",
+        "forgot_sub": "Введите email и мы отправим ссылку для сброса",
+
+        // Lobby
+        "lobby_hello": "Привет, ",
+        "lobby_my_trips": "Мои группы",
+        "lobby_no_trips": "Пока нет групп. Создайте новую!",
+        "lobby_btn_create": "+ Создать новую группу",
+        "create_trip_title": "Создать новую группу",
+        "create_trip_name": "Название группы",
+        "create_trip_name_ph": "Например: Квартира, Отпуск, Офис...",
+        "create_trip_budget": "Бюджет",
+        "create_trip_budget_type": "Тип бюджета",
+        "budget_type_none": "Нет",
+        "budget_type_monthly": "Ежемесячный",
+        "budget_type_yearly": "Годовой",
+        "create_trip_invite": "Пригласить друзей (email или телефон)",
+        "create_trip_invite_ph": "Введите телефон или email",
+        "create_trip_btn": "Создать группу",
+        "trip_budget_label": "Бюджет: ",
+
+        // Dashboard Home
+        "menu_my_trips": "Мои группы",
+        "menu_dashboard": "Панель",
+        "menu_balances": "Балансы",
+        "menu_profile": "Профиль",
+        "menu_logout": "Выйти",
+        "tab_home": "Главная",
+        "tab_expenses": "Расходы",
+        "tab_add": "Добавить",
+        "tab_balances": "Балансы",
+        "tab_profile": "Профиль",
+
+        "home_total_budget": "Общий бюджет",
+        "home_total_expenses": "Общие расходы",
+        "home_spent": "Потрачено",
+        "home_left": "Осталось",
+        "home_recent_expenses": "Последние расходы",
+        "home_view_all": "Показать все",
+
+        // Expenses
+        "expenses_title": "Все расходы",
+        "expenses_no_data": "Пока нет расходов",
+        "expense_paid_by": "Оплатил: ",
+        "expense_add_title": "Добавить расход",
+        "expense_what": "На что?",
+        "expense_what_ph": "Например: Ужин, Такси...",
+        "expense_amount": "Сумма",
+        "expense_currency": "Валюта",
+        "expense_category": "Категория",
+        "expense_for_who": "Для кого?",
+        "expense_btn_save": "Сохранить расход",
+        "expense_split_detail": "Детали разделения",
+
+        // Categories
+        "cat_food": "Еда",
+        "cat_lodging": "Жильё",
+        "cat_transport": "Транспорт",
+        "cat_attractions": "Развлечения",
+        "cat_general": "Общее",
+
+        // Balances
+        "balances_title": "Итоги и балансы",
+        "balances_no_data": "Нет данных",
+        "balance_receive": "Должны вам",
+        "balance_pay": "Вы должны",
+        "balance_settled": "Сбалансировано",
+        "balance_you": " (Вы)",
+        "balance_paid": "Оплатил: ",
+
+        // Profile
+        "profile_title": "Профиль",
+        "profile_display_name": "Отображаемое имя",
+        "profile_new_name": "Новое имя",
+        "profile_new_name_ph": "Введите новое имя",
+        "profile_btn_save_name": "Сохранить",
+        "profile_language": "Язык",
+        "profile_change_pwd": "Изменить пароль",
+        "profile_current_pwd": "Текущий пароль",
+        "profile_new_pwd": "Новый пароль",
+        "profile_confirm_pwd": "Подтвердить новый пароль",
+        "profile_btn_update_pwd": "Обновить пароль",
+
+        // Reset Password
+        "reset_title": "Сброс пароля",
+        "reset_btn": "Сбросить пароль",
+
+        // Modals
+        "modal_edit_trip": "Редактировать группу",
+        "modal_edit_expense": "Редактировать расход",
+        "modal_invite_new": "Пригласить новых друзей",
+
+        // Group Info
+        "group_info_title": "Информация о группе",
+        "group_info_members": "Участники",
+        "group_info_admin": "Администратор",
+        "group_info_leave": "Покинуть группу",
+        "group_info_leave_confirm": "Вы уверены, что хотите покинуть группу?",
+        "group_info_public_expenses": "Показывать расходы всем",
+        "group_info_public_hint": "Когда выключено, участники видят только свои расходы.",
+        "group_info_allow_delete": "Разрешить участникам удалять расходы",
+        "group_info_allow_delete_hint": "Когда выключено, только администраторы могут удалять расходы.",
+        "promote_question": "Сделать администратором?",
+        "menu_activity": "Журнал действий",
+        "menu_stats": "Статистика",
+        "profile_change_currency": "Валюта по умолчанию",
+        "profile_save_currency_btn": "Сохранить валюту",
+
+        // Alerts & Toasts
+        "toast_trip_created": "Группа создана успешно!",
+        "toast_trip_updated": "Группа обновлена успешно!",
+        "toast_expense_added": "Расход добавлен!",
+        "toast_expense_deleted": "Расход удалён",
+        "toast_expense_updated": "Расход обновлён!",
+        "toast_name_updated": "Имя обновлено успешно!",
+        "toast_pwd_updated": "Пароль обновлён успешно!",
+        "toast_left_group": "Вы покинули группу.",
+        "confirm_delete_expense": "Удалить этот расход?",
+
+        // Errors
+        "err_fill_all": "Пожалуйста, заполните все поля.",
+        "err_invalid_amount": "Введите корректную сумму.",
+        "err_no_participants": "Выберите хотя бы одного участника.",
+
+        // Receipt Scanning
+        "scan_receipt": "📸 Сканировать / Загрузить чек",
+        "scan_scanning": "Сканирование...",
+        "scan_items_found": "Найденные позиции",
+        "scan_add_items": "Добавить позиции",
+        "scan_no_image": "Выберите изображение для сканирования",
+
+        // Unequal Splits
+        "split_equal": "Разделить поровну",
+        "split_custom": "Пользовательские суммы",
+        "split_sum_error": "Суммы не совпадают с итогом",
+
+        // Settle Up
+        "settle_up": "Погасить долг",
+        "settle_confirm": "Погасить этот долг?",
+        "toast_settled": "Долг погашен!",
+
+        // Activity Feed
+        "activity_title": "Активность",
+        "tab_activity": "Активность",
+        "activity_no_data": "Пока нет активности",
+        "activity_expense_added": "Расход добавлен",
+        "activity_expense_edited": "Расход изменён",
+        "activity_expense_deleted": "Расход удалён",
+        "activity_settlement": "Погашение долга",
+
+        // Profile Page (extended)
+        "profile_phone": "Телефон",
+        "profile_no_phone": "Не указано",
+        "profile_no_email": "Не указано",
+        "profile_back": "Назад",
+        "profile_change_username": "Изменить отображаемое имя",
+        "profile_change_language": "Язык",
+        "profile_verify_pwd": "Подтвердить пароль",
+        "profile_verify_btn": "Подтвердить пароль",
+        "profile_new_pwd_section": "Новый пароль",
+        "profile_confirm_pwd_section": "Подтвердить новый пароль",
+        "profile_save_pwd": "Обновить пароль",
+        "profile_save_name_btn": "Сохранить имя",
+        "profile_save_lang_btn": "Сохранить язык",
+        "profile_current_pwd_ph": "Введите текущий пароль",
+        "profile_new_pwd_ph": "Введите новый пароль",
+        "profile_confirm_pwd_ph": "Введите новый пароль ещё раз",
+        "profile_logout_btn": "Выйти",
+
+        // AI
+        "ai_smart_add": "Умное добавление с ИИ",
+        "ai_placeholder": "Опишите расход на естественном языке",
+        "ai_analyze": "Анализировать",
+        "ai_success": "ИИ заполнил форму успешно!",
+        "ai_modal_hint": "Опишите расход на естественном языке и ИИ заполнит форму автоматически",
+
+        // Settings (legacy keys)
+        "settings_title": "Настройки группы",
+        "settings_public_expenses": "Показывать расходы всем",
+        "settings_public_hint": "Когда выключено, участники видят только свои расходы.",
+        "settings_members": "Участники",
+
+        // Phase 2 additions
+        "demote_question": "Снять администратора?",
+        "demote_success": "Администратор снят",
+        "invite_link_copied": "Ссылка-приглашение скопирована!",
+        "invite_joined": "Вы присоединились к группе!",
+        "invite_link_btn": "Создать ссылку-приглашение",
+        "profile_change_phone": "Обновить номер телефона",
+        "profile_phone_ph": "Новый номер телефона",
+        "profile_save_phone_btn": "Сохранить телефон",
+        "profile_phone_required": "Введите номер телефона",
+        "profile_phone_saved": "Телефон обновлён успешно",
+        "profile_tutorial": "Руководство",
+        "profile_tutorial_coming": "Видео-руководство скоро!",
+        "profile_tutorial_desc": "Здесь появится видео-руководство по использованию приложения.",
+        "getFinancialTipBtn": "Финансовый помощник ✨",
+        "loadingThinking": "Думаю...",
+
+        // Step 7 - Groups Overhaul
+        "budget_type_daily": "Ежедневный",
+        "budget_per_user": "Бюджет на пользователя",
+        "budget_per_user_hint": "Бюджет применяется к каждому участнику отдельно",
+        "budget_amount_label": "Сумма бюджета",
+        "invite_tab_whatsapp": "WhatsApp",
+        "invite_tab_email": "Email",
+        "invite_tab_guest": "Гость",
+        "invite_name_ph": "Имя",
+        "invite_phone_ph": "Номер телефона",
+        "invite_email_ph": "Email адрес",
+        "invite_send_whatsapp": "Отправить приглашение в WhatsApp",
+        "invite_send_email": "Отправить приглашение по email",
+        "invite_add_guest": "Добавить гостя",
+        "invite_whatsapp_note": "Пользователь присоединится к группе, нажав на ссылку.",
+        "invite_email_sent": "Приглашение отправлено по email!",
+        "invite_email_note": "Приглашение будет отправлено на указанный email.",
+        "lobby_no_groups": "Пока нет групп. Создайте новую!",
+        "members_count": "участников",
+        "invite_members_title": "Пригласить участников",
+        "budget_currency": "Валюта группы",
+        "btn_add_participant": "Добавить участника",
+        "invite_name_placeholder": "Имя",
+        "invite_phone_placeholder": "Номер телефона",
+        "invite_email_placeholder": "Email адрес",
+        "btn_send_email": "Отправить приглашение по email",
+        "btn_add_guest": "Добавить гостя",
+        "total_budget": "Общий бюджет",
+        "members_count_label": "Участники",
+        "edit_group": "Редактировать группу",
+
+        // GroupsScreen additions
+        "edit_trip_change": "Изменить",
+        "edit_trip_image": "Изображение",
+        "members": "Участники",
+        "add_member": "Добавить участника",
+        "copy_link": "Копировать ссылку",
+        "participants": "Участники",
+        "status_pending": "Ожидание",
+        "btn_remove": "Удалить",
+        "admin_settings": "Настройки администратора",
+        "trip_currency": "Валюта группы",
+        "global_budget": "Общий бюджет",
+        "personal_budget_per_user": "Личный бюджет на участника",
+        "public_expenses": "Показывать расходы всем",
+        "allow_member_delete_lbl": "Разрешить участникам удалять расходы",
+        "save_changes": "Сохранить изменения",
+        "leave_trip": "Покинуть группу",
+        "hide_trip": "Скрыть группу из списка",
+        "budget_daily": "Дневной бюджет",
+        "budget_monthly": "Месячный бюджет",
+        "budget_yearly": "Годовой бюджет",
+        "enter_amount": "Введите сумму",
+        "budget": "Бюджет",
+        "for": "Для",
+        "btn_confirm": "Подтвердить",
+        "all_group": "Вся группа",
+        "expense_paid_by": "Оплатил: ",
+        "confirm_delete_member": "Вы уверены, что хотите удалить этого участника?"
+    },
+    ar: {
+        // General
+        "brand_master": "MASTER",
+        "brand_splitter": "SPLITTER",
+        "btn_save": "حفظ",
+        "btn_cancel": "إلغاء",
+        "btn_close": "إغلاق",
+        "only_me": "أنا فقط",
+        "add_guest_user": "إضافة ضيف",
+        "split_amounts": "المبالغ",
+        "split_items": "النسب/العناصر",
+        "profile_feedback": "إرسال ملاحظات",
+        "modal_join_title": "الانضمام إلى المجموعة",
+        "modal_join_prompt": "هل أنت متأكد أنك تريد الانضمام إلى هذه المجموعة؟",
+        "btn_join": "انضمام",
+        "loading": "جاري التحميل...",
+        "error_network": "خطأ في الشبكة.",
+
+        // Login & Auth
+        "login_welcome": "مرحباً بك!",
+        "login_sub": "سجل الدخول لإدارة مصاريفك",
+        "login_username_email": "اسم المستخدم أو البريد الإلكتروني",
+        "login_password": "كلمة المرور",
+        "login_email": "البريد الإلكتروني",
+        "login_phone": "رقم الهاتف",
+        "login_btn_login": "تسجيل الدخول",
+        "login_forgot": "نسيت كلمة المرور؟",
+        "login_or": "أو",
+        "login_btn_signup": "إنشاء حساب جديد",
+        "login_social_divider": "أو تابع عبر",
+        "signup_title": "إنشاء حساب",
+        "signup_sub": "انضم وابدأ بتقسيم المصاريف",
+        "signup_btn_signup": "تسجيل",
+        "signup_btn_login": "لديك حساب بالفعل؟ سجل الدخول",
+        "forgot_email": "البريد الإلكتروني",
+        "forgot_btn": "إرسال رابط إعادة التعيين",
+        "forgot_back": "العودة لتسجيل الدخول",
+        "forgot_title": "نسيت كلمة المرور؟",
+        "forgot_sub": "أدخل بريدك الإلكتروني وسنرسل لك رابط إعادة التعيين",
+
+        // Lobby
+        "lobby_hello": "مرحباً، ",
+        "lobby_my_trips": "مجموعاتي",
+        "lobby_no_trips": "لا توجد مجموعات بعد. أنشئ مجموعة جديدة!",
+        "lobby_btn_create": "+ إنشاء مجموعة جديدة",
+        "create_trip_title": "إنشاء مجموعة جديدة",
+        "create_trip_name": "اسم المجموعة",
+        "create_trip_name_ph": "مثال: شقة، إجازة، مكتب...",
+        "create_trip_budget": "الميزانية",
+        "create_trip_budget_type": "نوع الميزانية",
+        "budget_type_none": "بدون",
+        "budget_type_monthly": "شهرية",
+        "budget_type_yearly": "سنوية",
+        "create_trip_invite": "دعوة أصدقاء (بريد إلكتروني أو هاتف)",
+        "create_trip_invite_ph": "أدخل الهاتف أو البريد الإلكتروني",
+        "create_trip_btn": "إنشاء مجموعة",
+        "trip_budget_label": "الميزانية: ",
+
+        // Dashboard Home
+        "menu_my_trips": "مجموعاتي",
+        "menu_dashboard": "لوحة التحكم",
+        "menu_balances": "الأرصدة",
+        "menu_profile": "الملف الشخصي",
+        "menu_logout": "تسجيل الخروج",
+        "tab_home": "الرئيسية",
+        "tab_expenses": "المصاريف",
+        "tab_add": "إضافة",
+        "tab_balances": "الأرصدة",
+        "tab_profile": "الملف الشخصي",
+
+        "home_total_budget": "إجمالي الميزانية",
+        "home_total_expenses": "إجمالي المصاريف",
+        "home_spent": "تم إنفاقه",
+        "home_left": "المتبقي",
+        "home_recent_expenses": "المصاريف الأخيرة",
+        "home_view_all": "عرض الكل",
+
+        // Expenses
+        "expenses_title": "جميع المصاريف",
+        "expenses_no_data": "لا توجد مصاريف بعد",
+        "expense_paid_by": "دفع بواسطة: ",
+        "expense_add_title": "إضافة مصروف",
+        "expense_what": "على ماذا كان؟",
+        "expense_what_ph": "مثال: عشاء، تاكسي...",
+        "expense_amount": "المبلغ",
+        "expense_currency": "العملة",
+        "expense_category": "الفئة",
+        "expense_for_who": "لمن؟",
+        "expense_btn_save": "حفظ المصروف",
+        "expense_split_detail": "تفاصيل التقسيم",
+
+        // Categories
+        "cat_food": "طعام",
+        "cat_lodging": "إقامة",
+        "cat_transport": "مواصلات",
+        "cat_attractions": "ترفيه",
+        "cat_general": "عام",
+
+        // Balances
+        "balances_title": "الملخصات والأرصدة",
+        "balances_no_data": "لا توجد بيانات",
+        "balance_receive": "مستحق لك",
+        "balance_pay": "عليك دفع",
+        "balance_settled": "مسوّى",
+        "balance_you": " (أنت)",
+        "balance_paid": "دفع: ",
+
+        // Profile
+        "profile_title": "الملف الشخصي",
+        "profile_display_name": "اسم العرض",
+        "profile_new_name": "اسم جديد",
+        "profile_new_name_ph": "أدخل اسم عرض جديد",
+        "profile_btn_save_name": "حفظ",
+        "profile_language": "اللغة",
+        "profile_change_pwd": "تغيير كلمة المرور",
+        "profile_current_pwd": "كلمة المرور الحالية",
+        "profile_new_pwd": "كلمة مرور جديدة",
+        "profile_confirm_pwd": "تأكيد كلمة المرور الجديدة",
+        "profile_btn_update_pwd": "تحديث كلمة المرور",
+
+        // Reset Password
+        "reset_title": "إعادة تعيين كلمة المرور",
+        "reset_btn": "إعادة تعيين كلمة المرور",
+
+        // Modals
+        "modal_edit_trip": "تعديل المجموعة",
+        "modal_edit_expense": "تعديل المصروف",
+        "modal_invite_new": "دعوة أصدقاء جدد",
+
+        // Group Info
+        "group_info_title": "معلومات المجموعة",
+        "group_info_members": "الأعضاء",
+        "group_info_admin": "مسؤول",
+        "group_info_leave": "مغادرة المجموعة",
+        "group_info_leave_confirm": "هل أنت متأكد أنك تريد مغادرة المجموعة؟",
+        "group_info_public_expenses": "عرض المصاريف للجميع",
+        "group_info_public_hint": "عند الإيقاف، يرى الأعضاء فقط المصاريف التي دفعوها أو شاركوا فيها.",
+        "group_info_allow_delete": "السماح للأعضاء بحذف المصاريف",
+        "group_info_allow_delete_hint": "عند الإيقاف، فقط المسؤولون يمكنهم حذف المصاريف.",
+        "promote_question": "جعل مسؤولاً؟",
+        "menu_activity": "سجل النشاط",
+        "menu_stats": "إحصائيات",
+        "profile_change_currency": "العملة الافتراضية",
+        "profile_save_currency_btn": "حفظ العملة",
+
+        // Alerts & Toasts
+        "toast_trip_created": "تم إنشاء المجموعة بنجاح!",
+        "toast_trip_updated": "تم تحديث المجموعة بنجاح!",
+        "toast_expense_added": "تم إضافة المصروف!",
+        "toast_expense_deleted": "تم حذف المصروف",
+        "toast_expense_updated": "تم تحديث المصروف!",
+        "toast_name_updated": "تم تحديث الاسم بنجاح!",
+        "toast_pwd_updated": "تم تحديث كلمة المرور بنجاح!",
+        "toast_left_group": "لقد غادرت المجموعة.",
+        "confirm_delete_expense": "حذف هذا المصروف؟",
+
+        // Errors
+        "err_fill_all": "يرجى ملء جميع الحقول.",
+        "err_invalid_amount": "يرجى إدخال مبلغ صحيح.",
+        "err_no_participants": "اختر مشاركاً واحداً على الأقل.",
+
+        // Receipt Scanning
+        "scan_receipt": "📸 مسح / رفع إيصال",
+        "scan_scanning": "جاري المسح...",
+        "scan_items_found": "العناصر التي تم العثور عليها",
+        "scan_add_items": "إضافة العناصر",
+        "scan_no_image": "اختر صورة للمسح",
+
+        // Unequal Splits
+        "split_equal": "تقسيم بالتساوي",
+        "split_custom": "مبالغ مخصصة",
+        "split_sum_error": "المبالغ لا تتطابق مع الإجمالي",
+
+        // Settle Up
+        "settle_up": "تسوية الدين",
+        "settle_confirm": "تسوية هذا الدين؟",
+        "toast_settled": "تم تسوية الدين!",
+
+        // Activity Feed
+        "activity_title": "النشاط",
+        "tab_activity": "النشاط",
+        "activity_no_data": "لا يوجد نشاط بعد",
+        "activity_expense_added": "تم إضافة مصروف",
+        "activity_expense_edited": "تم تعديل مصروف",
+        "activity_expense_deleted": "تم حذف مصروف",
+        "activity_settlement": "تسوية دين",
+
+        // Profile Page (extended)
+        "profile_phone": "الهاتف",
+        "profile_no_phone": "غير محدد",
+        "profile_no_email": "غير محدد",
+        "profile_back": "رجوع",
+        "profile_change_username": "تغيير اسم العرض",
+        "profile_change_language": "اللغة",
+        "profile_verify_pwd": "تأكيد كلمة المرور",
+        "profile_verify_btn": "تأكيد كلمة المرور",
+        "profile_new_pwd_section": "كلمة مرور جديدة",
+        "profile_confirm_pwd_section": "تأكيد كلمة المرور الجديدة",
+        "profile_save_pwd": "تحديث كلمة المرور",
+        "profile_save_name_btn": "حفظ الاسم",
+        "profile_save_lang_btn": "حفظ اللغة",
+        "profile_current_pwd_ph": "أدخل كلمة المرور الحالية",
+        "profile_new_pwd_ph": "أدخل كلمة المرور الجديدة",
+        "profile_confirm_pwd_ph": "أدخل كلمة المرور الجديدة مرة أخرى",
+        "profile_logout_btn": "تسجيل الخروج",
+
+        // AI
+        "ai_smart_add": "إضافة ذكية بالذكاء الاصطناعي",
+        "ai_placeholder": "صف المصروف بلغة طبيعية",
+        "ai_analyze": "تحليل",
+        "ai_success": "الذكاء الاصطناعي ملأ النموذج بنجاح!",
+        "ai_modal_hint": "صف المصروف بلغة طبيعية وسيملأ الذكاء الاصطناعي النموذج تلقائياً",
+
+        // Settings (legacy keys)
+        "settings_title": "إعدادات المجموعة",
+        "settings_public_expenses": "عرض المصاريف للجميع",
+        "settings_public_hint": "عند الإيقاف، يرى الأعضاء فقط المصاريف التي دفعوها أو شاركوا فيها.",
+        "settings_members": "الأعضاء",
+
+        // Phase 2 additions
+        "demote_question": "إزالة صلاحيات المسؤول؟",
+        "demote_success": "تم إزالة صلاحيات المسؤول",
+        "invite_link_copied": "تم نسخ رابط الدعوة!",
+        "invite_joined": "انضممت إلى المجموعة!",
+        "invite_link_btn": "إنشاء رابط دعوة",
+        "profile_change_phone": "تحديث رقم الهاتف",
+        "profile_phone_ph": "رقم هاتف جديد",
+        "profile_save_phone_btn": "حفظ الهاتف",
+        "profile_phone_required": "يرجى إدخال رقم الهاتف",
+        "profile_phone_saved": "تم تحديث الهاتف بنجاح",
+        "profile_tutorial": "الدليل",
+        "profile_tutorial_coming": "فيديو تعليمي قريباً!",
+        "profile_tutorial_desc": "سيظهر هنا فيديو تعليمي لمساعدتك في تعلم استخدام التطبيق.",
+        "getFinancialTipBtn": "مساعد مالي ذكي ✨",
+        "loadingThinking": "جاري التفكير...",
+
+        // Step 7 - Groups Overhaul
+        "budget_type_daily": "يومية",
+        "budget_per_user": "ميزانية لكل مستخدم",
+        "budget_per_user_hint": "تنطبق الميزانية على كل عضو بشكل فردي",
+        "budget_amount_label": "مبلغ الميزانية",
+        "invite_tab_whatsapp": "واتساب",
+        "invite_tab_email": "بريد إلكتروني",
+        "invite_tab_guest": "ضيف",
+        "invite_name_ph": "الاسم",
+        "invite_phone_ph": "رقم الهاتف",
+        "invite_email_ph": "البريد الإلكتروني",
+        "invite_send_whatsapp": "إرسال دعوة عبر واتساب",
+        "invite_send_email": "إرسال دعوة عبر البريد",
+        "invite_add_guest": "إضافة ضيف",
+        "invite_whatsapp_note": "سينضم المستخدم إلى المجموعة عند النقر على الرابط.",
+        "invite_email_sent": "تم إرسال الدعوة عبر البريد!",
+        "invite_email_note": "سيتم إرسال الدعوة إلى البريد الإلكتروني المقدم.",
+        "lobby_no_groups": "لا توجد مجموعات بعد. أنشئ مجموعة جديدة!",
+        "members_count": "أعضاء",
+        "invite_members_title": "دعوة أعضاء",
+        "budget_currency": "عملة المجموعة",
+        "btn_add_participant": "إضافة مشارك",
+        "invite_name_placeholder": "الاسم",
+        "invite_phone_placeholder": "رقم الهاتف",
+        "invite_email_placeholder": "البريد الإلكتروني",
+        "btn_send_email": "إرسال دعوة عبر البريد",
+        "btn_add_guest": "إضافة ضيف",
+        "total_budget": "إجمالي الميزانية",
+        "members_count_label": "الأعضاء",
+        "edit_group": "تعديل المجموعة",
+
+        // GroupsScreen additions
+        "edit_trip_change": "تغيير",
+        "edit_trip_image": "صورة",
+        "members": "الأعضاء",
+        "add_member": "إضافة عضو",
+        "copy_link": "نسخ الرابط",
+        "participants": "المشاركون",
+        "status_pending": "قيد الانتظار",
+        "btn_remove": "إزالة",
+        "admin_settings": "إعدادات المسؤول",
+        "trip_currency": "عملة المجموعة",
+        "global_budget": "الميزانية العامة",
+        "personal_budget_per_user": "ميزانية شخصية لكل مشارك",
+        "public_expenses": "عرض المصاريف للجميع",
+        "allow_member_delete_lbl": "السماح للأعضاء بحذف المصاريف",
+        "save_changes": "حفظ التغييرات",
+        "leave_trip": "مغادرة المجموعة",
+        "hide_trip": "إخفاء المجموعة من القائمة",
+        "budget_daily": "ميزانية يومية",
+        "budget_monthly": "ميزانية شهرية",
+        "budget_yearly": "ميزانية سنوية",
+        "enter_amount": "أدخل المبلغ",
+        "budget": "الميزانية",
+        "for": "لـ",
+        "btn_confirm": "تأكيد",
+        "all_group": "المجموعة بأكملها",
+        "expense_paid_by": "دفع بواسطة: ",
+        "confirm_delete_member": "هل أنت متأكد أنك تريد إزالة هذا العضو؟"
+    },
+    fr: {
+        // General
+        "brand_master": "MASTER",
+        "brand_splitter": "SPLITTER",
+        "btn_save": "Enregistrer",
+        "btn_cancel": "Annuler",
+        "btn_close": "Fermer",
+        "only_me": "Moi uniquement",
+        "add_guest_user": "Ajouter un invité",
+        "split_amounts": "Montants",
+        "split_items": "Proportions/Articles",
+        "profile_feedback": "Envoyer un commentaire",
+        "modal_join_title": "Rejoindre le groupe",
+        "modal_join_prompt": "Êtes-vous sûr de vouloir rejoindre ce groupe ?",
+        "btn_join": "Rejoindre",
+        "loading": "Chargement...",
+        "error_network": "Erreur réseau.",
+
+        // Login & Auth
+        "login_welcome": "Bienvenue !",
+        "login_sub": "Connectez-vous pour gérer vos dépenses",
+        "login_username_email": "Nom d'utilisateur ou email",
+        "login_password": "Mot de passe",
+        "login_email": "Email",
+        "login_phone": "Numéro de téléphone",
+        "login_btn_login": "Se connecter",
+        "login_forgot": "Mot de passe oublié ?",
+        "login_or": "ou",
+        "login_btn_signup": "Créer un nouveau compte",
+        "login_social_divider": "Ou continuer avec",
+        "signup_title": "Créer un compte",
+        "signup_sub": "Rejoignez et commencez à partager les dépenses",
+        "signup_btn_signup": "S'inscrire",
+        "signup_btn_login": "Vous avez déjà un compte ? Connectez-vous",
+        "forgot_email": "Adresse email",
+        "forgot_btn": "Envoyer le lien de réinitialisation",
+        "forgot_back": "Retour à la connexion",
+        "forgot_title": "Mot de passe oublié ?",
+        "forgot_sub": "Entrez votre email et nous vous enverrons un lien de réinitialisation",
+
+        // Lobby
+        "lobby_hello": "Bonjour, ",
+        "lobby_my_trips": "Mes groupes",
+        "lobby_no_trips": "Pas encore de groupes. Créez-en un nouveau !",
+        "lobby_btn_create": "+ Créer un nouveau groupe",
+        "create_trip_title": "Créer un nouveau groupe",
+        "create_trip_name": "Nom du groupe",
+        "create_trip_name_ph": "Ex : Appartement, Vacances, Bureau...",
+        "create_trip_budget": "Budget",
+        "create_trip_budget_type": "Type de budget",
+        "budget_type_none": "Aucun",
+        "budget_type_monthly": "Mensuel",
+        "budget_type_yearly": "Annuel",
+        "create_trip_invite": "Inviter des amis (email ou téléphone)",
+        "create_trip_invite_ph": "Entrez un téléphone ou email",
+        "create_trip_btn": "Créer le groupe",
+        "trip_budget_label": "Budget : ",
+
+        // Dashboard Home
+        "menu_my_trips": "Mes groupes",
+        "menu_dashboard": "Tableau de bord",
+        "menu_balances": "Soldes",
+        "menu_profile": "Profil",
+        "menu_logout": "Déconnexion",
+        "tab_home": "Accueil",
+        "tab_expenses": "Dépenses",
+        "tab_add": "Ajouter",
+        "tab_balances": "Soldes",
+        "tab_profile": "Profil",
+
+        "home_total_budget": "Budget total",
+        "home_total_expenses": "Dépenses totales",
+        "home_spent": "Dépensé",
+        "home_left": "Restant",
+        "home_recent_expenses": "Dépenses récentes",
+        "home_view_all": "Tout voir",
+
+        // Expenses
+        "expenses_title": "Toutes les dépenses",
+        "expenses_no_data": "Pas encore de dépenses",
+        "expense_paid_by": "Payé par : ",
+        "expense_add_title": "Ajouter une dépense",
+        "expense_what": "C'était pour quoi ?",
+        "expense_what_ph": "Ex : Dîner, Taxi...",
+        "expense_amount": "Montant",
+        "expense_currency": "Devise",
+        "expense_category": "Catégorie",
+        "expense_for_who": "Pour qui ?",
+        "expense_btn_save": "Enregistrer la dépense",
+        "expense_split_detail": "Détails du partage",
+
+        // Categories
+        "cat_food": "Nourriture",
+        "cat_lodging": "Hébergement",
+        "cat_transport": "Transport",
+        "cat_attractions": "Attractions",
+        "cat_general": "Général",
+
+        // Balances
+        "balances_title": "Résumés et soldes",
+        "balances_no_data": "Aucune donnée",
+        "balance_receive": "On vous doit",
+        "balance_pay": "Vous devez",
+        "balance_settled": "Soldé",
+        "balance_you": " (Vous)",
+        "balance_paid": "Payé : ",
+
+        // Profile
+        "profile_title": "Profil",
+        "profile_display_name": "Nom d'affichage",
+        "profile_new_name": "Nouveau nom",
+        "profile_new_name_ph": "Entrez un nouveau nom d'affichage",
+        "profile_btn_save_name": "Enregistrer",
+        "profile_language": "Langue",
+        "profile_change_pwd": "Changer le mot de passe",
+        "profile_current_pwd": "Mot de passe actuel",
+        "profile_new_pwd": "Nouveau mot de passe",
+        "profile_confirm_pwd": "Confirmer le nouveau mot de passe",
+        "profile_btn_update_pwd": "Mettre à jour le mot de passe",
+
+        // Reset Password
+        "reset_title": "Réinitialiser le mot de passe",
+        "reset_btn": "Réinitialiser le mot de passe",
+
+        // Modals
+        "modal_edit_trip": "Modifier le groupe",
+        "modal_edit_expense": "Modifier la dépense",
+        "modal_invite_new": "Inviter de nouveaux amis",
+
+        // Group Info
+        "group_info_title": "Infos du groupe",
+        "group_info_members": "Membres",
+        "group_info_admin": "Administrateur",
+        "group_info_leave": "Quitter le groupe",
+        "group_info_leave_confirm": "Êtes-vous sûr de vouloir quitter ce groupe ?",
+        "group_info_public_expenses": "Afficher les dépenses à tous",
+        "group_info_public_hint": "Quand désactivé, les membres ne voient que les dépenses qu'ils ont payées ou auxquelles ils participent.",
+        "group_info_allow_delete": "Permettre aux membres de supprimer des dépenses",
+        "group_info_allow_delete_hint": "Quand désactivé, seuls les admins peuvent supprimer des dépenses.",
+        "promote_question": "Rendre administrateur ?",
+        "menu_activity": "Journal d'activité",
+        "menu_stats": "Statistiques",
+        "profile_change_currency": "Devise par défaut",
+        "profile_save_currency_btn": "Enregistrer la devise",
+
+        // Alerts & Toasts
+        "toast_trip_created": "Groupe créé avec succès !",
+        "toast_trip_updated": "Groupe mis à jour avec succès !",
+        "toast_expense_added": "Dépense ajoutée !",
+        "toast_expense_deleted": "Dépense supprimée",
+        "toast_expense_updated": "Dépense mise à jour !",
+        "toast_name_updated": "Nom mis à jour avec succès !",
+        "toast_pwd_updated": "Mot de passe mis à jour avec succès !",
+        "toast_left_group": "Vous avez quitté le groupe.",
+        "confirm_delete_expense": "Supprimer cette dépense ?",
+
+        // Errors
+        "err_fill_all": "Veuillez remplir tous les champs.",
+        "err_invalid_amount": "Veuillez entrer un montant valide.",
+        "err_no_participants": "Sélectionnez au moins un participant.",
+
+        // Receipt Scanning
+        "scan_receipt": "📸 Scanner / Téléverser un reçu",
+        "scan_scanning": "Scan en cours...",
+        "scan_items_found": "Articles trouvés",
+        "scan_add_items": "Ajouter les articles",
+        "scan_no_image": "Sélectionnez une image à scanner",
+
+        // Unequal Splits
+        "split_equal": "Partage égal",
+        "split_custom": "Montants personnalisés",
+        "split_sum_error": "Les montants ne correspondent pas au total",
+
+        // Settle Up
+        "settle_up": "Régler la dette",
+        "settle_confirm": "Régler cette dette ?",
+        "toast_settled": "Dette réglée !",
+
+        // Activity Feed
+        "activity_title": "Activité",
+        "tab_activity": "Activité",
+        "activity_no_data": "Pas encore d'activité",
+        "activity_expense_added": "Dépense ajoutée",
+        "activity_expense_edited": "Dépense modifiée",
+        "activity_expense_deleted": "Dépense supprimée",
+        "activity_settlement": "Règlement de dette",
+
+        // Profile Page (extended)
+        "profile_phone": "Téléphone",
+        "profile_no_phone": "Non spécifié",
+        "profile_no_email": "Non spécifié",
+        "profile_back": "Retour",
+        "profile_change_username": "Changer le nom d'affichage",
+        "profile_change_language": "Langue",
+        "profile_verify_pwd": "Vérifier le mot de passe",
+        "profile_verify_btn": "Vérifier le mot de passe",
+        "profile_new_pwd_section": "Nouveau mot de passe",
+        "profile_confirm_pwd_section": "Confirmer le nouveau mot de passe",
+        "profile_save_pwd": "Mettre à jour le mot de passe",
+        "profile_save_name_btn": "Enregistrer le nom",
+        "profile_save_lang_btn": "Enregistrer la langue",
+        "profile_current_pwd_ph": "Entrez le mot de passe actuel",
+        "profile_new_pwd_ph": "Entrez un nouveau mot de passe",
+        "profile_confirm_pwd_ph": "Entrez le nouveau mot de passe à nouveau",
+        "profile_logout_btn": "Déconnexion",
+
+        // AI
+        "ai_smart_add": "Ajout intelligent avec IA",
+        "ai_placeholder": "Décrivez la dépense en langage naturel",
+        "ai_analyze": "Analyser",
+        "ai_success": "L'IA a rempli le formulaire avec succès !",
+        "ai_modal_hint": "Décrivez la dépense en langage naturel et l'IA remplira le formulaire automatiquement",
+
+        // Settings (legacy keys)
+        "settings_title": "Paramètres du groupe",
+        "settings_public_expenses": "Afficher les dépenses à tous",
+        "settings_public_hint": "Quand désactivé, les membres ne voient que les dépenses qu'ils ont payées ou auxquelles ils participent.",
+        "settings_members": "Membres",
+
+        // Phase 2 additions
+        "demote_question": "Retirer les droits d'admin ?",
+        "demote_success": "Admin retiré",
+        "invite_link_copied": "Lien d'invitation copié !",
+        "invite_joined": "Vous avez rejoint le groupe !",
+        "invite_link_btn": "Créer un lien d'invitation",
+        "profile_change_phone": "Mettre à jour le numéro de téléphone",
+        "profile_phone_ph": "Nouveau numéro de téléphone",
+        "profile_save_phone_btn": "Enregistrer le téléphone",
+        "profile_phone_required": "Veuillez entrer un numéro de téléphone",
+        "profile_phone_saved": "Téléphone mis à jour avec succès",
+        "profile_tutorial": "Tutoriel",
+        "profile_tutorial_coming": "Vidéo tutorielle bientôt disponible !",
+        "profile_tutorial_desc": "Une vidéo tutorielle apparaîtra ici pour vous aider à utiliser l'application.",
+        "getFinancialTipBtn": "Assistant financier ✨",
+        "loadingThinking": "Réflexion en cours...",
+
+        // Step 7 - Groups Overhaul
+        "budget_type_daily": "Quotidien",
+        "budget_per_user": "Budget par utilisateur",
+        "budget_per_user_hint": "Le budget s'applique à chaque membre individuellement",
+        "budget_amount_label": "Montant du budget",
+        "invite_tab_whatsapp": "WhatsApp",
+        "invite_tab_email": "Email",
+        "invite_tab_guest": "Invité",
+        "invite_name_ph": "Nom",
+        "invite_phone_ph": "Numéro de téléphone",
+        "invite_email_ph": "Adresse email",
+        "invite_send_whatsapp": "Envoyer une invitation WhatsApp",
+        "invite_send_email": "Envoyer une invitation par email",
+        "invite_add_guest": "Ajouter un invité",
+        "invite_whatsapp_note": "L'utilisateur rejoindra le groupe en cliquant sur le lien.",
+        "invite_email_sent": "Invitation envoyée par email !",
+        "invite_email_note": "L'invitation sera envoyée à l'adresse email fournie.",
+        "lobby_no_groups": "Pas encore de groupes. Créez-en un nouveau !",
+        "members_count": "membres",
+        "invite_members_title": "Inviter des membres",
+        "budget_currency": "Devise du groupe",
+        "btn_add_participant": "Ajouter un participant",
+        "invite_name_placeholder": "Nom",
+        "invite_phone_placeholder": "Numéro de téléphone",
+        "invite_email_placeholder": "Adresse email",
+        "btn_send_email": "Envoyer une invitation par email",
+        "btn_add_guest": "Ajouter un invité",
+        "total_budget": "Budget total",
+        "members_count_label": "Membres",
+        "edit_group": "Modifier le groupe",
+
+        // GroupsScreen additions
+        "edit_trip_change": "Changer",
+        "edit_trip_image": "Image",
+        "members": "Membres",
+        "add_member": "Ajouter un membre",
+        "copy_link": "Copier le lien",
+        "participants": "Participants",
+        "status_pending": "En attente",
+        "btn_remove": "Supprimer",
+        "admin_settings": "Paramètres admin",
+        "trip_currency": "Devise du groupe",
+        "global_budget": "Budget global",
+        "personal_budget_per_user": "Budget personnel par utilisateur",
+        "public_expenses": "Afficher les dépenses à tous",
+        "allow_member_delete_lbl": "Permettre aux membres de supprimer des dépenses",
+        "save_changes": "Enregistrer les modifications",
+        "leave_trip": "Quitter le groupe",
+        "hide_trip": "Masquer le groupe de la liste",
+        "budget_daily": "Budget quotidien",
+        "budget_monthly": "Budget mensuel",
+        "budget_yearly": "Budget annuel",
+        "enter_amount": "Entrez le montant",
+        "budget": "Budget",
+        "for": "Pour",
+        "btn_confirm": "Confirmer",
+        "all_group": "Tout le groupe",
+        "expense_paid_by": "Payé par : ",
+        "confirm_delete_member": "Êtes-vous sûr de vouloir supprimer ce membre ?"
+    },
+    zh: {
+        // General
+        "brand_master": "MASTER",
+        "brand_splitter": "SPLITTER",
+        "btn_save": "保存",
+        "btn_cancel": "取消",
+        "btn_close": "关闭",
+        "only_me": "仅自己",
+        "add_guest_user": "添加访客",
+        "split_amounts": "金额",
+        "split_items": "比例/项目",
+        "profile_feedback": "发送反馈",
+        "modal_join_title": "加入群组",
+        "modal_join_prompt": "您确定要加入此群组吗？",
+        "btn_join": "加入",
+        "loading": "加载中...",
+        "error_network": "网络错误。",
+
+        // Login & Auth
+        "login_welcome": "欢迎回来！",
+        "login_sub": "登录以管理您的支出",
+        "login_username_email": "用户名或邮箱",
+        "login_password": "密码",
+        "login_email": "邮箱",
+        "login_phone": "电话号码",
+        "login_btn_login": "登录",
+        "login_forgot": "忘记密码？",
+        "login_or": "或",
+        "login_btn_signup": "创建新账户",
+        "login_social_divider": "或通过以下方式继续",
+        "signup_title": "创建账户",
+        "signup_sub": "加入并开始分摊费用",
+        "signup_btn_signup": "注册",
+        "signup_btn_login": "已有账户？登录",
+        "forgot_email": "邮箱地址",
+        "forgot_btn": "发送重置链接",
+        "forgot_back": "返回登录",
+        "forgot_title": "忘记密码？",
+        "forgot_sub": "输入您的邮箱，我们将发送重置链接",
+
+        // Lobby
+        "lobby_hello": "你好，",
+        "lobby_my_trips": "我的群组",
+        "lobby_no_trips": "暂无群组。创建一个新群组！",
+        "lobby_btn_create": "+ 创建新群组",
+        "create_trip_title": "创建新群组",
+        "create_trip_name": "群组名称",
+        "create_trip_name_ph": "例如：公寓、度假、办公室...",
+        "create_trip_budget": "预算",
+        "create_trip_budget_type": "预算类型",
+        "budget_type_none": "无",
+        "budget_type_monthly": "每月",
+        "budget_type_yearly": "每年",
+        "create_trip_invite": "邀请朋友（邮箱或电话）",
+        "create_trip_invite_ph": "输入电话或邮箱",
+        "create_trip_btn": "创建群组",
+        "trip_budget_label": "预算：",
+
+        // Dashboard Home
+        "menu_my_trips": "我的群组",
+        "menu_dashboard": "仪表板",
+        "menu_balances": "余额",
+        "menu_profile": "个人资料",
+        "menu_logout": "退出登录",
+        "tab_home": "首页",
+        "tab_expenses": "支出",
+        "tab_add": "添加",
+        "tab_balances": "余额",
+        "tab_profile": "个人资料",
+
+        "home_total_budget": "总预算",
+        "home_total_expenses": "总支出",
+        "home_spent": "已花费",
+        "home_left": "剩余",
+        "home_recent_expenses": "最近支出",
+        "home_view_all": "查看全部",
+
+        // Expenses
+        "expenses_title": "所有支出",
+        "expenses_no_data": "暂无支出",
+        "expense_paid_by": "支付者：",
+        "expense_add_title": "添加支出",
+        "expense_what": "用于什么？",
+        "expense_what_ph": "例如：晚餐、出租车...",
+        "expense_amount": "金额",
+        "expense_currency": "货币",
+        "expense_category": "类别",
+        "expense_for_who": "为谁？",
+        "expense_btn_save": "保存支出",
+        "expense_split_detail": "分摊详情",
+
+        // Categories
+        "cat_food": "餐饮",
+        "cat_lodging": "住宿",
+        "cat_transport": "交通",
+        "cat_attractions": "娱乐",
+        "cat_general": "一般",
+
+        // Balances
+        "balances_title": "摘要和余额",
+        "balances_no_data": "无数据",
+        "balance_receive": "应收",
+        "balance_pay": "应付",
+        "balance_settled": "已结清",
+        "balance_you": "（你）",
+        "balance_paid": "已支付：",
+
+        // Profile
+        "profile_title": "个人资料",
+        "profile_display_name": "显示名称",
+        "profile_new_name": "新名称",
+        "profile_new_name_ph": "输入新的显示名称",
+        "profile_btn_save_name": "保存",
+        "profile_language": "语言",
+        "profile_change_pwd": "更改密码",
+        "profile_current_pwd": "当前密码",
+        "profile_new_pwd": "新密码",
+        "profile_confirm_pwd": "确认新密码",
+        "profile_btn_update_pwd": "更新密码",
+
+        // Reset Password
+        "reset_title": "重置密码",
+        "reset_btn": "重置密码",
+
+        // Modals
+        "modal_edit_trip": "编辑群组",
+        "modal_edit_expense": "编辑支出",
+        "modal_invite_new": "邀请新朋友",
+
+        // Group Info
+        "group_info_title": "群组信息",
+        "group_info_members": "成员",
+        "group_info_admin": "管理员",
+        "group_info_leave": "退出群组",
+        "group_info_leave_confirm": "您确定要退出此群组吗？",
+        "group_info_public_expenses": "向所有人显示支出",
+        "group_info_public_hint": "关闭时，成员只能看到自己支付或参与的支出。",
+        "group_info_allow_delete": "允许成员删除支出",
+        "group_info_allow_delete_hint": "关闭时，只有管理员可以删除支出。",
+        "promote_question": "设为管理员？",
+        "menu_activity": "活动日志",
+        "menu_stats": "统计",
+        "profile_change_currency": "默认货币",
+        "profile_save_currency_btn": "保存货币",
+
+        // Alerts & Toasts
+        "toast_trip_created": "群组创建成功！",
+        "toast_trip_updated": "群组更新成功！",
+        "toast_expense_added": "支出已添加！",
+        "toast_expense_deleted": "支出已删除",
+        "toast_expense_updated": "支出已更新！",
+        "toast_name_updated": "名称更新成功！",
+        "toast_pwd_updated": "密码更新成功！",
+        "toast_left_group": "您已离开群组。",
+        "confirm_delete_expense": "删除此支出？",
+
+        // Errors
+        "err_fill_all": "请填写所有字段。",
+        "err_invalid_amount": "请输入有效金额。",
+        "err_no_participants": "请选择至少一位参与者。",
+
+        // Receipt Scanning
+        "scan_receipt": "📸 扫描/上传收据",
+        "scan_scanning": "扫描中...",
+        "scan_items_found": "已找到的项目",
+        "scan_add_items": "添加项目",
+        "scan_no_image": "选择要扫描的图片",
+
+        // Unequal Splits
+        "split_equal": "平均分摊",
+        "split_custom": "自定义金额",
+        "split_sum_error": "金额与总额不匹配",
+
+        // Settle Up
+        "settle_up": "结清",
+        "settle_confirm": "结清此债务？",
+        "toast_settled": "债务已结清！",
+
+        // Activity Feed
+        "activity_title": "活动",
+        "tab_activity": "活动",
+        "activity_no_data": "暂无活动",
+        "activity_expense_added": "已添加支出",
+        "activity_expense_edited": "已编辑支出",
+        "activity_expense_deleted": "已删除支出",
+        "activity_settlement": "债务结算",
+
+        // Profile Page (extended)
+        "profile_phone": "电话",
+        "profile_no_phone": "未指定",
+        "profile_no_email": "未指定",
+        "profile_back": "返回",
+        "profile_change_username": "更改显示名称",
+        "profile_change_language": "语言",
+        "profile_verify_pwd": "验证密码",
+        "profile_verify_btn": "验证密码",
+        "profile_new_pwd_section": "新密码",
+        "profile_confirm_pwd_section": "确认新密码",
+        "profile_save_pwd": "更新密码",
+        "profile_save_name_btn": "保存名称",
+        "profile_save_lang_btn": "保存语言",
+        "profile_current_pwd_ph": "输入当前密码",
+        "profile_new_pwd_ph": "输入新密码",
+        "profile_confirm_pwd_ph": "再次输入新密码",
+        "profile_logout_btn": "退出登录",
+
+        // AI
+        "ai_smart_add": "AI智能添加",
+        "ai_placeholder": "用自然语言描述支出",
+        "ai_analyze": "分析",
+        "ai_success": "AI已成功填写表单！",
+        "ai_modal_hint": "用自然语言描述支出，AI将自动填写表单",
+
+        // Settings (legacy keys)
+        "settings_title": "群组设置",
+        "settings_public_expenses": "向所有人显示支出",
+        "settings_public_hint": "关闭时，成员只能看到自己支付或参与的支出。",
+        "settings_members": "成员",
+
+        // Phase 2 additions
+        "demote_question": "移除管理员？",
+        "demote_success": "管理员已移除",
+        "invite_link_copied": "邀请链接已复制！",
+        "invite_joined": "已加入群组！",
+        "invite_link_btn": "创建邀请链接",
+        "profile_change_phone": "更新电话号码",
+        "profile_phone_ph": "新电话号码",
+        "profile_save_phone_btn": "保存电话",
+        "profile_phone_required": "请输入电话号码",
+        "profile_phone_saved": "电话更新成功",
+        "profile_tutorial": "教程",
+        "profile_tutorial_coming": "教程视频即将推出！",
+        "profile_tutorial_desc": "这里将出现教程视频，帮助您学习如何使用该应用。",
+        "getFinancialTipBtn": "智能财务助手 ✨",
+        "loadingThinking": "思考中...",
+
+        // Step 7 - Groups Overhaul
+        "budget_type_daily": "每日",
+        "budget_per_user": "每用户预算",
+        "budget_per_user_hint": "预算单独适用于每位成员",
+        "budget_amount_label": "预算金额",
+        "invite_tab_whatsapp": "WhatsApp",
+        "invite_tab_email": "邮箱",
+        "invite_tab_guest": "访客",
+        "invite_name_ph": "姓名",
+        "invite_phone_ph": "电话号码",
+        "invite_email_ph": "邮箱地址",
+        "invite_send_whatsapp": "通过WhatsApp发送邀请",
+        "invite_send_email": "通过邮箱发送邀请",
+        "invite_add_guest": "添加访客",
+        "invite_whatsapp_note": "用户点击链接后将加入群组。",
+        "invite_email_sent": "邮件邀请已发送！",
+        "invite_email_note": "邀请将发送到提供的邮箱地址。",
+        "lobby_no_groups": "暂无群组。创建一个新群组！",
+        "members_count": "位成员",
+        "invite_members_title": "邀请成员",
+        "budget_currency": "群组货币",
+        "btn_add_participant": "添加参与者",
+        "invite_name_placeholder": "姓名",
+        "invite_phone_placeholder": "电话号码",
+        "invite_email_placeholder": "邮箱地址",
+        "btn_send_email": "通过邮箱发送邀请",
+        "btn_add_guest": "添加访客",
+        "total_budget": "总预算",
+        "members_count_label": "成员",
+        "edit_group": "编辑群组",
+
+        // GroupsScreen additions
+        "edit_trip_change": "更改",
+        "edit_trip_image": "图片",
+        "members": "成员",
+        "add_member": "添加成员",
+        "copy_link": "复制链接",
+        "participants": "参与者",
+        "status_pending": "待处理",
+        "btn_remove": "移除",
+        "admin_settings": "管理员设置",
+        "trip_currency": "群组货币",
+        "global_budget": "总体预算",
+        "personal_budget_per_user": "每用户个人预算",
+        "public_expenses": "向所有人显示支出",
+        "allow_member_delete_lbl": "允许成员删除支出",
+        "save_changes": "保存更改",
+        "leave_trip": "离开群组",
+        "hide_trip": "从列表中隐藏群组",
+        "budget_daily": "每日预算",
+        "budget_monthly": "每月预算",
+        "budget_yearly": "每年预算",
+        "enter_amount": "输入金额",
+        "budget": "预算",
+        "for": "用于",
+        "btn_confirm": "确认",
+        "all_group": "整个群组",
+        "expense_paid_by": "支付者：",
+        "confirm_delete_member": "您确定要移除此成员吗？"
     }
 };
+
+const VALID_LANGUAGES = ['he', 'en', 'es', 'ru', 'ar', 'fr', 'zh'];
+const RTL_LANGUAGES = ['he', 'ar'];
 
 let currentLang = 'he';
 
@@ -613,44 +2098,48 @@ function initLanguage() {
 }
 
 function setLanguage(lang) {
-    if (lang !== 'he' && lang !== 'en') lang = 'he';
+    if (!VALID_LANGUAGES.includes(lang)) lang = 'he';
     currentLang = lang;
     localStorage.setItem('lang', lang);
     document.documentElement.lang = lang;
-    document.documentElement.dir = (lang === 'he') ? 'rtl' : 'ltr';
-    document.body.style.direction = (lang === 'he') ? 'rtl' : 'ltr';
+    const isRTL = RTL_LANGUAGES.includes(lang);
+    document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
+    document.body.style.direction = isRTL ? 'rtl' : 'ltr';
     applyTranslations();
     if (typeof window.updateUI === 'function') window.updateUI();
     window.dispatchEvent(new Event('languageChanged'));
 }
 
 function i18n(key) {
-    if (!translations[currentLang]) return key;
-    return translations[currentLang][key] !== undefined ? translations[currentLang][key] : key;
+    if (!translations[currentLang]) return translations['en']?.[key] || key;
+    return translations[currentLang][key] !== undefined ? translations[currentLang][key] : (translations['en']?.[key] || key);
 }
 
 function applyTranslations() {
+    const langData = translations[currentLang] || translations['en'] || {};
+    
     document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
-        if (translations[currentLang][key]) {
+        if (langData[key]) {
             if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
-                el.placeholder = translations[currentLang][key];
+                el.placeholder = langData[key];
             } else {
-                el.textContent = translations[currentLang][key];
+                el.textContent = langData[key];
             }
         }
     });
     
     document.querySelectorAll('[data-i18n-html]').forEach(el => {
         const key = el.getAttribute('data-i18n-html');
-        if (translations[currentLang][key]) {
-            el.innerHTML = translations[currentLang][key];
+        if (langData[key]) {
+            el.innerHTML = langData[key];
         }
     });
 
+    const isRTL = RTL_LANGUAGES.includes(currentLang);
     document.querySelectorAll('input, textarea').forEach(el => {
         if(el.type !== 'hidden' && el.type !== 'checkbox' && el.type !== 'radio' && el.type !== 'file') {
-            el.setAttribute('dir', currentLang === 'he' ? 'rtl' : 'ltr');
+            el.setAttribute('dir', isRTL ? 'rtl' : 'ltr');
         }
     });
 }

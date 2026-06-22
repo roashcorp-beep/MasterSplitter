@@ -2708,17 +2708,34 @@ def add_expense():
 
         # Handle splits
         if splits and isinstance(splits, list) and len(splits) > 0:
-            # Validate split amounts sum to total
+            # Validate split amounts sum to raw amount
+            raw_amount = float(data.get('amount'))
             split_total = sum(float(s.get('amount', 0)) for s in splits)
-            if abs(split_total - amount) > 0.01:
+            print(f"DEBUG add_expense: raw_amount={raw_amount}, split_total={split_total}, diff={abs(split_total - raw_amount)}, splits={splits}")
+            if abs(split_total - raw_amount) > 0.01:
                 conn.rollback()
                 conn.close()
                 return jsonify({"error": "Split amounts must sum to the total expense amount."}), 400
 
-            for s in splits:
-                s_uid = int(s['user_id'])
-                s_amt = float(s['amount'])
-                if s_amt > 0:
+            valid_splits = [s for s in splits if float(s.get('amount', 0)) > 0]
+            if valid_splits:
+                converted_splits = []
+                if original_amount is not None and amount != original_amount:
+                    running_sum = 0
+                    for i, s in enumerate(valid_splits):
+                        s_uid = int(s['user_id'])
+                        s_amt = float(s['amount'])
+                        if i == len(valid_splits) - 1:
+                            c_amt = round(amount - running_sum, 2)
+                        else:
+                            c_amt = round(s_amt * (amount / original_amount), 2)
+                            running_sum += c_amt
+                        converted_splits.append((s_uid, c_amt))
+                else:
+                    for s in valid_splits:
+                        converted_splits.append((int(s['user_id']), float(s['amount'])))
+
+                for s_uid, s_amt in converted_splits:
                     cursor.execute(
                         "INSERT INTO ExpenseSplits (expense_id, user_id, amount) VALUES (?, ?, ?)",
                         (expense_id, s_uid, s_amt)
@@ -2835,9 +2852,12 @@ def edit_expense(expense_id):
         if 'splits' in data:
             splits = data['splits']
             if isinstance(splits, list):
+                # Retrieve the raw amount expected for splits
+                raw_amount = float(data.get('amount')) if 'amount' in data else (old_exp['original_amount'] if old_exp['original_amount'] else old_exp['amount'])
+                
                 # Validate sum
                 split_total = sum(float(s.get('amount', 0)) for s in splits)
-                if abs(split_total - final_amount) > 0.01 and len(splits) > 0:
+                if abs(split_total - raw_amount) > 0.01 and len(splits) > 0:
                     conn.rollback()
                     conn.close()
                     return jsonify({"error": "Split amounts must sum to the total expense amount."}), 400
@@ -2845,11 +2865,30 @@ def edit_expense(expense_id):
                 # Drop existing splits
                 cursor.execute("DELETE FROM ExpenseSplits WHERE expense_id = ?", (expense_id,))
                 
-                # Insert new splits
-                for s in splits:
-                    s_uid = int(s['user_id'])
-                    s_amt = float(s['amount'])
-                    if s_amt > 0:
+                valid_splits = [s for s in splits if float(s.get('amount', 0)) > 0]
+                if valid_splits:
+                    converted_splits = []
+                    
+                    current_final = final_amount if ('amount' in data or 'currency' in data) else old_exp['amount']
+                    current_orig = original_amount if ('amount' in data or 'currency' in data) else old_exp['original_amount']
+                    
+                    if current_orig is not None and current_final != current_orig:
+                        running_sum = 0
+                        for i, s in enumerate(valid_splits):
+                            s_uid = int(s['user_id'])
+                            s_amt = float(s['amount'])
+                            if i == len(valid_splits) - 1:
+                                c_amt = round(current_final - running_sum, 2)
+                            else:
+                                c_amt = round(s_amt * (current_final / current_orig), 2)
+                                running_sum += c_amt
+                            converted_splits.append((s_uid, c_amt))
+                    else:
+                        for s in valid_splits:
+                            converted_splits.append((int(s['user_id']), float(s['amount'])))
+                            
+                    # Insert new splits
+                    for s_uid, s_amt in converted_splits:
                         cursor.execute(
                             "INSERT INTO ExpenseSplits (expense_id, user_id, amount) VALUES (?, ?, ?)",
                             (expense_id, s_uid, s_amt)

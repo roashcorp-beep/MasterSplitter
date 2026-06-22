@@ -7,7 +7,7 @@
     <title>MasterSplitter</title>
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800;900&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=3.6">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=3.7">
     <script>
         if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.documentElement.classList.add('dark');
@@ -308,21 +308,21 @@
                     placeholder="למשל: שילמתי 150 על פיצה, דני חייב חצי ורועי חייב 30"></textarea>
                 
                 <!-- Voice Expense Button -->
-                <button id="voiceAddBtn" class="voice-fab" onclick="startVoiceRecognition()" title="הוסף הוצאה קולית" style="margin-top: 10px; padding: 10px; border-radius: 8px; background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.3); color: var(--text-main); display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; cursor:pointer;">
+                <button id="voiceAddBtn" class="voice-fab" onclick="startVoiceRecognition()" title="הוסף הוצאה קולית">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
                         <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
                         <line x1="12" y1="19" x2="12" y2="22"/>
                     </svg>
                     <span data-i18n="voice_add_btn">הקלט שמע</span>
-                    <div id="voice-indicator" class="voice-indicator" style="display:none; width:10px; height:10px; border-radius:50%; background:red; animation:pulse 1s infinite;"></div>
+                    <div id="voice-indicator" class="voice-indicator"></div>
                 </button>
 
-                <button class="ai-analyze-btn" onclick="aiParseExpense()" id="ai-analyze-btn" style="margin-top:15px; width:100%; padding:12px; background:linear-gradient(135deg, #a855f7, #6366f1); border-radius:8px; border:none; color:white; font-weight:bold; cursor:pointer;">
+                <button class="ai-analyze-btn" onclick="aiParseExpense()" id="ai-analyze-btn">
                     <span class="ai-analyze-text" data-i18n="ai_analyze">נתח</span>
-                    <span class="ai-spinner" style="display:none;">⏳</span>
+                    <span class="ai-spinner"></span>
                 </button>
-                <div id="ai-error-msg" class="ai-error-msg" style="display:none; color:var(--accent-red); margin-top:10px; font-size:0.9rem;"></div>
+                <div id="ai-error-msg" class="ai-error-msg" style="display:none;"></div>
             </div>
         </div>
     </div>    <!-- ================ EDIT EXPENSE MODAL ================ -->
@@ -397,8 +397,8 @@
         </button>
     </div>
 
-    <script src="{{ url_for('static', filename='js/translations.js') }}?v=3.6"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=3.6"></script>
+    <script src="{{ url_for('static', filename='js/translations.js') }}?v=3.7"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=3.7"></script>
     <script>
         function checkCookieConsent() {
             if (!localStorage.getItem('cookieConsent')) {
@@ -551,7 +551,7 @@
     </div>
 
     <!-- React Component Inclusion -->
-    <script type="text/babel" src="{{ url_for('static', filename='js/components/GroupsScreen.jsx') }}?v=3.6">
+    <script type="text/babel" src="{{ url_for('static', filename='js/components/GroupsScreen.jsx') }}?v=3.7">
 /** @jsx React.createElement */
 /** @jsxFrag React.Fragment */
 </script>

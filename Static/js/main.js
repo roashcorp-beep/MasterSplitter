@@ -1280,9 +1280,13 @@ function renderParticipants() {
     const container = document.getElementById('participants-container');
     if (!container) return;
     
+    if (!currentPayerId && typeof window.currentUser !== 'undefined' && window.currentUser) {
+        currentPayerId = window.currentUser.id;
+    }
+
     const payerSelect = document.getElementById('payer-select');
     if (payerSelect) {
-        payerSelect.innerHTML = tripMembers.map(m => `<option value="${m.id}" ${String(m.id) === String(currentPayerId) ? 'selected' : ''}>${escapeHTML(m.name)}</option>`).join('');
+        payerSelect.innerHTML = tripMembers.map(m => `<option value="${m.id}" style="color: #000;" ${String(m.id) === String(currentPayerId) ? 'selected' : ''}>${escapeHTML(m.name)}</option>`).join('');
     }
 
     container.innerHTML = tripMembers.map(m => {
@@ -1796,7 +1800,8 @@ function openEditExpenseModal(id, amount, desc, category, currency) {
         
         const editPayerSelect = document.getElementById('edit-payer-select');
         if (editPayerSelect && typeof tripMembers !== 'undefined') {
-            editPayerSelect.innerHTML = tripMembers.map(m => `<option value="${m.id}" ${expense && String(m.id) === String(expense.user_id) ? 'selected' : ''}>${escapeHTML(m.name)}</option>`).join('');
+            const currentPayerId = expense ? String(expense.user_id) : (window.currentUser ? String(window.currentUser.id) : '');
+            editPayerSelect.innerHTML = tripMembers.map(m => `<option value="${m.id}" style="color: #000;" ${String(m.id) === currentPayerId ? 'selected' : ''}>${escapeHTML(m.name)}</option>`).join('');
         }
         
         // Render participants pills

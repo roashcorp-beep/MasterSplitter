@@ -1634,27 +1634,38 @@ async function fetchExpenses() {
                 if (splits.length > 0) {
                     let payerRow = '';
                     if (!isPersonal) {
+                        let payerAmt = parseFloat(exp.amount);
+                        if (exp.original_amount && parseFloat(exp.original_amount) !== parseFloat(exp.amount)) {
+                            payerAmt = parseFloat(exp.original_amount);
+                        }
                         const pAvatar = exp.payer_avatar 
                             ? `<img class="split-detail-avatar" src="${escapeHTML(exp.payer_avatar)}" referrerpolicy="no-referrer">`
                             : `<div class="split-detail-avatar split-detail-initial" style="background: rgba(34,197,94,0.2); color: #166534;">${escapeHTML(exp.payer.charAt(0))}</div>`;
                         payerRow = `<div class="split-detail-row">
                             ${pAvatar}
                             <span class="split-detail-name" style="color: #166534; font-weight: bold;">${escapeHTML(exp.payer)}</span>
-                            <span class="split-detail-amount" style="color: #16a34a; font-weight: bold;">${typeof i18n === 'function' ? i18n('expense_paid_by') || 'שילם/ה: ' : 'שילם/ה: '}${expSym}${parseFloat(exp.amount).toFixed(1)}</span>
+                            <span class="split-detail-amount" style="color: #16a34a; font-weight: bold;">${typeof i18n === 'function' ? i18n('expense_paid_by') || 'שילם/ה: ' : 'שילם/ה: '}${expSym}${payerAmt.toFixed(1)}</span>
                         </div>`;
                     }
 
                     const splitRows = splits.map(s => {
                         const isPayer = String(s.user_id) === String(exp.user_id);
                         const colorStyle = isPayer ? 'color: #6b7280;' : 'color: #dc2626;';
+                        const nameStyle = 'color: var(--text-main);';
+                        
+                        let displayAmt = parseFloat(s.amount);
+                        if (exp.original_amount && parseFloat(exp.original_amount) !== parseFloat(exp.amount)) {
+                            const ratio = parseFloat(exp.original_amount) / parseFloat(exp.amount);
+                            displayAmt = displayAmt * ratio;
+                        }
                         
                         const sAvatar = s.avatar_url
                             ? `<img class="split-detail-avatar" src="${escapeHTML(s.avatar_url)}" referrerpolicy="no-referrer">`
                             : `<div class="split-detail-avatar split-detail-initial">${escapeHTML(s.name.charAt(0))}</div>`;
                         return `<div class="split-detail-row">
                             ${sAvatar}
-                            <span class="split-detail-name" style="${colorStyle}">${escapeHTML(s.name)}</span>
-                            <span class="split-detail-amount" style="${colorStyle}">${expSym}${parseFloat(s.amount).toFixed(1)}</span>
+                            <span class="split-detail-name" style="${nameStyle}">${escapeHTML(s.name)}</span>
+                            <span class="split-detail-amount" style="${colorStyle}">${expSym}${displayAmt.toFixed(1)}</span>
                         </div>`;
                     }).join('');
                     splitsDetailHTML = `<div class="expense-splits-detail" id="splits-${exp.id}" style="display:none">
@@ -1677,7 +1688,7 @@ async function fetchExpenses() {
                     <div class="item-right">
                         <div class="item-amount">${amountDisplay}</div>
                         <div class="expense-actions">
-                            ${editBtn}
+                            ${isPersonal ? '' : `<button class="edit-expense-btn" onclick="openEditExpenseModal(${exp.id}, ${parseFloat(exp.original_amount || exp.amount)}, '${safeDesc}', '${exp.category || 'כללי'}', '${exp.currency}')">✏️</button>`}
                             ${deleteBtn}
                         </div>
                     </div>
@@ -1740,6 +1751,10 @@ function openEditExpenseModal(id, amount, desc, category, currency) {
     if (currSelect) {
         currSelect.value = currency || 'ILS';
         currSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        const currBtn = document.getElementById('edit-expense-currency-btn');
+        if (currBtn) {
+            currBtn.innerText = getCurrencySymbol(currency || 'ILS');
+        }
     }
     
     const catSelect = document.getElementById('edit-expense-category');
@@ -1748,7 +1763,7 @@ function openEditExpenseModal(id, amount, desc, category, currency) {
     }
     
     // Setup participants and splits
-    const expense = window.currentExpenses ? window.currentExpenses.find(e => e.id === id) : null;
+    const expense = (typeof _cachedExpenses !== 'undefined' && _cachedExpenses) ? _cachedExpenses.find(e => e.id === id) : null;
     const isPersonal = expense ? expense.is_personal : 0;
     
     const participantsContainer = document.getElementById('edit-participants-container');
@@ -1761,11 +1776,11 @@ function openEditExpenseModal(id, amount, desc, category, currency) {
         document.getElementById('edit-expense-participants-group').style.display = 'block';
         
         // Render participants pills
-        if (participantsContainer && window.tripMembers) {
+        if (participantsContainer && typeof tripMembers !== 'undefined') {
             const expSplits = expense ? (expense.splits || []) : [];
             const involvedIds = expSplits.map(s => String(s.user_id));
             
-            participantsContainer.innerHTML = window.tripMembers.map(m => {
+            participantsContainer.innerHTML = tripMembers.map(m => {
                 const safeName = escapeHTML(m.name);
                 const initial = escapeHTML(m.name.charAt(0));
                 // Only select those who were in the original split, or all if empty

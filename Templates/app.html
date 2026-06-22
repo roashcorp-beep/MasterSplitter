@@ -7,7 +7,7 @@
     <title>MasterSplitter</title>
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800;900&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=3.7">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=3.8">
     <script>
         if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.documentElement.classList.add('dark');
@@ -215,12 +215,13 @@
                     <label data-i18n="expense_what">על מה היה?</label>
                     <input type="text" id="desc" data-i18n="expense_what_ph" placeholder="למשל: ארוחת ערב, מונית...">
 
-                    <label style="margin-top:16px;" data-i18n="expense_amount">סכום</label>
-                    <div class="currency-row">
+                    <div class="currency-row" style="margin-top:16px;">
                         <div class="amount-col">
+                            <label data-i18n="expense_amount" style="margin-top:0;">סכום</label>
                             <input type="number" id="amount" placeholder="0" min="0" step="0.01">
                         </div>
                         <div class="currency-col">
+                            <label data-i18n="currency_label" style="margin-top:0;">מטבע</label>
                             <input type="hidden" id="currency" name="currency" value="ILS">
                             <button type="button" id="currency-btn" class="currency-picker-btn" onclick="openCurrencyPicker(val => { document.getElementById('currency').value = val; document.getElementById('currency-btn').innerText = getCurrencySymbol(val); })">₪</button>
                         </div>
@@ -341,14 +342,15 @@
             </div>
 
             <div class="form-group">
-                <label data-i18n="expense_amount">סכום</label>
                 <div class="currency-row">
                     <div class="amount-col">
+                        <label data-i18n="expense_amount" style="margin-top:0;">סכום</label>
                         <input type="number" id="edit-expense-amount" placeholder="0" min="0" step="0.01">
                     </div>
                     <div class="currency-col">
-                            <input type="hidden" id="edit-expense-currency">
-                            <button type="button" id="edit-expense-currency-btn" class="currency-picker-btn" onclick="openCurrencyPicker(val => { document.getElementById('edit-expense-currency').value = val; document.getElementById('edit-expense-currency-btn').innerText = getCurrencySymbol(val); })">₪</button>
+                        <label data-i18n="currency_label" style="margin-top:0;">מטבע</label>
+                        <input type="hidden" id="edit-expense-currency">
+                        <button type="button" id="edit-expense-currency-btn" class="currency-picker-btn" onclick="openCurrencyPicker(val => { document.getElementById('edit-expense-currency').value = val; document.getElementById('edit-expense-currency-btn').innerText = getCurrencySymbol(val); })">₪</button>
                     </div>
                 </div>
             </div>
@@ -397,8 +399,8 @@
         </button>
     </div>
 
-    <script src="{{ url_for('static', filename='js/translations.js') }}?v=3.7"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=3.7"></script>
+    <script src="{{ url_for('static', filename='js/translations.js') }}?v=3.8"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=3.8"></script>
     <script>
         function checkCookieConsent() {
             if (!localStorage.getItem('cookieConsent')) {
@@ -551,7 +553,7 @@
     </div>
 
     <!-- React Component Inclusion -->
-    <script type="text/babel" src="{{ url_for('static', filename='js/components/GroupsScreen.jsx') }}?v=3.7">
+    <script type="text/babel" src="{{ url_for('static', filename='js/components/GroupsScreen.jsx') }}?v=3.8">
 /** @jsx React.createElement */
 /** @jsxFrag React.Fragment */
 </script>

@@ -1928,15 +1928,21 @@ body.light-theme .list-item:hover {
 
 .currency-row select,
 .currency-row .currency-picker-btn {
-    padding: 13px 8px;
-    font-size: 0.92rem;
+    padding: 14px 8px;
+    font-size: 1rem;
+    font-family: inherit;
     width: 100%;
     height: 100%;
-    border: none;
-    background: transparent;
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface-main);
     color: var(--text-main);
     cursor: pointer;
     text-align: center;
+    transition: all 0.2s ease;
+}
+.currency-row .currency-picker-btn:hover {
+    border-color: var(--primary);
 }
 
 /* ============================================

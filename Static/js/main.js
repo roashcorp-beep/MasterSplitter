@@ -1698,15 +1698,35 @@ async function fetchExpenses() {
 function toggleExpenseSplits(expId, event) {
     // Don't toggle if clicking on edit/delete buttons
     if (event && (event.target.closest('.edit-expense-btn') || event.target.closest('.delete-expense-btn'))) return;
-    const detail = document.getElementById(`splits-${expId}`);
+    
+    // Find the specific container that was clicked instead of global ID
+    const expandable = event.currentTarget || event.target.closest('.expense-expandable');
+    if (!expandable) {
+        // Fallback to ID if currentTarget not available
+        const detail = document.getElementById(`splits-${expId}`);
+        if (!detail) return;
+        const isOpen = detail.style.display !== 'none';
+        document.querySelectorAll('.expense-splits-detail').forEach(d => d.style.display = 'none');
+        document.querySelectorAll('.expense-expandable').forEach(d => d.classList.remove('expanded'));
+        if (!isOpen) {
+            detail.style.display = 'block';
+            detail.closest('.expense-expandable')?.classList.add('expanded');
+        }
+        return;
+    }
+    
+    const detail = expandable.querySelector('.expense-splits-detail');
     if (!detail) return;
+    
     const isOpen = detail.style.display !== 'none';
+    
     // Close all others first
     document.querySelectorAll('.expense-splits-detail').forEach(d => d.style.display = 'none');
     document.querySelectorAll('.expense-expandable').forEach(d => d.classList.remove('expanded'));
+    
     if (!isOpen) {
         detail.style.display = 'block';
-        detail.closest('.expense-expandable')?.classList.add('expanded');
+        expandable.classList.add('expanded');
     }
 }
 

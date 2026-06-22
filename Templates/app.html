@@ -289,8 +289,43 @@
             </button>
         </div>
 
+        <!-- AI Floating Action Button -->
+        <button class="ai-fab" id="ai-fab" onclick="openAiModal()" title="AI Smart Add">
+            <span class="ai-fab-icon">✨</span>
+        </button>
+    </div>
 
-    <!-- ================ EDIT EXPENSE MODAL ================ -->
+    <!-- AI Magic Modal -->
+    <div id="ai-magic-modal" class="modal-overlay" style="display:none; z-index:9999;">
+        <div class="modal ai-magic-modal">
+            <div class="modal-header">
+                <h3>✨ AI Smart Add</h3>
+                <button class="modal-close" onclick="closeAiModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="ai-modal-hint" data-i18n="ai_modal_hint">תאר את ההוצאה בשפה חופשית וה-AI ימלא את הטופס אוטומטית</p>
+                <textarea id="ai-expense-text" class="ai-textarea" rows="3" data-i18n="ai_placeholder"
+                    placeholder="למשל: שילמתי 150 על פיצה, דני חייב חצי ורועי חייב 30"></textarea>
+                
+                <!-- Voice Expense Button -->
+                <button id="voiceAddBtn" class="voice-fab" onclick="startVoiceRecognition()" title="הוסף הוצאה קולית" style="margin-top: 10px; padding: 10px; border-radius: 8px; background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.3); color: var(--text-main); display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; cursor:pointer;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                        <line x1="12" y1="19" x2="12" y2="22"/>
+                    </svg>
+                    <span data-i18n="voice_add_btn">הקלט שמע</span>
+                    <div id="voice-indicator" class="voice-indicator" style="display:none; width:10px; height:10px; border-radius:50%; background:red; animation:pulse 1s infinite;"></div>
+                </button>
+
+                <button class="ai-analyze-btn" onclick="aiParseExpense()" id="ai-analyze-btn" style="margin-top:15px; width:100%; padding:12px; background:linear-gradient(135deg, #a855f7, #6366f1); border-radius:8px; border:none; color:white; font-weight:bold; cursor:pointer;">
+                    <span class="ai-analyze-text" data-i18n="ai_analyze">נתח</span>
+                    <span class="ai-spinner" style="display:none;">⏳</span>
+                </button>
+                <div id="ai-error-msg" class="ai-error-msg" style="display:none; color:var(--accent-red); margin-top:10px; font-size:0.9rem;"></div>
+            </div>
+        </div>
+    </div>    <!-- ================ EDIT EXPENSE MODAL ================ -->
     <div id="edit-expense-modal" class="modal-overlay">
         <div class="modal-card">
             <div class="modal-header">

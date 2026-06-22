@@ -2247,7 +2247,6 @@ function applyTranslations() {
             el.innerHTML = langData[key];
         }
     });
-
     const isRTL = RTL_LANGUAGES.includes(currentLang);
     document.querySelectorAll('input, textarea').forEach(el => {
         if(el.type !== 'hidden' && el.type !== 'checkbox' && el.type !== 'radio' && el.type !== 'file') {
@@ -2255,6 +2254,9 @@ function applyTranslations() {
         }
     });
 }
+
+// Expose translations to window for React components
+window.translations = translations;
 
 // Call init on load
 document.addEventListener('DOMContentLoaded', () => {

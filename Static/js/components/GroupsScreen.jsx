@@ -126,17 +126,17 @@ const GroupsScreen = () => {
             });
             const data = await res.json();
             if (res.ok && data.success) {
-                if (window.showToast) window.showToast("התמונה עודכנה בהצלחה", "success");
+                if (window.showToast) window.showToast(i18n("toast_image_updated") || "Image updated successfully", "success");
                 setEditTripDetails(prev => ({ ...prev, image_url: data.avatar_url }));
                 // update global list as well
                 setTrips(prev => prev.map(t => t.id === tripId ? { ...t, image_url: data.avatar_url } : t));
                 if (window.loadLobby) window.loadLobby();
             } else {
-                if (window.showToast) window.showToast(data.error || "שגיאה בהעלאת התמונה", "error");
+                if (window.showToast) window.showToast(data.error || (i18n("error_upload_image") || "Error uploading image"), "error");
             }
         } catch (e) {
             console.error(e);
-            if (window.showToast) window.showToast("שגיאת רשת", "error");
+            if (window.showToast) window.showToast(i18n("error_network") || "Network error", "error");
         }
     };
 
@@ -219,7 +219,7 @@ const GroupsScreen = () => {
                                         <button 
                                             onClick={(e) => { e.stopPropagation(); window.openEditTripModal(trip.id); }} 
                                             className="trip-edit-btn"
-                                            title="ערוך קבוצה"
+                                            title={i18n("edit_group") || "Edit Group"}
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
                                         </button>
@@ -360,14 +360,14 @@ const GroupsScreen = () => {
         };
 
         const handleLeaveTrip = async () => {
-            if (window.confirm("האם אתה בטוח שברצונך לעזוב את הקבוצה? הקבוצה תעבור למצב קריאה בלבד.")) {
+            if (window.confirm(i18n("confirm_leave_group") || "Are you sure you want to leave this group? The group will become read-only.")) {
                 try {
                     const res = await fetch(`/api/trips/${trip.id}/leave`, { method: 'POST', headers: { 'Authorization': `Bearer ${window.authToken}` } });
                     if (res.ok) {
                         window.location.reload();
                     } else {
                         const err = await res.json();
-                        alert(err.error || "שגיאה בעזיבת הקבוצה");
+                        alert(err.error || (i18n("error_leave_group") || "Error leaving group"));
                     }
                 } catch (e) {
                     console.error(e);
@@ -376,14 +376,14 @@ const GroupsScreen = () => {
         };
 
         const handleHideTrip = async () => {
-            if (window.confirm("האם אתה בטוח שברצונך למחוק את הקבוצה מהרשימה שלך?")) {
+            if (window.confirm(i18n("confirm_hide_group") || "Are you sure you want to remove this group from your list?")) {
                 try {
                     const res = await fetch(`/api/trips/${trip.id}/hide`, { method: 'POST', headers: { 'Authorization': `Bearer ${window.authToken}` } });
                     if (res.ok) {
                         window.location.reload();
                     } else {
                         const err = await res.json();
-                        alert(err.error || "שגיאה במחיקת הקבוצה");
+                        alert(err.error || (i18n("error_hide_group") || "Error removing group"));
                     }
                 } catch (e) {
                     console.error(e);
@@ -484,15 +484,15 @@ const GroupsScreen = () => {
                                                 </div>
                                             ) : isParticipantAdmin ? 
                                                 <div className="flex items-center gap-1.5">
-                                                    <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/30 px-2.5 py-1 rounded-full">מנהל</span>
+                                                    <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/30 px-2.5 py-1 rounded-full">{i18n("role_admin") || "Admin"}</span>
                                                     {isAdmin && !p.is_owner && (
-                                                        <button onClick={() => { if(window.removeMemberAdmin) window.removeMemberAdmin(trip, p.contact); }} className="text-xs font-medium text-gray-600 bg-gray-100 hover:bg-red-100 hover:text-red-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-red-900/30 px-2.5 py-1.5 rounded-full transition-colors shadow-sm">הסר מניהול</button>
+                                                        <button onClick={() => { if(window.removeMemberAdmin) window.removeMemberAdmin(trip, p.contact); }} className="text-xs font-medium text-gray-600 bg-gray-100 hover:bg-red-100 hover:text-red-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-red-900/30 px-2.5 py-1.5 rounded-full transition-colors shadow-sm">{i18n("remove_admin") || "Remove Admin"}</button>
                                                     )}
                                                 </div> :
                                                 isAdmin && !p.is_owner ? (
                                                     <div className="flex items-center gap-1.5">
-                                                        <button onClick={() => { if(window.makeMemberAdmin) window.makeMemberAdmin(trip, p.contact); }} className="text-xs font-medium text-indigo-600 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 px-2.5 py-1.5 rounded-full transition-colors shadow-sm">ניהול</button>
-                                                        <button onClick={() => removeUser(p.contact)} className="text-xs font-medium text-red-600 bg-red-100 hover:bg-red-200 dark:bg-red-900/20 px-2.5 py-1.5 rounded-full transition-colors shadow-sm">הסר</button>
+                                                        <button onClick={() => { if(window.makeMemberAdmin) window.makeMemberAdmin(trip, p.contact); }} className="text-xs font-medium text-indigo-600 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 px-2.5 py-1.5 rounded-full transition-colors shadow-sm">{i18n("make_admin") || "Admin"}</button>
+                                                        <button onClick={() => removeUser(p.contact)} className="text-xs font-medium text-red-600 bg-red-100 hover:bg-red-200 dark:bg-red-900/20 px-2.5 py-1.5 rounded-full transition-colors shadow-sm">{i18n("btn_remove") || "Remove"}</button>
                                                     </div>
                                                 ) : null
                                             }

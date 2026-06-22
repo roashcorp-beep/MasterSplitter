@@ -293,7 +293,23 @@ const translations = {
         "btn_confirm": "אישור",
         "all_group": "כל הקבוצה",
         "expense_paid_by": "שילם/ה: ",
-        "confirm_delete_member": "בטוח שברצונך להסיר את החבר הזה?"
+        "confirm_delete_member": "בטוח שברצונך להסיר את החבר הזה?",
+
+        // GroupsScreen extended
+        "toast_image_updated": "התמונה עודכנה בהצלחה",
+        "error_upload_image": "שגיאה בהעלאת התמונה",
+        "role_admin": "מנהל",
+        "remove_admin": "הסר מניהול",
+        "make_admin": "ניהול",
+        "confirm_leave_group": "האם אתה בטוח שברצונך לעזוב את הקבוצה? הקבוצה תעבור למצב קריאה בלבד.",
+        "error_leave_group": "שגיאה בעזיבת הקבוצה",
+        "confirm_hide_group": "האם אתה בטוח שברצונך למחוק את הקבוצה מהרשימה שלך?",
+        "error_hide_group": "שגיאה במחיקת הקבוצה",
+        "invite_add_contacts": "הוסף אנשי קשר",
+        "guest_offline_note": "עבור משתמש שאינו מקוון",
+        "daily": "יומי",
+        "monthly": "חודשי",
+        "yearly": "שנתי"
     },
     en: {
         // General
@@ -589,7 +605,23 @@ const translations = {
         "btn_confirm": "Confirm",
         "all_group": "Whole Group",
         "expense_paid_by": "Paid by: ",
-        "confirm_delete_member": "Are you sure you want to remove this member?"
+        "confirm_delete_member": "Are you sure you want to remove this member?",
+
+        // GroupsScreen extended
+        "toast_image_updated": "Image updated successfully",
+        "error_upload_image": "Error uploading image",
+        "role_admin": "Admin",
+        "remove_admin": "Remove Admin",
+        "make_admin": "Make Admin",
+        "confirm_leave_group": "Are you sure you want to leave this group? The group will become read-only.",
+        "error_leave_group": "Error leaving group",
+        "confirm_hide_group": "Are you sure you want to remove this group from your list?",
+        "error_hide_group": "Error removing group",
+        "invite_add_contacts": "Add Contacts",
+        "guest_offline_note": "For an offline user",
+        "daily": "Daily",
+        "monthly": "Monthly",
+        "yearly": "Yearly"
     },
     es: {
         // General
@@ -885,7 +917,23 @@ const translations = {
         "btn_confirm": "Confirmar",
         "all_group": "Todo el grupo",
         "expense_paid_by": "Pagado por: ",
-        "confirm_delete_member": "¿Estás seguro de que quieres eliminar a este miembro?"
+        "confirm_delete_member": "¿Estás seguro de que quieres eliminar a este miembro?",
+
+        // GroupsScreen extended
+        "toast_image_updated": "Imagen actualizada exitosamente",
+        "error_upload_image": "Error al subir la imagen",
+        "role_admin": "Administrador",
+        "remove_admin": "Quitar admin",
+        "make_admin": "Hacer admin",
+        "confirm_leave_group": "¿Estás seguro de que quieres salir del grupo? El grupo será de solo lectura.",
+        "error_leave_group": "Error al salir del grupo",
+        "confirm_hide_group": "¿Estás seguro de que quieres eliminar este grupo de tu lista?",
+        "error_hide_group": "Error al eliminar el grupo",
+        "invite_add_contacts": "Agregar contactos",
+        "guest_offline_note": "Para un usuario sin conexión",
+        "daily": "Diario",
+        "monthly": "Mensual",
+        "yearly": "Anual"
     },
     ru: {
         // General
@@ -1181,7 +1229,23 @@ const translations = {
         "btn_confirm": "Подтвердить",
         "all_group": "Вся группа",
         "expense_paid_by": "Оплатил: ",
-        "confirm_delete_member": "Вы уверены, что хотите удалить этого участника?"
+        "confirm_delete_member": "Вы уверены, что хотите удалить этого участника?",
+
+        // GroupsScreen extended
+        "toast_image_updated": "Изображение успешно обновлено",
+        "error_upload_image": "Ошибка загрузки изображения",
+        "role_admin": "Админ",
+        "remove_admin": "Снять админа",
+        "make_admin": "Сделать админом",
+        "confirm_leave_group": "Вы уверены, что хотите покинуть группу? Группа станет только для чтения.",
+        "error_leave_group": "Ошибка при выходе из группы",
+        "confirm_hide_group": "Вы уверены, что хотите удалить группу из списка?",
+        "error_hide_group": "Ошибка при удалении группы",
+        "invite_add_contacts": "Добавить контакты",
+        "guest_offline_note": "Для пользователя офлайн",
+        "daily": "Ежедневный",
+        "monthly": "Ежемесячный",
+        "yearly": "Ежегодный"
     },
     ar: {
         // General
@@ -1477,7 +1541,23 @@ const translations = {
         "btn_confirm": "تأكيد",
         "all_group": "المجموعة بأكملها",
         "expense_paid_by": "دفع بواسطة: ",
-        "confirm_delete_member": "هل أنت متأكد أنك تريد إزالة هذا العضو؟"
+        "confirm_delete_member": "هل أنت متأكد أنك تريد إزالة هذا العضو?",
+
+        // GroupsScreen extended
+        "toast_image_updated": "تم تحديث الصورة بنجاح",
+        "error_upload_image": "خطأ في رفع الصورة",
+        "role_admin": "مسؤول",
+        "remove_admin": "إزالة المسؤول",
+        "make_admin": "تعيين مسؤول",
+        "confirm_leave_group": "هل أنت متأكد أنك تريد مغادرة المجموعة؟ ستصبح المجموعة للقراءة فقط.",
+        "error_leave_group": "خطأ في مغادرة المجموعة",
+        "confirm_hide_group": "هل أنت متأكد أنك تريد حذف المجموعة من قائمتك?",
+        "error_hide_group": "خطأ في حذف المجموعة",
+        "invite_add_contacts": "إضافة جهات اتصال",
+        "guest_offline_note": "لمستخدم غير متصل",
+        "daily": "يومي",
+        "monthly": "شهري",
+        "yearly": "سنوي"
     },
     fr: {
         // General
@@ -1773,7 +1853,23 @@ const translations = {
         "btn_confirm": "Confirmer",
         "all_group": "Tout le groupe",
         "expense_paid_by": "Payé par : ",
-        "confirm_delete_member": "Êtes-vous sûr de vouloir supprimer ce membre ?"
+        "confirm_delete_member": "Êtes-vous sûr de vouloir supprimer ce membre ?",
+
+        // GroupsScreen extended
+        "toast_image_updated": "Image mise à jour avec succès",
+        "error_upload_image": "Erreur lors du téléversement de l'image",
+        "role_admin": "Admin",
+        "remove_admin": "Retirer admin",
+        "make_admin": "Rendre admin",
+        "confirm_leave_group": "Êtes-vous sûr de vouloir quitter le groupe ? Le groupe sera en lecture seule.",
+        "error_leave_group": "Erreur lors de la sortie du groupe",
+        "confirm_hide_group": "Êtes-vous sûr de vouloir supprimer ce groupe de votre liste ?",
+        "error_hide_group": "Erreur lors de la suppression du groupe",
+        "invite_add_contacts": "Ajouter des contacts",
+        "guest_offline_note": "Pour un utilisateur hors ligne",
+        "daily": "Quotidien",
+        "monthly": "Mensuel",
+        "yearly": "Annuel"
     },
     zh: {
         // General
@@ -2069,7 +2165,23 @@ const translations = {
         "btn_confirm": "确认",
         "all_group": "整个群组",
         "expense_paid_by": "支付者：",
-        "confirm_delete_member": "您确定要移除此成员吗？"
+        "confirm_delete_member": "您确定要移除此成员吗？",
+
+        // GroupsScreen extended
+        "toast_image_updated": "图片更新成功",
+        "error_upload_image": "上传图片出错",
+        "role_admin": "管理员",
+        "remove_admin": "移除管理员",
+        "make_admin": "设为管理员",
+        "confirm_leave_group": "您确定要离开此群组吗？群组将变为只读。",
+        "error_leave_group": "离开群组时出错",
+        "confirm_hide_group": "您确定要从列表中删除此群组吗？",
+        "error_hide_group": "删除群组时出错",
+        "invite_add_contacts": "添加联系人",
+        "guest_offline_note": "用于离线用户",
+        "daily": "每日",
+        "monthly": "每月",
+        "yearly": "每年"
     }
 };
 

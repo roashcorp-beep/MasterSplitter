@@ -264,7 +264,35 @@ const translations = {
         "btn_add_guest": "הוסף אורח",
         "total_budget": 'סה"כ תקציב',
         "members_count_label": "משתתפים",
-        "edit_group": "ערוך קבוצה"
+        "edit_group": "ערוך קבוצה",
+        
+        // GroupsScreen additions
+        "edit_trip_change": "שנה",
+        "edit_trip_image": "תמונה",
+        "members": "חברים",
+        "add_member": "הוסף חבר",
+        "copy_link": "העתק קישור",
+        "participants": "משתתפים",
+        "status_pending": "ממתין",
+        "btn_remove": "הסר",
+        "admin_settings": "הגדרות מנהל",
+        "trip_currency": "מטבע קבוצה",
+        "global_budget": "תקציב קבוצתי",
+        "personal_budget_per_user": "תקציב אישי לכל משתתף",
+        "public_expenses": "הצג הוצאות לכולם",
+        "allow_member_delete_lbl": "אפשר למשתתפים למחוק הוצאות",
+        "save_changes": "שמור שינויים",
+        "leave_trip": "עזוב קבוצה",
+        "hide_trip": "מחק קבוצה מהרשימה",
+        "budget_daily": "תקציב יומי",
+        "budget_monthly": "תקציב חודשי",
+        "budget_yearly": "תקציב שנתי",
+        "enter_amount": "הזן סכום",
+        "budget": "תקציב",
+        "for": "עבור",
+        "btn_confirm": "אישור",
+        "all_group": "כל הקבוצה",
+        "expense_paid_by": "שילם/ה: "
     },
     en: {
         // General
@@ -531,7 +559,35 @@ const translations = {
         "btn_add_guest": "Add Guest",
         "total_budget": "Total Budget",
         "members_count_label": "Members",
-        "edit_group": "Edit Group"
+        "edit_group": "Edit Group",
+        
+        // GroupsScreen additions
+        "edit_trip_change": "Change",
+        "edit_trip_image": "Image",
+        "members": "Members",
+        "add_member": "Add Member",
+        "copy_link": "Copy Link",
+        "participants": "Participants",
+        "status_pending": "Pending",
+        "btn_remove": "Remove",
+        "admin_settings": "Admin Settings",
+        "trip_currency": "Group Currency",
+        "global_budget": "Global Budget",
+        "personal_budget_per_user": "Personal Budget per User",
+        "public_expenses": "Show Expenses to Everyone",
+        "allow_member_delete_lbl": "Allow Members to Delete Expenses",
+        "save_changes": "Save Changes",
+        "leave_trip": "Leave Group",
+        "hide_trip": "Hide Group from List",
+        "budget_daily": "Daily Budget",
+        "budget_monthly": "Monthly Budget",
+        "budget_yearly": "Yearly Budget",
+        "enter_amount": "Enter Amount",
+        "budget": "Budget",
+        "for": "For",
+        "btn_confirm": "Confirm",
+        "all_group": "Whole Group",
+        "expense_paid_by": "Paid by: "
     }
 };
 

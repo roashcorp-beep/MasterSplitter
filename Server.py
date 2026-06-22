@@ -2692,11 +2692,17 @@ def add_expense():
     # Parse optional splits
     splits = data.get('splits')  # [{user_id: int, amount: float}, ...]
 
+    payer_id = data.get('payer_id')
+    if not payer_id:
+        payer_id = session['user_id']
+    else:
+        payer_id = int(payer_id)
+
     try:
         cursor.execute("""
             INSERT INTO Expenses (trip_id, user_id, amount, original_amount, currency, description, category, is_personal, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (trip_id, session['user_id'], amount, original_amount, currency, description, category, is_personal,
+        """, (trip_id, payer_id, amount, original_amount, currency, description, category, is_personal,
               datetime.now(timezone.utc).isoformat()))
         expense_id = cursor.lastrowid
 

@@ -1274,19 +1274,61 @@ function renderParticipantAvatars() {
 // =====================
 //  PARTICIPANT PILLS (replaces checkboxes)
 // =====================
+let currentPayerId = null;
+
 function renderParticipants() {
     const container = document.getElementById('participants-container');
     if (!container) return;
     container.innerHTML = tripMembers.map(m => {
         const safeName = escapeHTML(m.name);
         const initial = escapeHTML(m.name.charAt(0));
+        const isPayer = String(m.id) === String(currentPayerId);
+        const payerStyle = isPayer ? 'border: 2px solid #22c55e; background-color: rgba(34, 197, 94, 0.1);' : '';
         return `
-        <div class="participant-pill selected" data-id="${escapeHTML(String(m.id))}" onclick="togglePill(this)">
+        <div class="participant-pill selected" style="${payerStyle}" data-id="${escapeHTML(String(m.id))}" onclick="togglePill(this)" oncontextmenu="setPayer(this, event)">
             <span class="pill-avatar">${initial}</span>
             <span>${safeName}</span>
             <span class="pill-check">✓</span>
         </div>`;
     }).join('');
+    
+    setupLongPress(container);
+}
+
+function setPayer(el, event) {
+    if(event) event.preventDefault();
+    const id = el.dataset.id;
+    if (String(currentPayerId) === String(id)) {
+        currentPayerId = null; // unset
+    } else {
+        currentPayerId = id;
+    }
+    renderParticipants();
+}
+
+function setupLongPress(container) {
+    let pressTimer;
+    const pills = container.querySelectorAll('.participant-pill');
+    pills.forEach(pill => {
+        pill.addEventListener('touchstart', (e) => {
+            pressTimer = window.setTimeout(() => {
+                pressTimer = null;
+                setPayer(pill, null);
+            }, 600);
+        });
+        pill.addEventListener('touchend', (e) => {
+            if (pressTimer) {
+                clearTimeout(pressTimer);
+                pressTimer = null;
+            }
+        });
+        pill.addEventListener('touchmove', (e) => {
+            if (pressTimer) {
+                clearTimeout(pressTimer);
+                pressTimer = null;
+            }
+        });
+    });
 }
 
 function togglePill(el) {
@@ -1590,18 +1632,34 @@ async function fetchExpenses() {
                 // Expandable splits detail
                 let splitsDetailHTML = '';
                 if (splits.length > 0) {
+                    let payerRow = '';
+                    if (!isPersonal) {
+                        const pAvatar = exp.payer_avatar 
+                            ? `<img class="split-detail-avatar" src="${escapeHTML(exp.payer_avatar)}" referrerpolicy="no-referrer">`
+                            : `<div class="split-detail-avatar split-detail-initial" style="background: rgba(34,197,94,0.2); color: #166534;">${escapeHTML(exp.payer.charAt(0))}</div>`;
+                        payerRow = `<div class="split-detail-row">
+                            ${pAvatar}
+                            <span class="split-detail-name" style="color: #166534; font-weight: bold;">${escapeHTML(exp.payer)}</span>
+                            <span class="split-detail-amount" style="color: #16a34a; font-weight: bold;">${typeof i18n === 'function' ? i18n('expense_paid_by') || 'שילם/ה: ' : 'שילם/ה: '}${expSym}${parseFloat(exp.amount).toFixed(1)}</span>
+                        </div>`;
+                    }
+
                     const splitRows = splits.map(s => {
+                        const isPayer = String(s.user_id) === String(exp.user_id);
+                        const colorStyle = isPayer ? 'color: #6b7280;' : 'color: #dc2626;';
+                        
                         const sAvatar = s.avatar_url
                             ? `<img class="split-detail-avatar" src="${escapeHTML(s.avatar_url)}" referrerpolicy="no-referrer">`
                             : `<div class="split-detail-avatar split-detail-initial">${escapeHTML(s.name.charAt(0))}</div>`;
                         return `<div class="split-detail-row">
                             ${sAvatar}
-                            <span class="split-detail-name">${escapeHTML(s.name)}</span>
-                            <span class="split-detail-amount">${expSym}${parseFloat(s.amount).toFixed(1)}</span>
+                            <span class="split-detail-name" style="${colorStyle}">${escapeHTML(s.name)}</span>
+                            <span class="split-detail-amount" style="${colorStyle}">${expSym}${parseFloat(s.amount).toFixed(1)}</span>
                         </div>`;
                     }).join('');
                     splitsDetailHTML = `<div class="expense-splits-detail" id="splits-${exp.id}" style="display:none">
                         <div class="splits-detail-header">${typeof i18n === 'function' ? i18n('expense_split_detail') || 'פירוט חלוקה' : 'פירוט חלוקה'}</div>
+                        ${payerRow}
                         ${splitRows}
                     </div>`;
                 }
@@ -1987,18 +2045,23 @@ async function addExpense() {
     }
 
     try {
+        const payload = {
+            trip_id: currentTripId,
+            amount: amount,
+            description: desc,
+            category,
+            currency,
+            splits: splits,
+            is_personal: document.getElementById('personal-expense-toggle')?.checked || false
+        };
+        if (currentPayerId) {
+            payload.payer_id = currentPayerId;
+        }
+
         const res = await fetch('/api/expenses', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                trip_id: currentTripId,
-                amount: amount,
-                description: desc,
-                category,
-                currency,
-                splits: splits,
-                is_personal: document.getElementById('personal-expense-toggle')?.checked || false
-            })
+            body: JSON.stringify(payload)
         });
         if (res.status === 401) { window.location.href = '/'; return; }
         const data = await res.json();
@@ -2010,6 +2073,7 @@ async function addExpense() {
             if (personalToggle) personalToggle.checked = false;
             toggleSplitMode();
             showToast(typeof i18n === 'function' ? i18n('toast_expense_added') : 'ההוצאה נוספה! 💸');
+            currentPayerId = null;
             switchTab('expenses');
         } else {
             alert(data.error || 'שגיאה בהוספת ההוצאה.');

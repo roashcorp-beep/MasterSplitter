@@ -423,7 +423,7 @@ const GroupsScreen = () => {
                                 {trip?.image_url ? <img src={trip.image_url} className="w-full h-full object-cover" /> : (trip?.name ? String(trip.name).charAt(0).toUpperCase() : '?')}
                             </div>
                             <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                <span className="text-white text-xs font-bold text-center leading-tight">שנה<br/>תמונה</span>
+                                <span className="text-white text-xs font-bold text-center leading-tight">{i18n("edit_trip_change") || "שנה"}<br/>{i18n("edit_trip_image") || "תמונה"}</span>
                             </div>
                         </div>
                         
@@ -434,7 +434,7 @@ const GroupsScreen = () => {
                             className="text-2xl font-bold text-gray-900 dark:text-white bg-transparent text-center focus:outline-none focus:border-b-2 focus:border-indigo-500 w-3/4 transition-all"
                             placeholder={t?.group_name || 'שם הקבוצה'}
                         />
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{participants.length} חברים</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{participants.length} {i18n("members") || "חברים"}</p>
                     </div>
 
                     {/* Scrollable Body */}
@@ -445,18 +445,18 @@ const GroupsScreen = () => {
                             {isAdmin && (
                                 <button onClick={() => window.pickContact && window.pickContact('edit', 'wa')} className="flex flex-col items-center gap-1.5 text-indigo-600 dark:text-indigo-400 hover:scale-105 transition-transform">
                                     <div className="p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-full shadow-sm"><IconUsers size={22} /></div>
-                                    <span className="text-xs font-medium">הוסף חבר</span>
+                                    <span className="text-xs font-medium">{i18n("add_member") || "הוסף חבר"}</span>
                                 </button>
                             )}
                             <button onClick={() => window.copyInviteLink(trip.id, trip.invite_token)} className="flex flex-col items-center gap-1.5 text-indigo-600 dark:text-indigo-400 hover:scale-105 transition-transform">
                                 <div className="p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-full shadow-sm"><IconLink size={22} /></div>
-                                <span className="text-xs font-medium">העתק קישור</span>
+                                <span className="text-xs font-medium">{i18n("copy_link") || "העתק קישור"}</span>
                             </button>
                         </div>
 
                         {/* Participants List */}
                         <div className="p-4">
-                            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 mb-3 px-2">משתתפים</h3>
+                            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 mb-3 px-2">{i18n("participants") || "משתתפים"}</h3>
                             <div className="space-y-2">
                                 {participants.map((participant, idx) => {
                                     const p = typeof participant === 'string' ? { name: participant, contact: participant } : participant;
@@ -477,9 +477,9 @@ const GroupsScreen = () => {
                                             </div>
                                             {p.type === 'pending' ? (
                                                 <div className="flex items-center gap-1.5">
-                                                    <span className="text-[10px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-900/30 px-2 py-1 rounded-md border border-amber-200 dark:border-amber-700/50 shadow-sm whitespace-nowrap">ממתין</span>
+                                                    <span className="text-[10px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-900/30 px-2 py-1 rounded-md border border-amber-200 dark:border-amber-700/50 shadow-sm whitespace-nowrap">{i18n("status_pending") || "ממתין"}</span>
                                                     {isAdmin && (
-                                                        <button onClick={() => removeUser(p.contact)} className="text-xs font-medium text-red-600 bg-red-100 hover:bg-red-200 dark:bg-red-900/20 px-2.5 py-1.5 rounded-full transition-colors shadow-sm">הסר</button>
+                                                        <button onClick={() => removeUser(p.contact)} className="text-xs font-medium text-red-600 bg-red-100 hover:bg-red-200 dark:bg-red-900/20 px-2.5 py-1.5 rounded-full transition-colors shadow-sm">{i18n("btn_remove") || "הסר"}</button>
                                                     )}
                                                 </div>
                                             ) : isParticipantAdmin ? 
@@ -507,7 +507,7 @@ const GroupsScreen = () => {
                             <div className="p-4 border-t border-gray-100 dark:border-gray-700">
                                 <button onClick={() => setEditTripDetails(prev => ({...prev, showAdvancedBudget: !prev.showAdvancedBudget}))} className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-2xl transition-colors border border-gray-100 dark:border-gray-700">
                                     <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200 font-medium">
-                                        <IconSettings size={18} className="text-indigo-500" /> הגדרות מנהל  
+                                        <IconSettings size={18} className="text-indigo-500" /> {i18n("admin_settings") || "הגדרות מנהל"}  
                                     </div>
                                     <IconChevronDown size={16} className={`text-gray-500 transition-transform duration-300 ${trip.showAdvancedBudget ? 'rotate-180' : ''}`} />
                                 </button>
@@ -516,7 +516,7 @@ const GroupsScreen = () => {
                                     <div className="mt-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700 animate-in fade-in slide-in-from-top-2">
                                         <div className="space-y-3 pt-3 border-t border-gray-200 dark:border-gray-700 mb-4">
                                             <div className="flex items-center justify-between bg-white dark:bg-gray-900 p-2 rounded-xl border border-gray-100 dark:border-gray-700">
-                                                <label className="text-[12px] font-bold text-gray-700 dark:text-gray-300 pl-1 w-1/3">מטבע קבוצה</label>
+                                                <label className="text-[12px] font-bold text-gray-700 dark:text-gray-300 pl-1 w-1/3">{i18n("trip_currency") || "מטבע קבוצה"}</label>
                                                 <button 
                                                     type="button"
                                                     onClick={() => {
@@ -531,15 +531,15 @@ const GroupsScreen = () => {
                                             </div>
                                             
                                             <div className="flex items-center justify-between">
-                                                <label className="text-sm font-bold text-gray-700 dark:text-gray-300">תקציב קבוצתי</label>
+                                                <label className="text-sm font-bold text-gray-700 dark:text-gray-300">{i18n("global_budget") || "תקציב קבוצתי"}</label>
                                             </div>
                                             
                                             <div className="grid grid-cols-3 gap-2 mt-2">
                                                 {['daily', 'monthly', 'yearly'].map((type, i) => (
                                                     <div key={'global-' + type} className="flex flex-col gap-1 w-full">
-                                                        <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300 text-center">{type === 'daily' ? 'תקציב יומי' : type === 'monthly' ? 'תקציב חודשי' : 'תקציב שנתי'}</span>
-                                                        <button type="button" onClick={() => setBudgetPopup({ key: 'global', type, value: trip.budgets_json?.[type] || '', name: 'כל הקבוצה' })} className="w-full text-center py-2.5 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 text-xs font-bold text-gray-900 dark:text-white shadow-sm hover:border-indigo-300 transition-colors">
-                                                            {trip.budgets_json?.[type] ? `${trip.budgets_json?.[type]} ${currencySymbol}` : 'הזן סכום'}
+                                                        <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300 text-center">{type === 'daily' ? (i18n('budget_daily') || 'תקציב יומי') : type === 'monthly' ? (i18n('budget_monthly') || 'תקציב חודשי') : (i18n('budget_yearly') || 'תקציב שנתי')}</span>
+                                                        <button type="button" onClick={() => setBudgetPopup({ key: 'global', type, value: trip.budgets_json?.[type] || '', name: i18n('all_group') || 'כל הקבוצה' })} className="w-full text-center py-2.5 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 text-xs font-bold text-gray-900 dark:text-white shadow-sm hover:border-indigo-300 transition-colors">
+                                                            {trip.budgets_json?.[type] ? `${trip.budgets_json?.[type]} ${currencySymbol}` : (i18n('enter_amount') || 'הזן סכום')}
                                                         </button>
                                                     </div>
                                                 ))}
@@ -547,7 +547,7 @@ const GroupsScreen = () => {
                                         </div>
 
                                         <div className="flex items-center justify-between mb-4">
-                                            <label className="text-sm font-bold text-gray-700 dark:text-gray-300">תקציב אישי לכל משתתף</label>
+                                            <label className="text-sm font-bold text-gray-700 dark:text-gray-300">{i18n("personal_budget_per_user") || "תקציב אישי לכל משתתף"}</label>
                                             <div 
                                                 className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ease-in-out ${trip.is_budget_per_user ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-gray-600'}`}
                                                 onClick={() => togglePermission('is_budget_per_user')}
@@ -569,9 +569,9 @@ const GroupsScreen = () => {
                                                             <div className="grid grid-cols-3 gap-2 mt-2">
                                                                 {['daily', 'monthly', 'yearly'].map((type, i) => (
                                                                     <div key={i} className="flex flex-col gap-1 w-full">
-                                                                        <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300 text-center">{type === 'daily' ? 'תקציב יומי' : type === 'monthly' ? 'תקציב חודשי' : 'תקציב שנתי'}</span>
+                                                                        <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300 text-center">{type === 'daily' ? (i18n('budget_daily') || 'תקציב יומי') : type === 'monthly' ? (i18n('budget_monthly') || 'תקציב חודשי') : (i18n('budget_yearly') || 'תקציב שנתי')}</span>
                                                                         <button type="button" onClick={() => setBudgetPopup({ key, type, value: uBudget[type] || '', name: pName })} className="w-full text-center py-2.5 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-bold text-gray-900 dark:text-white shadow-sm hover:border-indigo-300 transition-colors">
-                                                                            {uBudget[type] ? `${uBudget[type]} ${currencySymbol}` : 'הזן סכום'}
+                                                                            {uBudget[type] ? `${uBudget[type]} ${currencySymbol}` : (i18n('enter_amount') || 'הזן סכום')}
                                                                         </button>
                                                                     </div>
                                                                 ))}
@@ -584,7 +584,7 @@ const GroupsScreen = () => {
                                         
                                         <div className="pt-3 border-t border-gray-200 dark:border-gray-700 space-y-3">
                                             <div className="flex items-center justify-between">
-                                                <label className="text-sm text-gray-700 dark:text-gray-300">הצג הוצאות לכולם</label>
+                                                <label className="text-sm text-gray-700 dark:text-gray-300">{i18n("public_expenses") || "הצג הוצאות לכולם"}</label>
                                                 <div 
                                                     className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ease-in-out ${trip.is_public_expenses !== false ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-gray-600'}`}
                                                     onClick={() => togglePermission('is_public_expenses')}
@@ -593,7 +593,7 @@ const GroupsScreen = () => {
                                                 </div>
                                             </div>
                                             <div className="flex items-center justify-between">
-                                                <label className="text-sm text-gray-700 dark:text-gray-300">אפשר למשתתפים למחוק הוצאות</label>
+                                                <label className="text-sm text-gray-700 dark:text-gray-300">{i18n("allow_member_delete_lbl") || "אפשר למשתתפים למחוק הוצאות"}</label>
                                                 <div 
                                                     className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ease-in-out ${trip.allow_member_delete !== false ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-gray-600'}`}
                                                     onClick={() => togglePermission('allow_member_delete')}
@@ -611,16 +611,16 @@ const GroupsScreen = () => {
                         <div className="mt-8 mb-4 space-y-3 px-2">
                             {!trip.is_readonly && (
                                 <button onClick={() => window.saveEditTripFromReact(trip)} className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-[0_0_15px_rgba(99,102,241,0.4)] transition-all flex items-center justify-center gap-2 active:scale-95">
-                                    <IconCheck size={18} /> שמור שינויים
+                                    <IconCheck size={18} /> {i18n("save_changes") || "שמור שינויים"}
                                 </button>
                             )}
                             {!trip.is_readonly && (
                                 <button onClick={handleLeaveTrip} className="w-full py-3 bg-orange-100/80 hover:bg-orange-200 dark:bg-orange-900/30 dark:hover:bg-orange-800/50 text-orange-700 dark:text-orange-400 font-bold rounded-xl transition-all flex items-center justify-center gap-2 active:scale-95 border border-orange-200/50 dark:border-orange-800/30">
-                                    <IconUserMinus size={18} /> עזוב קבוצה
+                                    <IconUserMinus size={18} /> {i18n("leave_trip") || "עזוב קבוצה"}
                                 </button>
                             )}
                             <button onClick={handleHideTrip} className="w-full py-3 bg-red-100/80 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-800/50 text-red-700 dark:text-red-400 font-bold rounded-xl transition-all flex items-center justify-center gap-2 active:scale-95 border border-red-200/50 dark:border-red-800/30">
-                                <IconTrash size={18} /> מחק קבוצה מהרשימה
+                                <IconTrash size={18} /> {i18n("hide_trip") || "מחק קבוצה מהרשימה"}
                             </button>
                         </div>
                     </div>
@@ -629,9 +629,9 @@ const GroupsScreen = () => {
                         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" dir="rtl">
                             <div className="bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-2xl w-full max-w-xs transform scale-100 animate-in zoom-in-95 duration-200">
                                 <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-1">
-                                    תקציב {budgetPopup.type === 'daily' ? 'יומי' : budgetPopup.type === 'monthly' ? 'חודשי' : 'שנתי'}
+                                    {i18n("budget") || "תקציב"} {budgetPopup.type === 'daily' ? (i18n('daily') || 'יומי') : budgetPopup.type === 'monthly' ? (i18n('monthly') || 'חודשי') : (i18n('yearly') || 'שנתי')}
                                 </h4>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">עבור {budgetPopup.name}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">{i18n("for") || "עבור"} {budgetPopup.name}</p>
                                 
                                 <div className="relative mb-5 flex items-center bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500">
                                     <span className="pl-3 pr-4 text-gray-500 font-bold border-l border-gray-200 dark:border-gray-700">{currencySymbol}</span>
@@ -646,7 +646,7 @@ const GroupsScreen = () => {
                                 </div>
                                 
                                 <div className="flex gap-2">
-                                    <button onClick={() => setBudgetPopup(null)} className="flex-1 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 rounded-xl transition-colors">ביטול</button>
+                                    <button onClick={() => setBudgetPopup(null)} className="flex-1 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 rounded-xl transition-colors">{i18n("btn_cancel") || "ביטול"}</button>
                                     <button onClick={() => { 
                                         if (budgetPopup.key === 'global') {
                                             updateGlobalBudget(budgetPopup.type, budgetPopup.value);
@@ -654,7 +654,7 @@ const GroupsScreen = () => {
                                             updateBudget(budgetPopup.key, budgetPopup.type, budgetPopup.value);
                                         }
                                         setBudgetPopup(null); 
-                                    }} className="flex-1 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors">אישור</button>
+                                    }} className="flex-1 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors">{i18n("btn_confirm") || "אישור"}</button>
                                 </div>
                             </div>
                         </div>

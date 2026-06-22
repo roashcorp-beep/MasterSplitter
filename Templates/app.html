@@ -7,7 +7,7 @@
     <title>MasterSplitter</title>
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800;900&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=3.91">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=3.92">
     <script>
         if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.documentElement.classList.add('dark');
@@ -236,9 +236,12 @@
                         <option value="כללי" selected data-i18n="cat_general">💡 כללי</option>
                     </select>
 
-                    <label style="margin-top:16px;" data-i18n="expense_for_who">עבור מי? (מי נהנה מההוצאה)</label>
+                    <label style="margin-top:16px;" data-i18n="expense_payer">מי שילם את ההוצאה?</label>
+                    <select id="payer-select" onchange="currentPayerId = this.value; renderParticipants();" style="width: 100%; padding: 12px; border-radius: 12px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: var(--text-main); font-size: 1rem; margin-bottom: 16px; outline: none;"></select>
+
+                    <label style="margin-top:4px;" data-i18n="expense_for_who">על מי מתחלקת ההוצאה? (מי נהנה)</label>
                     <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: -6px; margin-bottom: 12px;">
-                        * לשינוי <b>המשלם</b>, לחץ לחיצה ארוכה על שמו (יופיע חץ). "סכומים מותאמים" מגדיר רק <b>כמה כל אחד חייב</b>!
+                        * ניתן גם ללחוץ לחיצה ארוכה על שם כדי להגדיר אותו כמשלם.
                     </div>
                     <div class="participants-pills" id="participants-container"></div>
 
@@ -360,7 +363,10 @@
 
             <!-- Participants Custom Splits -->
             <div class="form-group" id="edit-expense-participants-group">
-                <label style="margin-top:16px;" data-i18n="expense_for_who">עבור מי?</label>
+                <label style="margin-top:16px;" data-i18n="expense_payer">מי שילם את ההוצאה?</label>
+                <select id="edit-payer-select" style="width: 100%; padding: 12px; border-radius: 12px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: var(--text-main); font-size: 1rem; margin-bottom: 16px; outline: none;"></select>
+
+                <label style="margin-top:4px;" data-i18n="expense_for_who">על מי מתחלקת ההוצאה? (מי נהנה)</label>
                 <div class="participants-pills" id="edit-participants-container"></div>
 
                 <!-- Split Mode Toggle in Edit Modal -->
@@ -402,8 +408,8 @@
         </button>
     </div>
 
-    <script src="{{ url_for('static', filename='js/translations.js') }}?v=3.91"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=3.91"></script>
+    <script src="{{ url_for('static', filename='js/translations.js') }}?v=3.92"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=3.92"></script>
     <script>
         function checkCookieConsent() {
             if (!localStorage.getItem('cookieConsent')) {

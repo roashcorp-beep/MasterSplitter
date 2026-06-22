@@ -1279,6 +1279,12 @@ let currentPayerId = null;
 function renderParticipants() {
     const container = document.getElementById('participants-container');
     if (!container) return;
+    
+    const payerSelect = document.getElementById('payer-select');
+    if (payerSelect) {
+        payerSelect.innerHTML = tripMembers.map(m => `<option value="${m.id}" ${String(m.id) === String(currentPayerId) ? 'selected' : ''}>${escapeHTML(m.name)}</option>`).join('');
+    }
+
     container.innerHTML = tripMembers.map(m => {
         const safeName = escapeHTML(m.name);
         const initial = escapeHTML(m.name.charAt(0));
@@ -1788,6 +1794,11 @@ function openEditExpenseModal(id, amount, desc, category, currency) {
     } else {
         document.getElementById('edit-expense-participants-group').style.display = 'block';
         
+        const editPayerSelect = document.getElementById('edit-payer-select');
+        if (editPayerSelect && typeof tripMembers !== 'undefined') {
+            editPayerSelect.innerHTML = tripMembers.map(m => `<option value="${m.id}" ${expense && String(m.id) === String(expense.user_id) ? 'selected' : ''}>${escapeHTML(m.name)}</option>`).join('');
+        }
+        
         // Render participants pills
         if (participantsContainer && typeof tripMembers !== 'undefined') {
             const expSplits = expense ? (expense.splits || []) : [];
@@ -1942,6 +1953,8 @@ async function saveEditExpense() {
         return;
     }
     
+    const editPayerId = document.getElementById('edit-payer-select') ? document.getElementById('edit-payer-select').value : null;
+
     // Process splits if not personal
     const expense = (typeof _cachedExpenses !== 'undefined' && _cachedExpenses) ? _cachedExpenses.find(e => e.id === parseInt(id, 10)) : null;
     const isPersonal = expense ? expense.is_personal : 0;

@@ -330,6 +330,7 @@ def init_db_updates():
             payer_id INTEGER NOT NULL,
             payee_id INTEGER NOT NULL,
             amount REAL NOT NULL,
+            currency TEXT DEFAULT 'ILS',
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(trip_id) REFERENCES Trips(id),
             FOREIGN KEY(payer_id) REFERENCES Users(id),
@@ -480,6 +481,17 @@ def init_db_updates():
     """)
 
     conn.commit()
+
+    # --- Add currency to Settlements ---
+    try:
+        cursor.execute("PRAGMA table_info(Settlements)")
+        settle_cols = [c['name'] for c in cursor.fetchall()]
+        if 'currency' not in settle_cols:
+            cursor.execute("ALTER TABLE Settlements ADD COLUMN currency TEXT DEFAULT 'ILS'")
+            logger.info("Migration: added 'currency' column to Settlements")
+            conn.commit()
+    except sqlite3.Error as e:
+        logger.error(f"Settlements currency migration error: {e}")
 
     # --- Add invite_token to Trips ---
     try:
@@ -3114,6 +3126,7 @@ def get_optimized_balances(trip_id):
     """, (trip_id,))
     users = cursor.fetchall()
 
+    # --- Converted Balances (Existing Logic) ---
     cursor.execute("SELECT user_id, SUM(amount) as total FROM Expenses WHERE trip_id = ? GROUP BY user_id", (trip_id,))
     paid_data = {row['user_id']: row['total'] for row in cursor.fetchall()}
 
@@ -3132,56 +3145,130 @@ def get_optimized_balances(trip_id):
     cursor.execute("SELECT payee_id, SUM(amount) as total FROM Settlements WHERE trip_id = ? GROUP BY payee_id", (trip_id,))
     settled_in = {row['payee_id']: row['total'] for row in cursor.fetchall()}
 
-    conn.close()
-
     total_expenses = sum(paid_data.values()) if paid_data else 0
     num_users = len(users)
     has_splits = bool(owed_data)
 
-    debts = []
-    credits = []
+    def calculate_greedy_settlements(debts, credits):
+        debts.sort(key=lambda x: x['amount'], reverse=True)
+        credits.sort(key=lambda x: x['amount'], reverse=True)
+        settlements = []
+        di, ci = 0, 0
+        while di < len(debts) and ci < len(credits):
+            transfer = min(debts[di]['amount'], credits[ci]['amount'])
+            if transfer > 0.01:
+                settlements.append({
+                    "from_id": debts[di]['user_id'],
+                    "from": debts[di]['name'],
+                    "to_id": credits[ci]['user_id'],
+                    "to": credits[ci]['name'],
+                    "amount": transfer
+                })
+            debts[di]['amount'] -= transfer
+            credits[ci]['amount'] -= transfer
+            if debts[di]['amount'] < 0.01: di += 1
+            if credits[ci]['amount'] < 0.01: ci += 1
+        return settlements
 
+    conv_debts = []
+    conv_credits = []
     for user in users:
         uid = user['id']
         paid = paid_data.get(uid, 0.0)
         owed = owed_data.get(uid, 0.0) if has_splits else (total_expenses / num_users if num_users > 0 else 0)
         s_out = settled_out.get(uid, 0.0)
         s_in = settled_in.get(uid, 0.0)
-
         balance = (paid + s_out) - (owed + s_in)
-        
         if balance < -0.01:
-            debts.append({"user_id": uid, "name": user['name'], "amount": -balance})
+            conv_debts.append({"user_id": uid, "name": user['name'], "amount": -balance})
         elif balance > 0.01:
-            credits.append({"user_id": uid, "name": user['name'], "amount": balance})
+            conv_credits.append({"user_id": uid, "name": user['name'], "amount": balance})
+    
+    converted_settlements = calculate_greedy_settlements(conv_debts, conv_credits)
 
-    # Greedy settlement matching
-    debts.sort(key=lambda x: x['amount'], reverse=True)
-    credits.sort(key=lambda x: x['amount'], reverse=True)
+    # --- By-Currency Balances ---
+    cursor.execute("SELECT user_id, COALESCE(currency, 'ILS') as currency, SUM(COALESCE(original_amount, amount)) as total FROM Expenses WHERE trip_id = ? GROUP BY user_id, COALESCE(currency, 'ILS')", (trip_id,))
+    cur_paid_data = {}
+    for row in cursor.fetchall():
+        cur_paid_data[(row['user_id'], row['currency'])] = row['total']
 
-    settlements = []
-    di, ci = 0, 0
+    cursor.execute("""
+        SELECT es.user_id, COALESCE(e.currency, 'ILS') as currency, 
+               SUM(es.amount * (COALESCE(e.original_amount, e.amount) / NULLIF(e.amount, 0))) as total_owed
+        FROM ExpenseSplits es
+        JOIN Expenses e ON es.expense_id = e.id
+        WHERE e.trip_id = ?
+        GROUP BY es.user_id, COALESCE(e.currency, 'ILS')
+    """, (trip_id,))
+    cur_owed_data = {}
+    for row in cursor.fetchall():
+        # Fallback if division by zero occurred resulting in NULL
+        val = row['total_owed']
+        if val is None:
+            # Re-fetch this manually to fallback properly
+            pass 
+        cur_owed_data[(row['user_id'], row['currency'])] = val or 0
 
-    while di < len(debts) and ci < len(credits):
-        transfer = min(debts[di]['amount'], credits[ci]['amount'])
-        if transfer > 0.01:
-            settlements.append({
-                "from_id": debts[di]['user_id'],
-                "from": debts[di]['name'],
-                "to_id": credits[ci]['user_id'],
-                "to": credits[ci]['name'],
-                "amount": transfer
-            })
+    # Manual fallback for ExpenseSplits if e.amount was 0
+    cursor.execute("""
+        SELECT es.user_id, COALESCE(e.currency, 'ILS') as currency, es.amount, e.original_amount, e.amount as e_amount
+        FROM ExpenseSplits es
+        JOIN Expenses e ON es.expense_id = e.id
+        WHERE e.trip_id = ? AND e.amount = 0
+    """, (trip_id,))
+    for row in cursor.fetchall():
+        cur_owed_data[(row['user_id'], row['currency'])] = cur_owed_data.get((row['user_id'], row['currency']), 0) + row['amount']
+
+    cursor.execute("SELECT payer_id, COALESCE(currency, 'ILS') as currency, SUM(amount) as total FROM Settlements WHERE trip_id = ? GROUP BY payer_id, COALESCE(currency, 'ILS')", (trip_id,))
+    cur_settled_out = {}
+    for row in cursor.fetchall():
+        cur_settled_out[(row['payer_id'], row['currency'])] = row['total']
+
+    cursor.execute("SELECT payee_id, COALESCE(currency, 'ILS') as currency, SUM(amount) as total FROM Settlements WHERE trip_id = ? GROUP BY payee_id, COALESCE(currency, 'ILS')", (trip_id,))
+    cur_settled_in = {}
+    for row in cursor.fetchall():
+        cur_settled_in[(row['payee_id'], row['currency'])] = row['total']
+
+    # Gather all unique currencies involved
+    all_keys = set(cur_paid_data.keys()).union(cur_owed_data.keys()).union(cur_settled_out.keys()).union(cur_settled_in.keys())
+    all_currencies = set(k[1] for k in all_keys)
+
+    user_currency_balances = {}
+    for user in users:
+        uid = user['id']
+        user_currency_balances[uid] = {}
+
+    currency_settlements = {}
+    for cur in all_currencies:
+        c_debts = []
+        c_credits = []
+        for user in users:
+            uid = user['id']
+            paid = cur_paid_data.get((uid, cur), 0.0)
+            owed = cur_owed_data.get((uid, cur), 0.0)
+            s_out = cur_settled_out.get((uid, cur), 0.0)
+            s_in = cur_settled_in.get((uid, cur), 0.0)
+            
+            balance = (paid + s_out) - (owed + s_in)
+            if abs(balance) > 0.01:
+                user_currency_balances[uid][cur] = balance
+
+            if balance < -0.01:
+                c_debts.append({"user_id": uid, "name": user['name'], "amount": -balance})
+            elif balance > 0.01:
+                c_credits.append({"user_id": uid, "name": user['name'], "amount": balance})
         
-        debts[di]['amount'] -= transfer
-        credits[ci]['amount'] -= transfer
-        
-        if debts[di]['amount'] < 0.01:
-            di += 1
-        if credits[ci]['amount'] < 0.01:
-            ci += 1
+        c_settlements = calculate_greedy_settlements(c_debts, c_credits)
+        if c_settlements:
+            currency_settlements[cur] = c_settlements
 
-    return jsonify({"optimized_settlements": settlements})
+    conn.close()
+
+    return jsonify({
+        "optimized_settlements": converted_settlements,
+        "currency_settlements": currency_settlements,
+        "user_currency_balances": user_currency_balances
+    })
 
 
 
@@ -3510,6 +3597,7 @@ def create_settlement():
     payer_id = data.get('payer_id')
     payee_id = data.get('payee_id')
     amount_raw = data.get('amount')
+    currency = data.get('currency', 'ILS')
 
     if not trip_id or not payer_id or not payee_id or not amount_raw:
         return jsonify({"error": "Missing required fields."}), 400
@@ -3543,9 +3631,9 @@ def create_settlement():
             return jsonify({"error": "Forbidden"}), 403
 
         cursor.execute("""
-            INSERT INTO Settlements (trip_id, payer_id, payee_id, amount, created_at)
-            VALUES (?, ?, ?, ?, ?)
-        """, (trip_id, payer_id, payee_id, amount, datetime.now(timezone.utc).isoformat()))
+            INSERT INTO Settlements (trip_id, payer_id, payee_id, amount, currency, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (trip_id, payer_id, payee_id, amount, currency, datetime.now(timezone.utc).isoformat()))
         conn.commit()
 
         # Get payee name for activity log
@@ -3573,7 +3661,7 @@ def get_settlements(trip_id):
     cursor = conn.cursor()
     cursor.execute("""
         SELECT s.id, s.payer_id, p.name as payer_name, s.payee_id, r.name as payee_name,
-               s.amount, s.created_at
+               s.amount, s.currency, s.created_at
         FROM Settlements s
         JOIN Users p ON s.payer_id = p.id
         JOIN Users r ON s.payee_id = r.id

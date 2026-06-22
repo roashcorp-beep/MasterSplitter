@@ -2237,12 +2237,31 @@ function calculateSettlements(balances) {
     return settlements;
 }
 
+window.currentBalancesView = 'currency';
+window.cachedBalancesData = null;
+window.cachedOptimizedData = null;
+
+function setBalancesView(view) {
+    window.currentBalancesView = view;
+    document.getElementById('btn-view-currency').classList.toggle('active', view === 'currency');
+    document.getElementById('btn-view-converted').classList.toggle('active', view === 'converted');
+    renderBalancesList();
+}
+
 async function fetchBalances() {
     if (!currentTripId) return;
     try {
-        const res = await fetch(`/api/balances/${currentTripId}`);
-        if (res.status === 401) { window.location.href = '/'; return; }
-        const data = await res.json();
+        const [resBal, resOpt] = await Promise.all([
+            fetch(`/api/balances/${currentTripId}`),
+            fetch(`/api/trips/${currentTripId}/optimized-balances`)
+        ]);
+
+        if (resBal.status === 401 || resOpt.status === 401) { window.location.href = '/'; return; }
+        
+        window.cachedBalancesData = await resBal.json();
+        window.cachedOptimizedData = await resOpt.json();
+
+        const data = window.cachedBalancesData;
         const budget = currentTripData?.budget || 0;
         const budgetType = currentTripData?.budget_type || 'none';
         const spent = data.total || 0;
@@ -2269,34 +2288,73 @@ async function fetchBalances() {
         if (elLeft) elLeft.textContent = `${userSym}${formatNumber(Math.max(0, left))}`;
         if (elPct) elPct.textContent = `${pct}%`;
 
-        const list = document.getElementById('balances-list');
-        if (!list) return;
-        if (!data.balances?.length) { list.innerHTML = `<div class="loading-state">${typeof i18n === 'function' ? i18n('balances_no_data') : 'אין נתונים'}</div>`; return; }
+        renderBalancesList();
+    } catch (e) { console.error('Fetch balances error:', e); }
+}
 
-        // Calculate settlements for the accordion
-        const settlements = calculateSettlements(data.balances);
+function renderBalancesList() {
+    const list = document.getElementById('balances-list');
+    if (!list) return;
+    
+    const data = window.cachedBalancesData;
+    const optData = window.cachedOptimizedData;
+    if (!data || !optData) return;
+    
+    if (!data.balances?.length) { 
+        list.innerHTML = `<div class="loading-state">${typeof i18n === 'function' ? i18n('balances_no_data') : 'אין נתונים'}</div>`; 
+        return; 
+    }
 
-        list.innerHTML = data.balances.map(b => {
-            const isPos = b.balance > 0.01;
-            const isNeg = b.balance < -0.01;
-            const badgeCls = isPos ? 'positive' : isNeg ? 'negative' : 'neutral';
+    const isCurrencyView = window.currentBalancesView === 'currency';
+    const userSym = getTripCurrencySymbol();
 
-            const txtReceive = typeof i18n === 'function' ? i18n('balance_receive') : 'צריך לקבל';
-            const txtPay = typeof i18n === 'function' ? i18n('balance_pay') : 'צריך לשלם';
-            const txtSettled = typeof i18n === 'function' ? i18n('balance_settled') : 'מאוזן';
-            const badgeTxt = isPos ? txtReceive : isNeg ? txtPay : txtSettled;
+    list.innerHTML = data.balances.map(b => {
+        const isPos = b.balance > 0.01;
+        const isNeg = b.balance < -0.01;
+        const badgeCls = isPos ? 'positive' : isNeg ? 'negative' : 'neutral';
 
-            const amtCls = isPos ? 'amount-pos' : isNeg ? 'amount-neg' : '';
-            const me = window.currentUser && b.user_id === window.currentUser.id ? (typeof i18n === 'function' ? i18n('balance_you') : ' (את/ה)') : '';
-            const safeName = escapeHTML(b.name);
+        const txtReceive = typeof i18n === 'function' ? i18n('balance_receive') : 'צריך לקבל';
+        const txtPay = typeof i18n === 'function' ? i18n('balance_pay') : 'צריך לשלם';
+        const txtSettled = typeof i18n === 'function' ? i18n('balance_settled') : 'מאוזן';
+        
+        let badgeTxt = isPos ? txtReceive : isNeg ? txtPay : txtSettled;
+        let amtCls = isPos ? 'amount-pos' : isNeg ? 'amount-neg' : '';
+        let amountDisplay = `${userSym}${formatNumber(Math.abs(b.balance))}`;
 
-            // Find this person's settlements
-            const personDebts = settlements.filter(s => s.from === b.name || s.to === b.name);
-            let debtLines = '';
-            if (personDebts.length > 0) {
-                debtLines = personDebts.map(s => {
+        const me = window.currentUser && b.user_id === window.currentUser.id ? (typeof i18n === 'function' ? i18n('balance_you') : ' (את/ה)') : '';
+        const safeName = escapeHTML(b.name);
+
+        let debtLines = '';
+
+        if (isCurrencyView) {
+            // Currency View Header Overrides
+            const curBalances = optData.user_currency_balances[b.user_id] || {};
+            const curKeys = Object.keys(curBalances);
+            
+            if (curKeys.length > 0) {
+                // If there are multiple currencies, show them all in the header
+                amountDisplay = curKeys.map(c => {
+                    const cb = curBalances[c];
+                    const cbSym = getCurrencySymbol(c);
+                    const cbCls = cb > 0.01 ? 'amount-pos' : cb < -0.01 ? 'amount-neg' : '';
+                    return `<span class="${cbCls}">${cbSym}${formatNumber(Math.abs(cb))}</span>`;
+                }).join(' <span style="color:var(--text-muted);font-weight:normal;">|</span> ');
+                badgeTxt = 'מאזן מפוצל';
+                badgeCls = 'neutral';
+            }
+
+            // Accordion Body (Currency Split)
+            let allDebts = [];
+            for (const cur of Object.keys(optData.currency_settlements)) {
+                const cSetts = optData.currency_settlements[cur].filter(s => s.from === b.name || s.to === b.name);
+                cSetts.forEach(s => allDebts.push({...s, currency: cur}));
+            }
+
+            if (allDebts.length > 0) {
+                debtLines = allDebts.map(s => {
                     const safeFrom = escapeHTML(s.from);
                     const safeTo = escapeHTML(s.to);
+                    const sSym = getCurrencySymbol(s.currency);
 
                     const isDebtor = window.currentUser && window.currentUser.id === s.from_id;
                     const isCreditor = window.currentUser && window.currentUser.id === s.to_id;
@@ -2304,7 +2362,37 @@ async function fetchBalances() {
                     let settleBtn = '';
                     if (isDebtor || isCreditor) {
                         const txtSettleUp = typeof i18n === 'function' ? i18n('settle_up') : 'סלק חוב 💸';
-                        settleBtn = `<button class="settle-btn" onclick="event.stopPropagation(); triggerSettleUp(${s.from_id}, ${s.to_id}, ${s.amount})">${txtSettleUp}</button>`;
+                        settleBtn = `<button class="settle-btn" onclick="event.stopPropagation(); triggerSettleUp(${s.from_id}, ${s.to_id}, ${s.amount}, '${s.currency}')">${txtSettleUp}</button>`;
+                    }
+
+                    return `<div class="debt-line">
+                        <div class="debt-info">
+                            <span>${safeFrom}</span>
+                            <span class="debt-arrow">←</span>
+                            <span>${safeTo}</span>
+                            <span class="debt-amount">${sSym}${formatNumber(s.amount)}</span>
+                        </div>
+                        ${settleBtn}
+                    </div>`;
+                }).join('');
+            } else {
+                debtLines = `<div class="debt-line" style="justify-content:center; color:var(--text-muted);">${txtSettled} ✓</div>`;
+            }
+        } else {
+            // Converted View
+            const personDebts = optData.optimized_settlements.filter(s => s.from === b.name || s.to === b.name);
+            if (personDebts.length > 0) {
+                debtLines = personDebts.map(s => {
+                    const safeFrom = escapeHTML(s.from);
+                    const safeTo = escapeHTML(s.to);
+                    const isDebtor = window.currentUser && window.currentUser.id === s.from_id;
+                    const isCreditor = window.currentUser && window.currentUser.id === s.to_id;
+
+                    let settleBtn = '';
+                    if (isDebtor || isCreditor) {
+                        const txtSettleUp = typeof i18n === 'function' ? i18n('settle_up') : 'סלק חוב 💸';
+                        // Use default currency for converted view settlement
+                        settleBtn = `<button class="settle-btn" onclick="event.stopPropagation(); triggerSettleUp(${s.from_id}, ${s.to_id}, ${s.amount}, 'ILS')">${txtSettleUp}</button>`;
                     }
 
                     return `<div class="debt-line">
@@ -2320,81 +2408,103 @@ async function fetchBalances() {
             } else {
                 debtLines = `<div class="debt-line" style="justify-content:center; color:var(--text-muted);">${txtSettled} ✓</div>`;
             }
-
-            const paidTxt = typeof i18n === 'function' ? i18n('balance_paid') : 'שילם: ';
-
-            return `
-            <div class="balance-item" onclick="this.classList.toggle('open')">
-                <div class="balance-header">
-                    <div class="item-left">
-                        <div class="avatar bg-purple" style="width:40px;height:40px;font-size:1.2rem;">${escapeHTML(b.name.charAt(0))}</div>
-                        <div class="item-details">
-                            <h4>${safeName}${me}</h4>
-                            <p>${paidTxt}${userSym}${formatNumber(b.paid)}</p>
-                        </div>
-                    </div>
-                    <div class="item-right">
-                        <span class="balance-badge ${badgeCls}">${badgeTxt}</span>
-                        <div class="item-amount ${amtCls}">${userSym}${formatNumber(Math.abs(b.balance))}</div>
-                        <span class="accordion-arrow">▼</span>
-                    </div>
-                </div>
-                <div class="accordion-body">
-                    ${debtLines}
-                </div>
-            </div>`;
-        }).join('');
-    } catch (e) { console.error('Fetch balances error:', e); }
-}
-
-async function loadOptimizedBalances() {
-    if (!currentTripId) return;
-    const container = document.getElementById('balances-list');
-    if (!container) return;
-
-    container.innerHTML = `<div class="loading-state">טוען חישוב חכם... ⚡</div>`;
-
-    try {
-        const res = await fetch(`/api/trips/${currentTripId}/optimized-balances`);
-        if (!res.ok) throw new Error('שגיאה בחישוב');
-        const data = await res.json();
-        
-        if (!data.optimized_settlements || data.optimized_settlements.length === 0) {
-            showToast('כולם מאופסים! אין חובות. 🎉', 'success');
-            container.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-muted);">כולם מאופסים! אין חובות. 🎉<br><br><button class="secondary-btn" onclick="fetchBalances()">🔙 חזור</button></div>`;
-            return;
         }
 
-        let html = '<div class="optimized-settlements-list">';
-        data.optimized_settlements.forEach(s => {
-            html += `
-                <div class="settlement-card" style="background:var(--card-bg); padding:16px; border-radius:12px; margin-bottom:12px; border-left:4px solid var(--accent-yellow); box-shadow:0 2px 8px rgba(0,0,0,0.2);">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <div style="display:flex; flex-direction:column; gap:4px;">
-                            <span style="color:var(--text-muted); font-size:0.85rem;">${escapeHTML(s.from)} מעביר ל-</span>
-                            <strong style="font-size:1.1rem; color:var(--text-light);">${escapeHTML(s.to)}</strong>
-                        </div>
-                        <div style="font-size:1.4rem; font-weight:bold; color:var(--accent-yellow);">
-                            ₪${s.amount.toFixed(2)}
-                        </div>
+        const paidTxt = typeof i18n === 'function' ? i18n('balance_paid') : 'שילם: ';
+
+        return `
+        <div class="balance-item" onclick="this.classList.toggle('open')">
+            <div class="balance-header">
+                <div class="item-left">
+                    <div class="avatar bg-purple" style="width:40px;height:40px;font-size:1.2rem;">${escapeHTML(b.name.charAt(0))}</div>
+                    <div class="item-details">
+                        <h4>${safeName}${me}</h4>
+                        <p>${paidTxt}${userSym}${formatNumber(b.paid)}</p>
                     </div>
                 </div>
-            `;
-        });
-        html += '</div>';
-        html += `<button class="secondary-btn full-width" style="margin-top:16px;" onclick="fetchBalances()">🔙 חזור ליתרות רגילות</button>`;
+                <div class="item-right">
+                    <span class="balance-badge ${badgeCls}">${badgeTxt}</span>
+                    <div class="item-amount" style="display:flex; gap:4px; font-weight:bold;">${amountDisplay}</div>
+                    <span class="accordion-arrow">▼</span>
+                </div>
+            </div>
+            <div class="accordion-body">
+                ${debtLines}
+            </div>
+        </div>`;
+    }).join('');
+}
 
-        container.innerHTML = html;
+function suggestLimboOffset() {
+    if (!window.cachedOptimizedData) return;
+    
+    // We'll execute Limbo based on the currently selected view (currency vs converted)
+    const isCurrencyView = window.currentBalancesView === 'currency';
+    const optData = window.cachedOptimizedData;
+    
+    let allDebts = [];
+    if (isCurrencyView) {
+        for (const cur of Object.keys(optData.currency_settlements)) {
+            optData.currency_settlements[cur].forEach(s => allDebts.push({...s, currency: cur}));
+        }
+    } else {
+        allDebts = optData.optimized_settlements.map(s => ({...s, currency: 'ILS'})); // Default fallback
+    }
+    
+    if (allDebts.length === 0) {
+        showToast('אין חובות לקיזוז! 🎉', 'success');
+        return;
+    }
+    
+    window.currentLimboDebts = allDebts;
+    
+    const container = document.getElementById('limbo-list-container');
+    container.innerHTML = allDebts.map(s => {
+        const sSym = getCurrencySymbol(s.currency);
+        return `<div style="display:flex; justify-content:space-between; margin-bottom:8px; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px;">
+            <div><span>${escapeHTML(s.from)}</span> <span style="color:var(--text-muted); margin:0 5px;">→</span> <span>${escapeHTML(s.to)}</span></div>
+            <div style="font-weight:bold; color:var(--accent-yellow);">${sSym}${formatNumber(s.amount)}</div>
+        </div>`;
+    }).join('');
+    
+    document.getElementById('limbo-modal').style.display = 'flex';
+}
 
+async function executeLimboOffset() {
+    if (!window.currentLimboDebts || window.currentLimboDebts.length === 0) return;
+    
+    const btn = document.querySelector('#limbo-modal .primary-btn');
+    if (btn) btn.innerHTML = 'מבצע...';
+    
+    try {
+        await Promise.all(window.currentLimboDebts.map(s => {
+            return fetch('/api/settlements', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    trip_id: currentTripId,
+                    payer_id: s.from_id,
+                    payee_id: s.to_id,
+                    amount: s.amount,
+                    currency: s.currency
+                })
+            });
+        }));
+        
+        closeModal('limbo-modal');
+        showToast('כל החובות קוזזו בהצלחה! 🎉', 'success');
+        fetchBalances();
     } catch (e) {
         console.error(e);
-        container.innerHTML = `<div class="error-state">שגיאה בטעינת העברות חכמות.<br><br><button class="secondary-btn" onclick="fetchBalances()">🔙 חזור</button></div>`;
+        showToast('שגיאה בקיזוז החובות', 'error');
+    } finally {
+        if (btn) btn.innerHTML = typeof i18n === 'function' ? i18n('execute_limbo') : 'בצע קיזוז';
     }
 }
 
-async function triggerSettleUp(payerId, payeeId, amount) {
+async function triggerSettleUp(payerId, payeeId, amount, currency = 'ILS') {
     const msg = typeof i18n === 'function' ? i18n('settle_confirm') : 'לסלק חוב?';
-    if (!confirm(`${msg} (${getTripCurrencySymbol()}${formatNumber(amount)})`)) return;
+    if (!confirm(`${msg} (${getCurrencySymbol(currency)}${formatNumber(amount)})`)) return;
 
     try {
         const res = await fetch('/api/settlements', {
@@ -2404,7 +2514,8 @@ async function triggerSettleUp(payerId, payeeId, amount) {
                 trip_id: currentTripId,
                 payer_id: payerId,
                 payee_id: payeeId,
-                amount: amount
+                amount: amount,
+                currency: currency
             })
         });
         const data = await res.json();

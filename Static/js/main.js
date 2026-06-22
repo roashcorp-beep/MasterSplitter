@@ -1599,7 +1599,7 @@ async function fetchExpenses() {
                     if (!isNaN(d)) {
                         const datePart = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
                         const timePart = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-                        safeDateStr = (document.documentElement.dir === 'rtl') ? `${timePart} <span style="margin:0 4px;"></span> ${datePart}` : `${datePart} <span style="margin:0 4px;"></span> ${timePart}`;
+                        safeDateStr = (document.documentElement.dir === 'rtl') ? `${datePart} <span style="margin:0 4px;"></span> ${timePart}` : `${timePart} <span style="margin:0 4px;"></span> ${datePart}`;
                     }
                 }
 
@@ -1716,21 +1716,23 @@ async function fetchExpenses() {
                 }
 
                 html += `
-                <div class="list-item${personalClass} expense-expandable" id="expense-${exp.id}" onclick="toggleExpenseSplits(${exp.id}, event)">
-                    <div class="item-left">
-                        ${payerAvatar}
-                        <div class="item-details">
-                            <h4>${safeDesc} ${personalBadge}</h4>
-                            <p>${safePayer} \u2022 ${translateCategory(exp.category || 'כללי')}</p>
-                            ${participantsHTML}
+                <div class="list-item${personalClass} expense-expandable" id="expense-${exp.id}" onclick="toggleExpenseSplits(${exp.id}, event)" style="display: flex; flex-direction: column; align-items: stretch; gap: 0;">
+                    <div class="list-item-main" style="display: flex; flex-wrap: nowrap; justify-content: space-between; align-items: stretch; width: 100%; gap: 10px;">
+                        <div class="item-left" style="min-width: 0; flex: 1;">
+                            ${payerAvatar}
+                            <div class="item-details" style="min-width: 0;">
+                                <h4 style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${safeDesc} ${personalBadge}</h4>
+                                <p style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${safePayer} \u2022 ${translateCategory(exp.category || 'כללי')}</p>
+                                ${participantsHTML}
+                            </div>
                         </div>
-                    </div>
-                    <div class="item-right" style="align-self: stretch; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; padding-top: 4px;">
-                        <div style="font-size: 0.75rem; color: var(--text-sec); font-weight: 500; white-space: nowrap; margin-bottom: 6px;">${safeDateStr}</div>
-                        <div class="item-amount" style="margin-bottom: auto;">${amountDisplay}</div>
-                        <div class="expense-actions" style="margin-top: 8px;">
-                            ${isPersonal ? '' : `<button class="edit-expense-btn" onclick="openEditExpenseModal(${exp.id}, ${parseFloat(exp.original_amount || exp.amount)}, '${safeDesc}', '${exp.category || 'כללי'}', '${exp.currency}')">✏️</button>`}
-                            ${deleteBtn}
+                        <div class="item-right" style="flex-shrink: 0; align-self: stretch; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; padding-top: 4px;">
+                            <div style="font-size: 0.75rem; color: var(--text-sec); font-weight: 500; white-space: nowrap; margin-bottom: 6px;">${safeDateStr}</div>
+                            <div class="item-amount" style="margin-bottom: auto;">${amountDisplay}</div>
+                            <div class="expense-actions" style="margin-top: 8px;">
+                                ${isPersonal ? '' : `<button class="edit-expense-btn" onclick="openEditExpenseModal(${exp.id}, ${parseFloat(exp.original_amount || exp.amount)}, '${safeDesc.replace(/'/g, "\\'")}', '${safeCat.replace(/'/g, "\\'")}', '${expCurrency}')">✏️</button>`}
+                                ${deleteBtn}
+                            </div>
                         </div>
                     </div>
                     ${splitsDetailHTML}

@@ -2659,7 +2659,7 @@ def add_expense():
 
     # Validate currency
     currency = (data.get('currency') or 'ILS').strip().upper()
-    if currency not in ALLOWED_CURRENCIES:
+    if not (2 <= len(currency) <= 10):
         currency = 'ILS'
 
     # Look up Trip's base currency for conversion target
@@ -3195,17 +3195,10 @@ GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini
 @login_required
 def ai_parse_expense():
     """Use Gemini to parse a natural language expense description into structured data."""
-    mock_fallback = {"success": True, "parsed": {
-        "description": "הוצאה לדוגמה מ-AI (אין מפתח API / שגיאה)",
-        "amount": 120.0,
-        "category": "כללי",
-        "splits": []
-    }}
-
     api_key = os.environ.get('GEMINI_API_KEY')
     if not api_key or "YOUR_GEMINI_API_KEY_HERE" in api_key:
-        logger.info("AI expense parse: using mock fallback (no GEMINI_API_KEY)")
-        return jsonify(mock_fallback)
+        logger.info("AI expense parse: API Key missing or default.")
+        return jsonify({"success": False, "error": "מפתח ה-API של ג'ימיני חסר או אינו תקין. אנא עדכן את הקובץ .env עם מפתח חוקי מ-Google AI Studio."}), 400
 
     data = request.json or {}
     text = str(data.get('text', '')).strip()
@@ -3264,7 +3257,7 @@ def ai_parse_expense():
 
         if resp.status_code != 200:
             logger.error(f"Gemini API error {resp.status_code}: {resp.text[:300]}")
-            return jsonify(mock_fallback)
+            return jsonify({"success": False, "error": f"שגיאה משרתי Google: {resp.status_code}. ייתכן שמפתח ה-API שגוי."}), 502
 
         result = resp.json()
         # Extract text from Gemini response
@@ -3297,7 +3290,7 @@ def ai_parse_expense():
         return jsonify({"error": f"Cannot reach AI service: {str(e)}"}), 502
     except Exception as e:
         logger.error(f"AI parse expense error: {e}")
-        return jsonify(mock_fallback)
+        return jsonify({"success": False, "error": f"שגיאה פנימית בעת פנייה ל-AI: {str(e)}"}), 500
 
 
 @app.route('/api/ai_greeting', methods=['GET'])

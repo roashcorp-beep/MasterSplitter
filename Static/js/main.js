@@ -1672,10 +1672,13 @@ async function fetchExpenses() {
                         const sAvatar = s.avatar_url
                             ? `<img class="split-detail-avatar" src="${escapeHTML(s.avatar_url)}" referrerpolicy="no-referrer">`
                             : `<div class="split-detail-avatar split-detail-initial">${escapeHTML(s.name.charAt(0))}</div>`;
+                            
+                        const labelText = isPayer ? 'החלק שלו/ה:' : 'חייב/ת:';
+
                         return `<div class="split-detail-row">
                             ${sAvatar}
                             <span class="split-detail-name" style="${nameStyle}">${escapeHTML(s.name)}</span>
-                            <span class="split-detail-amount" style="${colorStyle}">${expSym}${displayAmt.toFixed(1)}</span>
+                            <span class="split-detail-amount" style="${colorStyle}"><span style="font-size:0.8em; color:var(--text-muted); margin-right:4px;">${labelText}</span>${expSym}${displayAmt.toFixed(1)}</span>
                         </div>`;
                     }).join('');
                     splitsDetailHTML = `<div class="expense-splits-detail" id="splits-${exp.id}" style="display:none">

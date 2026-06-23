@@ -1208,7 +1208,15 @@ window.closeHamburgerMenu = function() {
 // =====================
 //  DASHBOARD TABS
 // =====================
-function switchTab(tabName) {
+function closeModal(id) {
+    const m = document.getElementById(id);
+    if (m) m.style.display = 'none';
+}
+
+function switchTab(tabName, skipHistory = false) {
+    if (!skipHistory) {
+        history.pushState({ tabName: tabName }, "", "#" + tabName);
+    }
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     const screen = document.getElementById(`screen-${tabName}`);
@@ -3986,3 +3994,44 @@ window.selectCurrency = function(code) {
     localStorage.setItem('last_currency', code);
     closeCurrencyPicker();
 };
+
+// =====================
+// Android Back Button Handling
+let backPressCount = 0;
+let backPressTimer = null;
+
+window.addEventListener('popstate', function(e) {
+    const isLobby = document.getElementById('lobby-overlay') && document.getElementById('lobby-overlay').style.display === 'flex';
+    
+    // Always push state back so we don't accidentally exit the PWA
+    history.pushState(e.state, "", window.location.hash || window.location.href);
+
+    if (isLobby) {
+        backPressCount++;
+        if (backPressCount >= 2) {
+            window.location.reload();
+        } else {
+            showToast('לחץ שוב "חזור" כדי לרענן', 'info');
+            clearTimeout(backPressTimer);
+            backPressTimer = setTimeout(() => { backPressCount = 0; }, 2000);
+        }
+    } else {
+        if (e.state && e.state.tabName) {
+            switchTab(e.state.tabName, true);
+        } else {
+            switchTab('home', true);
+            backPressCount++;
+            if (backPressCount >= 2) {
+                window.location.reload();
+            } else {
+                showToast('לחץ שוב "חזור" כדי לרענן', 'info');
+                clearTimeout(backPressTimer);
+                backPressTimer = setTimeout(() => { backPressCount = 0; }, 2000);
+            }
+        }
+    }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    history.replaceState({ tabName: 'home' }, "", "#home");
+});

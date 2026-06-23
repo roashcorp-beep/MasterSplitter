@@ -3198,14 +3198,30 @@ def get_optimized_balances(trip_id):
     converted_settlements = calculate_greedy_settlements(conv_debts, conv_credits)
 
     # --- By-Currency Balances ---
-    cursor.execute("SELECT user_id, COALESCE(currency, 'ILS') as currency, SUM(COALESCE(original_amount, amount)) as total FROM Expenses WHERE trip_id = ? GROUP BY user_id, COALESCE(currency, 'ILS')", (trip_id,))
+    # How much each user PAID in each original currency
+    cursor.execute("""
+        SELECT user_id, COALESCE(currency, 'ILS') as currency,
+               SUM(COALESCE(original_amount, amount)) as total
+        FROM Expenses WHERE trip_id = ?
+        GROUP BY user_id, COALESCE(currency, 'ILS')
+    """, (trip_id,))
     cur_paid_data = {}
     for row in cursor.fetchall():
         cur_paid_data[(row['user_id'], row['currency'])] = row['total']
 
+    # How much each user OWES in each original currency.
+    # For each expense, distribute original_amount proportionally across splits based on split fraction.
+    # fraction = es.amount / e.amount (ILS fraction), then owed_original = fraction * original_amount
     cursor.execute("""
-        SELECT es.user_id, COALESCE(e.currency, 'ILS') as currency, 
-               SUM(es.amount * (CAST(COALESCE(e.original_amount, e.amount) AS REAL) / NULLIF(e.amount, 0))) as total_owed
+        SELECT es.user_id,
+               COALESCE(e.currency, 'ILS') as currency,
+               SUM(
+                   CASE
+                     WHEN e.original_amount IS NOT NULL AND e.amount > 0
+                       THEN CAST(es.amount AS REAL) / CAST(e.amount AS REAL) * e.original_amount
+                     ELSE es.amount
+                   END
+               ) as total_owed
         FROM ExpenseSplits es
         JOIN Expenses e ON es.expense_id = e.id
         WHERE e.trip_id = ?
@@ -3213,29 +3229,26 @@ def get_optimized_balances(trip_id):
     """, (trip_id,))
     cur_owed_data = {}
     for row in cursor.fetchall():
-        # Fallback if division by zero occurred resulting in NULL
-        val = row['total_owed']
-        if val is None:
-            # Re-fetch this manually to fallback properly
-            pass 
-        cur_owed_data[(row['user_id'], row['currency'])] = val or 0
+        cur_owed_data[(row['user_id'], row['currency'])] = row['total_owed'] or 0
 
-    # Manual fallback for ExpenseSplits if e.amount was 0
+    # How much each user PAID OUT in settlements (per original currency)
     cursor.execute("""
-        SELECT es.user_id, COALESCE(e.currency, 'ILS') as currency, es.amount, e.original_amount, e.amount as e_amount
-        FROM ExpenseSplits es
-        JOIN Expenses e ON es.expense_id = e.id
-        WHERE e.trip_id = ? AND e.amount = 0
+        SELECT payer_id, COALESCE(currency, 'ILS') as currency,
+               SUM(COALESCE(original_amount, amount)) as total
+        FROM Settlements WHERE trip_id = ?
+        GROUP BY payer_id, COALESCE(currency, 'ILS')
     """, (trip_id,))
-    for row in cursor.fetchall():
-        cur_owed_data[(row['user_id'], row['currency'])] = cur_owed_data.get((row['user_id'], row['currency']), 0) + row['amount']
-
-    cursor.execute("SELECT payer_id, COALESCE(currency, 'ILS') as currency, SUM(COALESCE(original_amount, amount)) as total FROM Settlements WHERE trip_id = ? GROUP BY payer_id, COALESCE(currency, 'ILS')", (trip_id,))
     cur_settled_out = {}
     for row in cursor.fetchall():
         cur_settled_out[(row['payer_id'], row['currency'])] = row['total']
 
-    cursor.execute("SELECT payee_id, COALESCE(currency, 'ILS') as currency, SUM(COALESCE(original_amount, amount)) as total FROM Settlements WHERE trip_id = ? GROUP BY payee_id, COALESCE(currency, 'ILS')", (trip_id,))
+    # How much each user RECEIVED in settlements (per original currency)
+    cursor.execute("""
+        SELECT payee_id, COALESCE(currency, 'ILS') as currency,
+               SUM(COALESCE(original_amount, amount)) as total
+        FROM Settlements WHERE trip_id = ?
+        GROUP BY payee_id, COALESCE(currency, 'ILS')
+    """, (trip_id,))
     cur_settled_in = {}
     for row in cursor.fetchall():
         cur_settled_in[(row['payee_id'], row['currency'])] = row['total']
@@ -3259,10 +3272,11 @@ def get_optimized_balances(trip_id):
             owed = cur_owed_data.get((uid, cur), 0.0)
             s_out = cur_settled_out.get((uid, cur), 0.0)
             s_in = cur_settled_in.get((uid, cur), 0.0)
-            
-            balance = (paid + s_out) - (owed + s_in)
+
+            # balance > 0: user is owed money; balance < 0: user owes money
+            balance = (paid - owed) + (s_out - s_in)
             if abs(balance) > 0.01:
-                user_currency_balances[uid][cur] = balance
+                user_currency_balances[uid][cur] = round(balance, 2)
 
             if balance < -0.01:
                 c_debts.append({"user_id": uid, "name": user['name'], "amount": -balance})

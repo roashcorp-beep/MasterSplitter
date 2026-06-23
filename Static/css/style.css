@@ -1949,16 +1949,19 @@ body.light-theme .list-item:hover {
    BALANCE SECTION — Color-coded + Accordion
    ============================================ */
 .balance-item {
-    border-radius: 12px;
-    margin-bottom: 8px;
-    background: rgba(15, 15, 35, 0.4);
-    border: 1px solid var(--border);
+    border-radius: 16px;
+    margin-bottom: 12px;
+    background: var(--surface-card);
+    border: 1px solid var(--glass-border);
     overflow: hidden;
-    transition: all 0.2s ease;
+    position: relative;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .balance-item:hover {
-    border-color: rgba(168, 85, 247, 0.15);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    border-color: rgba(168, 85, 247, 0.2);
 }
 
 .balance-header {
@@ -3348,11 +3351,7 @@ body.light-theme .modal-card {
 }
 
 /* Light theme: balance items */
-body.light-theme .balance-item {
-    background: rgba(255, 255, 255, 0.15);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-}
+/* Removed light-theme override for balance-item so it uses surface-card */
 
 /* Light theme: budget card */
 body.light-theme .budget-card {

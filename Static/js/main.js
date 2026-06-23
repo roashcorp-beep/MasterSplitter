@@ -1716,7 +1716,7 @@ async function fetchExpenses() {
                 }
 
                 html += `
-                <div class="list-item${personalClass} expense-expandable" id="expense-${exp.id}" onclick="toggleExpenseSplits(${exp.id}, event)" style="display: flex; flex-direction: column; align-items: stretch; gap: 0; background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 16px; padding: 16px; margin-bottom: 12px; border: 1px solid var(--glass-border, rgba(255,255,255,0.1)); box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-bottom: none;">
+                <div class="list-item${personalClass} expense-expandable" id="expense-${exp.id}" onclick="toggleExpenseSplits(${exp.id}, event)" style="display: flex; flex-direction: column; align-items: stretch; gap: 0; background: var(--surface-card); border-radius: 16px; padding: 16px 18px; margin-bottom: 12px; border: 1px solid var(--glass-border); position: relative; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);">
                     <div class="list-item-main" style="display: flex; flex-wrap: nowrap; justify-content: space-between; align-items: stretch; width: 100%; gap: 10px;">
                         <div class="item-left" style="min-width: 0; flex: 1;">
                             ${payerAvatar}
@@ -2321,7 +2321,7 @@ function renderBalancesList() {
     list.innerHTML = data.balances.map(b => {
         const isPos = b.balance > 0.01;
         const isNeg = b.balance < -0.01;
-        const badgeCls = isPos ? 'positive' : isNeg ? 'negative' : 'neutral';
+        let badgeCls = isPos ? 'positive' : isNeg ? 'negative' : 'neutral';
 
         const txtReceive = typeof i18n === 'function' ? i18n('balance_receive') : 'צריך לקבל';
         const txtPay = typeof i18n === 'function' ? i18n('balance_pay') : 'צריך לשלם';

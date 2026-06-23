@@ -189,8 +189,8 @@
 
             <!-- EXPENSES SCREEN -->
             <div id="screen-expenses" class="screen">
-                <div class="card">
-                    <h3 class="screen-title" data-i18n="expenses_title">כל ההוצאות</h3>
+                <div style="padding: 10px 0;">
+                    <h3 class="screen-title" style="margin-bottom: 16px;" data-i18n="expenses_title">כל ההוצאות</h3>
                     <div id="expenses-list">
                         <div class="loading-state" data-i18n="loading">טוען...</div>
                     </div>
@@ -265,7 +265,7 @@
 
             <!-- BALANCES SCREEN -->
             <div id="screen-balances" class="screen">
-                <div class="card">
+                <div style="padding: 10px 0;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
                         <h3 class="screen-title" style="margin:0;" data-i18n="balances_title">סיכומים ויתרות</h3>
                         <div class="balances-toggle-container" style="display:flex; background: rgba(255,255,255,0.05); border-radius: 8px; padding: 2px;">
@@ -412,7 +412,7 @@
     </div>
 
     <script src="{{ url_for('static', filename='js/translations.js') }}?v=3.97"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=4.01"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=4.02"></script>
     <script>
         function checkCookieConsent() {
             if (!localStorage.getItem('cookieConsent')) {

@@ -1583,6 +1583,11 @@ async function aiParseExpense() {
 async function fetchExpenses() {
     if (!currentTripId) return;
     try {
+        const balancesMap = {};
+        if (window.cachedBalancesData && window.cachedBalancesData.balances) {
+             window.cachedBalancesData.balances.forEach(b => balancesMap[String(b.user_id)] = parseFloat(b.balance));
+        }
+
         const res = await fetch(`/api/expenses/${currentTripId}`);
         if (res.status === 401) { window.location.href = '/'; return; }
         const expenses = await res.json();
@@ -1706,7 +1711,7 @@ async function fetchExpenses() {
                     const expectedEven = parseFloat(exp.amount) / numSplits;
                     let isCustomSplit = false;
                     for (let s of splits) {
-                        if (Math.abs(parseFloat(s.amount) - expectedEven) > 0.01) {
+                        if (Math.abs(parseFloat(s.amount) - expectedEven) > 0.02) {
                             isCustomSplit = true;
                             break;
                         }
@@ -1719,8 +1724,12 @@ async function fetchExpenses() {
                         
                         let displayAmt = parseFloat(s.amount);
                         if (exp.original_amount && parseFloat(exp.original_amount) !== parseFloat(exp.amount)) {
-                            const ratio = parseFloat(exp.original_amount) / parseFloat(exp.amount);
-                            displayAmt = displayAmt * ratio;
+                            if (!isCustomSplit) {
+                                displayAmt = parseFloat(exp.original_amount) / numSplits;
+                            } else {
+                                const ratio = parseFloat(exp.original_amount) / parseFloat(exp.amount);
+                                displayAmt = displayAmt * ratio;
+                            }
                         }
                         
                         const sAvatar = s.avatar_url
@@ -1742,8 +1751,18 @@ async function fetchExpenses() {
                     </div>`;
                 }
 
+                let isSettled = false;
+                if (exp.type !== 'settlement') {
+                    const involvedIds = [String(exp.user_id)];
+                    (exp.splits || []).forEach(s => involvedIds.push(String(s.user_id)));
+                    isSettled = involvedIds.every(id => Math.abs(balancesMap[id] || 0) < 0.5);
+                }
+                const settledBorder = isSettled ? 'border: 2px solid var(--success-color);' : 'border: 1px solid var(--glass-border);';
+                const settledBadge = isSettled ? `<div style="position:absolute; top: -10px; right: 15px; background: var(--success-color); color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">✓ ${typeof i18n === 'function' ? i18n('settled') || 'מאוזן' : 'מאוזן'}</div>` : '';
+
                 html += `
-                <div class="list-item${personalClass} expense-expandable" id="expense-${exp.id}" onclick="toggleExpenseSplits(${exp.id}, event)" style="display: flex; flex-direction: column; align-items: stretch; gap: 0; background: var(--surface-card); border-radius: 16px; padding: 16px 18px; margin-bottom: 12px; border: 1px solid var(--glass-border); position: relative; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);">
+                <div class="list-item${personalClass} expense-expandable" id="expense-${exp.id}" onclick="toggleExpenseSplits(${exp.id}, event)" style="display: flex; flex-direction: column; align-items: stretch; gap: 0; background: var(--surface-card); border-radius: 16px; padding: 16px 18px; margin-bottom: 12px; ${settledBorder} position: relative; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);">
+                    ${settledBadge}
                     <div class="list-item-main" style="display: flex; flex-wrap: nowrap; justify-content: space-between; align-items: stretch; width: 100%; gap: 10px;">
                         <div class="item-left" style="min-width: 0; flex: 1;">
                             ${payerAvatar}

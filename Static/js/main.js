@@ -1716,7 +1716,7 @@ async function fetchExpenses() {
                 }
 
                 html += `
-                <div class="list-item${personalClass} expense-expandable" id="expense-${exp.id}" onclick="toggleExpenseSplits(${exp.id}, event)" style="display: flex; flex-direction: column; align-items: stretch; gap: 0; background: var(--surface-card, rgba(255,255,255,0.03)); border-radius: 16px; padding: 16px; margin-bottom: 12px; border: 1px solid var(--border); box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-bottom: none;">
+                <div class="list-item${personalClass} expense-expandable" id="expense-${exp.id}" onclick="toggleExpenseSplits(${exp.id}, event)" style="display: flex; flex-direction: column; align-items: stretch; gap: 0; background: var(--glass-bg, rgba(255,255,255,0.05)); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 16px; padding: 16px; margin-bottom: 12px; border: 1px solid var(--glass-border, rgba(255,255,255,0.1)); box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-bottom: none;">
                     <div class="list-item-main" style="display: flex; flex-wrap: nowrap; justify-content: space-between; align-items: stretch; width: 100%; gap: 10px;">
                         <div class="item-left" style="min-width: 0; flex: 1;">
                             ${payerAvatar}
@@ -2243,8 +2243,18 @@ window.cachedOptimizedData = null;
 
 function setBalancesView(view) {
     window.currentBalancesView = view;
-    document.getElementById('btn-view-currency').classList.toggle('active', view === 'currency');
-    document.getElementById('btn-view-converted').classList.toggle('active', view === 'converted');
+    
+    const btnCur = document.getElementById('btn-view-currency');
+    const btnConv = document.getElementById('btn-view-converted');
+    
+    if (view === 'currency') {
+        if(btnCur) { btnCur.style.background = 'var(--primary)'; btnCur.style.color = '#fff'; }
+        if(btnConv) { btnConv.style.background = 'transparent'; btnConv.style.color = 'var(--text-muted)'; }
+    } else {
+        if(btnConv) { btnConv.style.background = 'var(--primary)'; btnConv.style.color = '#fff'; }
+        if(btnCur) { btnCur.style.background = 'transparent'; btnCur.style.color = 'var(--text-muted)'; }
+    }
+    
     renderBalancesList();
 }
 

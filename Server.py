@@ -3219,12 +3219,12 @@ def get_optimized_balances(trip_id):
     for row in cursor.fetchall():
         cur_owed_data[(row['user_id'], row['currency'])] = cur_owed_data.get((row['user_id'], row['currency']), 0) + row['amount']
 
-    cursor.execute("SELECT payer_id, COALESCE(currency, 'ILS') as currency, SUM(amount) as total FROM Settlements WHERE trip_id = ? GROUP BY payer_id, COALESCE(currency, 'ILS')", (trip_id,))
+    cursor.execute("SELECT payer_id, COALESCE(currency, 'ILS') as currency, SUM(COALESCE(original_amount, amount)) as total FROM Settlements WHERE trip_id = ? GROUP BY payer_id, COALESCE(currency, 'ILS')", (trip_id,))
     cur_settled_out = {}
     for row in cursor.fetchall():
         cur_settled_out[(row['payer_id'], row['currency'])] = row['total']
 
-    cursor.execute("SELECT payee_id, COALESCE(currency, 'ILS') as currency, SUM(amount) as total FROM Settlements WHERE trip_id = ? GROUP BY payee_id, COALESCE(currency, 'ILS')", (trip_id,))
+    cursor.execute("SELECT payee_id, COALESCE(currency, 'ILS') as currency, SUM(COALESCE(original_amount, amount)) as total FROM Settlements WHERE trip_id = ? GROUP BY payee_id, COALESCE(currency, 'ILS')", (trip_id,))
     cur_settled_in = {}
     for row in cursor.fetchall():
         cur_settled_in[(row['payee_id'], row['currency'])] = row['total']
@@ -3606,6 +3606,12 @@ def create_settlement():
     if err:
         return jsonify({"error": err}), 400
 
+    original_amount = amount
+    converted_amount = amount
+    if currency != 'ILS':
+        rate = get_exchange_rate(currency)
+        converted_amount = amount * rate
+
     try:
         payer_id = int(payer_id)
         payee_id = int(payee_id)
@@ -3631,9 +3637,9 @@ def create_settlement():
             return jsonify({"error": "Forbidden"}), 403
 
         cursor.execute("""
-            INSERT INTO Settlements (trip_id, payer_id, payee_id, amount, currency, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (trip_id, payer_id, payee_id, amount, currency, datetime.now(timezone.utc).isoformat()))
+            INSERT INTO Settlements (trip_id, payer_id, payee_id, amount, original_amount, currency, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (trip_id, payer_id, payee_id, converted_amount, original_amount, currency, datetime.now(timezone.utc).isoformat()))
         conn.commit()
 
         # Get payee name for activity log

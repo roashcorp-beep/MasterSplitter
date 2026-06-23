@@ -4022,14 +4022,16 @@ window.addEventListener('popstate', function(e) {
     const isLobby = document.getElementById('lobby-overlay') && document.getElementById('lobby-overlay').style.display === 'flex';
     
     if (e.state && e.state.trap) {
-        // Reached the bottom of the app's history. Trap the user.
+        // Reached the bottom of the app's history. Trap the user with deep traps to prevent fast-taps from escaping
+        history.pushState({ trap: true }, "", window.location.pathname);
+        history.pushState({ trap: true }, "", window.location.pathname);
         history.pushState({ tabName: 'home' }, "", "#home");
         
         backPressCount++;
         if (backPressCount >= 2) {
-            window.location.reload();
+            window.location.href = window.location.pathname; // Hard refresh
         } else {
-            showToast('לחץ שוב "חזור" כדי לרענן', 'info');
+            showToast(typeof i18n === 'function' ? i18n('press_back_again_refresh') || 'לחץ שוב חזור כדי לרענן' : 'לחץ שוב "חזור" כדי לרענן', 'info');
             clearTimeout(backPressTimer);
             backPressTimer = setTimeout(() => { backPressCount = 0; }, 2000);
         }
@@ -4059,6 +4061,9 @@ window.addEventListener('popstate', function(e) {
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Replace the initial document state with a "trap" state
     history.replaceState({ trap: true }, "", window.location.pathname);
+    // 1.5 Push deep traps to catch fast double-taps
+    history.pushState({ trap: true }, "", window.location.pathname);
+    history.pushState({ trap: true }, "", window.location.pathname);
     // 2. Push the actual active state on top
     history.pushState({ tabName: 'home' }, "", "#home");
 });

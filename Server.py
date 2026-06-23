@@ -2685,16 +2685,19 @@ def add_expense():
     if not (2 <= len(currency) <= 10):
         currency = 'ILS'
 
-    # Look up Trip's base currency for conversion target
-    cursor.execute("SELECT budget_type FROM Trips WHERE id = ?", (trip_id,))
+    # Look up Trip's base currency for conversion target.
+    # The base currency is stored inside the budgets_json column (e.g. {"currency": "ALL"}),
+    # NOT in budget_type (which is just 'none'/'fixed'/...). Parsing budget_type was a bug
+    # that forced every conversion target to ILS.
+    cursor.execute("SELECT budgets_json FROM Trips WHERE id = ?", (trip_id,))
     trip_row = cursor.fetchone()
     trip_base_currency = 'ILS'
-    if trip_row and trip_row['budget_type'] and trip_row['budget_type'] != 'none':
+    if trip_row and trip_row['budgets_json']:
         try:
-            import json
-            budgets = json.loads(trip_row['budget_type'])
-            trip_base_currency = budgets.get('currency', 'ILS')
-        except:
+            budgets = json.loads(trip_row['budgets_json'])
+            if isinstance(budgets, dict) and budgets.get('currency'):
+                trip_base_currency = budgets.get('currency')
+        except (ValueError, TypeError):
             pass
 
     # Currency conversion: convert to Trip's base currency if foreign
@@ -3635,7 +3638,11 @@ def create_settlement():
     converted_amount = amount
     if currency != 'ILS':
         rate = get_exchange_rate(currency)
-        converted_amount = amount * rate
+        if not rate:
+            # Exchange rate unavailable — do NOT crash (amount * None). Reject cleanly.
+            logger.warning(f"Settlement rejected: no exchange rate for {currency}->ILS")
+            return jsonify({"error": "לא ניתן לקבל שער המרה למטבע זה כרגע. נסה שוב מאוחר יותר."}), 503
+        converted_amount = round(amount * rate, 2)
 
     try:
         payer_id = int(payer_id)
@@ -3660,6 +3667,41 @@ def create_settlement():
         """, (trip_id, session['user_id'], trip_id, session['user_id']))
         if not cursor.fetchone():
             return jsonify({"error": "Forbidden"}), 403
+
+        # --- Validation: the payer must actually owe money, and the settlement
+        #     must not exceed their outstanding debt (converted to ILS base).
+        #     This prevents creating "phantom" balances by settling debts that
+        #     don't exist or by over-settling. (Root cause of the BALANCES bug.) ---
+        TOL = 0.5  # ILS tolerance for rounding
+
+        def _converted_balance(target_uid):
+            row = cursor.execute(
+                "SELECT COALESCE(SUM(amount), 0) AS t FROM Expenses WHERE trip_id = ? AND user_id = ?",
+                (trip_id, target_uid)).fetchone()
+            paid = row['t'] or 0.0
+            row = cursor.execute("""
+                SELECT COALESCE(SUM(es.amount), 0) AS t
+                FROM ExpenseSplits es JOIN Expenses e ON es.expense_id = e.id
+                WHERE e.trip_id = ? AND es.user_id = ?
+            """, (trip_id, target_uid)).fetchone()
+            owed = row['t'] or 0.0
+            row = cursor.execute(
+                "SELECT COALESCE(SUM(amount), 0) AS t FROM Settlements WHERE trip_id = ? AND payer_id = ?",
+                (trip_id, target_uid)).fetchone()
+            s_out = row['t'] or 0.0
+            row = cursor.execute(
+                "SELECT COALESCE(SUM(amount), 0) AS t FROM Settlements WHERE trip_id = ? AND payee_id = ?",
+                (trip_id, target_uid)).fetchone()
+            s_in = row['t'] or 0.0
+            return (paid + s_out) - (owed + s_in)
+
+        payer_balance = _converted_balance(payer_id)
+        # A debtor has a negative balance. Their outstanding debt is -balance.
+        outstanding_debt = -payer_balance
+        if outstanding_debt <= TOL:
+            return jsonify({"error": "אין חוב פתוח לסליקה."}), 400
+        if converted_amount > outstanding_debt + TOL:
+            return jsonify({"error": "סכום הסליקה גדול מהחוב הפתוח."}), 400
 
         cursor.execute("""
             INSERT INTO Settlements (trip_id, payer_id, payee_id, amount, original_amount, currency, created_at)
@@ -3702,6 +3744,76 @@ def get_settlements(trip_id):
     settlements = [dict(row) for row in cursor.fetchall()]
     conn.close()
     return jsonify(settlements)
+
+
+@app.route('/api/settlements/<int:settlement_id>', methods=['DELETE'])
+@login_required
+def delete_settlement(settlement_id):
+    """Undo a single settlement. Allowed for the payer, the payee, or a trip admin/owner."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        row = cursor.execute(
+            "SELECT trip_id, payer_id, payee_id FROM Settlements WHERE id = ?",
+            (settlement_id,)).fetchone()
+        if not row:
+            return jsonify({"error": "Settlement not found."}), 404
+
+        trip_id = row['trip_id']
+        uid = session['user_id']
+
+        # Permission: payer, payee, trip owner, or trip admin
+        is_party = uid in (row['payer_id'], row['payee_id'])
+        access = cursor.execute("""
+            SELECT 1 FROM Trips WHERE id = ? AND owner_id = ?
+            UNION
+            SELECT 1 FROM TripMembers WHERE trip_id = ? AND user_id = ? AND COALESCE(is_admin, 0) = 1
+        """, (trip_id, uid, trip_id, uid)).fetchone()
+        if not is_party and not access:
+            return jsonify({"error": "Forbidden"}), 403
+
+        cursor.execute("DELETE FROM Settlements WHERE id = ?", (settlement_id,))
+        conn.commit()
+        logger.info(f"Settlement {settlement_id} deleted by user {uid} (trip {trip_id})")
+        log_activity(trip_id, uid, 'settlement_undo', f"settlement #{settlement_id} removed")
+        return jsonify({"success": True})
+    except sqlite3.Error as e:
+        logger.error(f"Delete settlement error: {e}")
+        return jsonify({"error": "Server error."}), 500
+    finally:
+        conn.close()
+
+
+@app.route('/api/trips/<int:trip_id>/settlements/reset', methods=['POST'])
+@login_required
+@require_trip_access
+def reset_settlements(trip_id):
+    """Delete ALL settlements for a trip. Restricted to the trip owner/admin.
+    Useful for clearing stuck/phantom balances accumulated from bad settle data."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        uid = session['user_id']
+        access = cursor.execute("""
+            SELECT 1 FROM Trips WHERE id = ? AND owner_id = ?
+            UNION
+            SELECT 1 FROM TripMembers WHERE trip_id = ? AND user_id = ? AND COALESCE(is_admin, 0) = 1
+        """, (trip_id, uid, trip_id, uid)).fetchone()
+        if not access:
+            return jsonify({"error": "Only the group admin can reset settlements."}), 403
+
+        before = cursor.execute(
+            "SELECT COUNT(*) AS c FROM Settlements WHERE trip_id = ?", (trip_id,)).fetchone()['c']
+        cursor.execute("DELETE FROM Settlements WHERE trip_id = ?", (trip_id,))
+        conn.commit()
+        logger.info(f"Settlements reset for trip {trip_id} by user {uid} — {before} rows deleted.")
+        log_activity(trip_id, uid, 'settlements_reset', f"{before} settlements cleared")
+        return jsonify({"success": True, "deleted": before})
+    except sqlite3.Error as e:
+        logger.error(f"Reset settlements error: {e}")
+        return jsonify({"error": "Server error."}), 500
+    finally:
+        conn.close()
 
 
 # =====================

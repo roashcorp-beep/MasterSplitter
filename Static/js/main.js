@@ -48,6 +48,23 @@ function formatNumber(num) {
 }
 window.formatNumber = formatNumber;
 
+/**
+ * Format a monetary amount WITHOUT abbreviation (no "1.2K").
+ * Always shows the full value with thousands separators, and 2 decimals
+ * only when needed. Used on the BALANCES screen where exact amounts matter.
+ */
+function formatMoney(num) {
+    if (num == null) return "0";
+    const val = Number(num);
+    if (isNaN(val)) return "0";
+    const hasFraction = Math.abs(val - Math.round(val)) > 0.005;
+    return val.toLocaleString('en-US', {
+        minimumFractionDigits: hasFraction ? 2 : 0,
+        maximumFractionDigits: 2
+    });
+}
+window.formatMoney = formatMoney;
+
 // =====================
 //  AUTH (Login Page)
 // =====================
@@ -2345,6 +2362,14 @@ async function fetchBalances() {
         if (elPct) elPct.textContent = `${pct}%`;
 
         renderBalancesList();
+
+        // Show the "reset settlements" recovery control to group admins only
+        const resetBtn = document.getElementById('btn-reset-settlements');
+        if (resetBtn) {
+            const isAdmin = (typeof _groupSettings !== 'undefined' && _groupSettings.is_admin)
+                || (currentTripData && currentTripData.is_owner);
+            resetBtn.style.display = isAdmin ? 'block' : 'none';
+        }
     } catch (e) { console.error('Fetch balances error:', e); }
 }
 
@@ -2393,7 +2418,7 @@ function renderBalancesList() {
         
         let badgeTxt = isPos ? txtReceive : isNeg ? txtPay : txtSettled;
         let amtCls = isPos ? 'amount-pos' : isNeg ? 'amount-neg' : '';
-        let amountDisplay = `${userSym}${formatNumber(Math.abs(b.balance))}`;
+        let amountDisplay = `${userSym}${formatMoney(Math.abs(b.balance))}`;
 
         const me = window.currentUser && b.user_id === window.currentUser.id ? (typeof i18n === 'function' ? i18n('balance_you') : ' (את/ה)') : '';
         const safeName = escapeHTML(b.name);
@@ -2411,7 +2436,7 @@ function renderBalancesList() {
                     const cb = curBalances[c];
                     const cbSym = getCurrencySymbol(c);
                     const cbCls = cb > 0.01 ? 'amount-pos' : cb < -0.01 ? 'amount-neg' : '';
-                    return `<span class="${cbCls}">${cbSym}${formatNumber(Math.abs(cb))}</span>`;
+                    return `<span class="${cbCls}">${cbSym}${formatMoney(Math.abs(cb))}</span>`;
                 }).join(' <span style="color:var(--text-muted);font-weight:normal;">|</span> ');
                 badgeTxt = 'מאזן מפוצל';
                 badgeCls = 'neutral';
@@ -2420,7 +2445,7 @@ function renderBalancesList() {
             // Accordion Body (Currency Split)
             let allDebts = [];
             for (const cur of Object.keys(optData.currency_settlements || {})) {
-                const cSetts = optData.currency_settlements[cur].filter(s => s.from === b.name || s.to === b.name);
+                const cSetts = optData.currency_settlements[cur].filter(s => s.from_id === b.user_id || s.to_id === b.user_id);
                 cSetts.forEach(s => allDebts.push({...s, currency: cur}));
             }
 
@@ -2444,7 +2469,7 @@ function renderBalancesList() {
                             <span>${safeFrom}</span>
                             <span class="debt-arrow">←</span>
                             <span>${safeTo}</span>
-                            <span class="debt-amount">${sSym}${formatNumber(s.amount)}</span>
+                            <span class="debt-amount">${sSym}${formatMoney(s.amount)}</span>
                         </div>
                         ${settleBtn}
                     </div>`;
@@ -2454,7 +2479,7 @@ function renderBalancesList() {
             }
         } else {
             // Converted View
-            const personDebts = optData.optimized_settlements.filter(s => s.from === b.name || s.to === b.name);
+            const personDebts = optData.optimized_settlements.filter(s => s.from_id === b.user_id || s.to_id === b.user_id);
             if (personDebts.length > 0) {
                 debtLines = personDebts.map(s => {
                     const safeFrom = escapeHTML(s.from);
@@ -2474,7 +2499,7 @@ function renderBalancesList() {
                             <span>${safeFrom}</span>
                             <span class="debt-arrow">←</span>
                             <span>${safeTo}</span>
-                            <span class="debt-amount">${userSym}${formatNumber(s.amount)}</span>
+                            <span class="debt-amount">${userSym}${formatMoney(s.amount)}</span>
                         </div>
                         ${settleBtn}
                     </div>`;
@@ -2493,7 +2518,7 @@ function renderBalancesList() {
                     <div class="avatar bg-purple" style="width:40px;height:40px;font-size:1.2rem;">${escapeHTML(b.name.charAt(0))}</div>
                     <div class="item-details">
                         <h4>${safeName}${me}</h4>
-                        <p>${paidTxt}${userSym}${formatNumber(b.paid)}</p>
+                        <p>${paidTxt}${userSym}${formatMoney(b.paid)}</p>
                     </div>
                 </div>
                 <div class="item-right">
@@ -2604,6 +2629,31 @@ async function triggerSettleUp(payerId, payeeId, amount, currency = 'ILS') {
         }
     } catch (e) {
         console.error('Settle up error:', e);
+        alert('Network error.');
+    }
+}
+
+/**
+ * Admin-only: clear ALL settlements for the current trip.
+ * Use to recover from stuck/phantom balances caused by bad settle data.
+ */
+async function resetTripSettlements() {
+    if (!currentTripId) return;
+    const msg = typeof i18n === 'function' ? i18n('reset_settlements_confirm')
+        : 'לאפס את כל הקיזוזים בקבוצה? פעולה זו מוחקת את כל רשומות הסליקה ולא ניתנת לביטול.';
+    if (!confirm(msg)) return;
+    try {
+        const res = await fetch(`/api/trips/${currentTripId}/settlements/reset`, { method: 'POST' });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            showToast(`נמחקו ${data.deleted} קיזוזים. המאזן חושב מחדש.`, 'success');
+            fetchBalances();
+            if (typeof fetchExpenses === 'function') fetchExpenses();
+        } else {
+            alert(data.error || 'Failed to reset settlements.');
+        }
+    } catch (e) {
+        console.error('Reset settlements error:', e);
         alert('Network error.');
     }
 }

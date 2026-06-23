@@ -4003,10 +4003,24 @@ let backPressTimer = null;
 window.addEventListener('popstate', function(e) {
     const isLobby = document.getElementById('lobby-overlay') && document.getElementById('lobby-overlay').style.display === 'flex';
     
-    // Always push state back so we don't accidentally exit the PWA
-    history.pushState(e.state, "", window.location.hash || window.location.href);
+    if (e.state && e.state.trap) {
+        // Reached the bottom of the app's history. Trap the user.
+        history.pushState({ tabName: 'home' }, "", "#home");
+        
+        backPressCount++;
+        if (backPressCount >= 2) {
+            window.location.reload();
+        } else {
+            showToast('לחץ שוב "חזור" כדי לרענן', 'info');
+            clearTimeout(backPressTimer);
+            backPressTimer = setTimeout(() => { backPressCount = 0; }, 2000);
+        }
+        return;
+    }
 
     if (isLobby) {
+        // If in Lobby, prevent popping states by re-pushing whatever state we are on
+        history.pushState(e.state, "", window.location.hash || window.location.href);
         backPressCount++;
         if (backPressCount >= 2) {
             window.location.reload();
@@ -4020,18 +4034,13 @@ window.addEventListener('popstate', function(e) {
             switchTab(e.state.tabName, true);
         } else {
             switchTab('home', true);
-            backPressCount++;
-            if (backPressCount >= 2) {
-                window.location.reload();
-            } else {
-                showToast('לחץ שוב "חזור" כדי לרענן', 'info');
-                clearTimeout(backPressTimer);
-                backPressTimer = setTimeout(() => { backPressCount = 0; }, 2000);
-            }
         }
     }
 });
 
 document.addEventListener('DOMContentLoaded', () => {
-    history.replaceState({ tabName: 'home' }, "", "#home");
+    // 1. Replace the initial document state with a "trap" state
+    history.replaceState({ trap: true }, "", window.location.pathname);
+    // 2. Push the actual active state on top
+    history.pushState({ tabName: 'home' }, "", "#home");
 });

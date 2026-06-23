@@ -3194,7 +3194,7 @@ def get_optimized_balances(trip_id):
 
     cursor.execute("""
         SELECT es.user_id, COALESCE(e.currency, 'ILS') as currency, 
-               SUM(es.amount * (COALESCE(e.original_amount, e.amount) / NULLIF(e.amount, 0))) as total_owed
+               SUM(es.amount * (CAST(COALESCE(e.original_amount, e.amount) AS REAL) / NULLIF(e.amount, 0))) as total_owed
         FROM ExpenseSplits es
         JOIN Expenses e ON es.expense_id = e.id
         WHERE e.trip_id = ?

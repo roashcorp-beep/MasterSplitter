@@ -2326,7 +2326,25 @@ function renderBalancesList() {
     const isCurrencyView = window.currentBalancesView === 'currency';
     const userSym = getTripCurrencySymbol();
 
-    list.innerHTML = data.balances.map(b => {
+    let activeBalances = data.balances.filter(b => {
+        if (isCurrencyView) {
+            const curBalances = (optData.user_currency_balances || {})[b.user_id] || {};
+            return Object.values(curBalances).some(val => Math.abs(val) > 0.01);
+        } else {
+            return Math.abs(b.balance) > 0.01;
+        }
+    });
+
+    if (activeBalances.length === 0) {
+        list.innerHTML = `<div style="text-align:center; padding: 40px 20px; color: var(--text-muted);">
+            <div style="font-size: 3rem; margin-bottom: 10px;">🎉</div>
+            <div style="font-size: 1.1rem; font-weight: 500;">הכל מאוזן!</div>
+            <div style="font-size: 0.9rem; margin-top: 5px;">אין חובות פתוחים בקבוצה.</div>
+        </div>`;
+        return;
+    }
+
+    list.innerHTML = activeBalances.map(b => {
         const isPos = b.balance > 0.01;
         const isNeg = b.balance < -0.01;
         let badgeCls = isPos ? 'positive' : isNeg ? 'negative' : 'neutral';

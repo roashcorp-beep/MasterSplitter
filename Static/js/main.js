@@ -1596,11 +1596,6 @@ async function fetchExpenses() {
             html = `<div class="loading-state">${typeof i18n === 'function' ? i18n('expenses_no_data') : 'אין הוצאות בינתיים'}</div>`;
         } else {
             expenses.forEach(exp => {
-                const safeDesc = escapeHTML(exp.description);
-                const safePayer = escapeHTML(exp.payer);
-                const safeCat = escapeHTML(exp.category || 'כללי');
-                const isPersonal = exp.is_personal ? true : false;
-
                 let safeDateStr = '';
                 if (exp.created_at) {
                     const d = new Date(exp.created_at.replace(' ', 'T'));
@@ -1610,6 +1605,30 @@ async function fetchExpenses() {
                         safeDateStr = (document.documentElement.dir === 'rtl') ? `${datePart} <span style="margin:0 4px;"></span> ${timePart}` : `${timePart} <span style="margin:0 4px;"></span> ${datePart}`;
                     }
                 }
+
+                if (exp.type === 'settlement') {
+                    const safePayer = escapeHTML(exp.payer);
+                    const safePayee = escapeHTML(exp.payee_name);
+                    const amtStr = `${getCurrencySymbol(exp.currency)}${formatNumber(exp.amount)}`;
+                    const settledTxt = typeof i18n === 'function' ? i18n('balance_settled') : 'מאוזן (קיזוז)';
+                    html += `
+                        <div class="expense-card settlement-card" style="border: 2px solid var(--success-color); background: rgba(46, 204, 113, 0.05);">
+                            <div class="expense-content" style="text-align:center; padding: 10px;">
+                                <div style="color: var(--success-color); font-weight: bold; margin-bottom: 5px;">✅ ${settledTxt}</div>
+                                <div style="font-size: 0.95rem;">
+                                    <strong>${safePayer}</strong> העביר/ה ל-<strong>${safePayee}</strong> סך של <strong dir="ltr">${amtStr}</strong>
+                                </div>
+                                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 5px;">${safeDateStr}</div>
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const safeDesc = escapeHTML(exp.description);
+                const safePayer = escapeHTML(exp.payer);
+                const safeCat = escapeHTML(exp.category || 'כללי');
+                const isPersonal = exp.is_personal ? true : false;
 
                 // Payer avatar: Google image or initial
                 const payerAvatar = exp.payer_avatar

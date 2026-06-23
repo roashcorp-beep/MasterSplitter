@@ -4029,9 +4029,13 @@ window.addEventListener('popstate', function(e) {
         
         backPressCount++;
         if (backPressCount >= 2) {
-            window.location.href = window.location.pathname; // Hard refresh
+            showToast(typeof i18n === 'function' ? i18n('refreshing_data') || 'מרענן נתונים...' : 'מרענן נתונים...', 'info');
+            if (typeof loadLobby === 'function') loadLobby();
+            if (typeof fetchBalances === 'function') fetchBalances();
+            if (typeof loadExpenses === 'function') loadExpenses();
+            backPressCount = 0;
         } else {
-            showToast(typeof i18n === 'function' ? i18n('press_back_again_refresh') || 'לחץ שוב חזור כדי לרענן' : 'לחץ שוב "חזור" כדי לרענן', 'info');
+            showToast(typeof i18n === 'function' ? i18n('press_back_again_refresh') || 'לחץ שוב חזור כדי לרענן נתונים' : 'לחץ שוב חזור כדי לרענן נתונים', 'info');
             clearTimeout(backPressTimer);
             backPressTimer = setTimeout(() => { backPressCount = 0; }, 2000);
         }
@@ -4043,9 +4047,11 @@ window.addEventListener('popstate', function(e) {
         history.pushState(e.state, "", window.location.hash || window.location.href);
         backPressCount++;
         if (backPressCount >= 2) {
-            window.location.reload();
+            showToast(typeof i18n === 'function' ? i18n('refreshing_data') || 'מרענן נתונים...' : 'מרענן נתונים...', 'info');
+            if (typeof loadLobby === 'function') loadLobby();
+            backPressCount = 0;
         } else {
-            showToast('לחץ שוב "חזור" כדי לרענן', 'info');
+            showToast(typeof i18n === 'function' ? i18n('press_back_again_refresh') || 'לחץ שוב חזור כדי לרענן נתונים' : 'לחץ שוב חזור כדי לרענן נתונים', 'info');
             clearTimeout(backPressTimer);
             backPressTimer = setTimeout(() => { backPressCount = 0; }, 2000);
         }
@@ -4062,6 +4068,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. Replace the initial document state with a "trap" state
     history.replaceState({ trap: true }, "", window.location.pathname);
     // 1.5 Push deep traps to catch fast double-taps
+    history.pushState({ trap: true }, "", window.location.pathname);
+    history.pushState({ trap: true }, "", window.location.pathname);
     history.pushState({ trap: true }, "", window.location.pathname);
     history.pushState({ trap: true }, "", window.location.pathname);
     // 2. Push the actual active state on top

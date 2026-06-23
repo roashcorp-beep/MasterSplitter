@@ -330,6 +330,7 @@ def init_db_updates():
             payer_id INTEGER NOT NULL,
             payee_id INTEGER NOT NULL,
             amount REAL NOT NULL,
+            original_amount REAL,
             currency TEXT DEFAULT 'ILS',
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(trip_id) REFERENCES Trips(id),
@@ -430,6 +431,16 @@ def init_db_updates():
             logger.info("Migration: added 'original_amount' column to Expenses")
     except sqlite3.Error as e:
         logger.error(f"Expenses original_amount migration error: {e}")
+
+    # --- Add original_amount to Settlements ---
+    try:
+        cursor.execute("PRAGMA table_info(Settlements)")
+        set_cols = [row['name'] for row in cursor.fetchall()]
+        if 'original_amount' not in set_cols:
+            cursor.execute("ALTER TABLE Settlements ADD COLUMN original_amount REAL")
+            logger.info("Migration: added 'original_amount' column to Settlements")
+    except sqlite3.Error as e:
+        logger.error(f"Settlements original_amount migration error: {e}")
 
     # --- Add default_currency to Users ---
     try:

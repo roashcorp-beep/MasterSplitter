@@ -401,11 +401,11 @@ const GroupsScreen = () => {
 
         return (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" dir={isRTL ? 'rtl' : 'ltr'}>
-                <div className="bg-white/80 dark:bg-[#0f172a]/80 backdrop-blur-3xl border-2 border-indigo-300 dark:border-indigo-500 rounded-[2rem] w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col max-h-[90vh] relative" style={{ boxShadow: '0 0 50px -10px rgba(99,102,241,0.6)' }}>
+                <div className="bg-white/85 dark:bg-[#12122a]/90 backdrop-blur-3xl border border-purple-300/60 dark:border-purple-500/40 rounded-3xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col max-h-[90vh] relative" style={{ boxShadow: '0 0 50px -10px rgba(168,85,247,0.45)' }}>
                     
                     {/* Header - Gemini Style */}
-                    <div className="p-6 bg-gradient-to-b from-indigo-50/50 to-white/50 dark:from-indigo-900/30 dark:to-transparent border-b border-indigo-100/50 dark:border-indigo-800/30 flex flex-col items-center relative">
-                        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-300 bg-white/50 dark:bg-gray-800/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 rounded-full p-2 transition-colors backdrop-blur-sm">✕</button>
+                    <div className="p-6 bg-gradient-to-b from-purple-50/50 to-white/50 dark:from-purple-900/30 dark:to-transparent border-b border-purple-100/50 dark:border-purple-800/30 flex flex-col items-center relative">
+                        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-300 bg-white/50 dark:bg-gray-800/50 hover:bg-purple-50 dark:hover:bg-purple-900/50 rounded-full p-2 transition-colors backdrop-blur-sm">✕</button>
                         
                         <input 
                             type="file" 
@@ -419,7 +419,7 @@ const GroupsScreen = () => {
                             }} 
                         />
                         <div className="relative group cursor-pointer mb-3" onClick={() => fileInputRef.current?.click()}>
-                            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-4xl shadow-lg border-4 border-white dark:border-gray-800 overflow-hidden" style={{ background: avatarColors[group.id % avatarColors.length] }}>
+                            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center text-white font-bold text-4xl shadow-lg border-4 border-white dark:border-gray-800 overflow-hidden" style={{ background: avatarColors[group.id % avatarColors.length] }}>
                                 {group?.image_url ? <img src={group.image_url} className="w-full h-full object-cover" /> : (group?.name ? String(group.name).charAt(0).toUpperCase() : '?')}
                             </div>
                             <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -431,7 +431,7 @@ const GroupsScreen = () => {
                             type="text" 
                             defaultValue={group?.name || ''} 
                             onChange={(e) => setEditGroupDetails(prev => ({...prev, name: e.target.value}))}
-                            className="text-2xl font-bold text-gray-900 dark:text-white bg-transparent text-center focus:outline-none focus:border-b-2 focus:border-indigo-500 w-3/4 transition-all"
+                            className="text-2xl font-bold text-gray-900 dark:text-white bg-transparent text-center focus:outline-none focus:border-b-2 focus:border-purple-500 w-3/4 transition-all"
                             placeholder={t?.group_name || 'שם הקבוצה'}
                         />
                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{participants.length} {i18n("members") || "חברים"}</p>
@@ -443,13 +443,13 @@ const GroupsScreen = () => {
                         {/* Action Buttons */}
                         <div className="flex justify-center gap-6 p-4 border-b border-gray-100 dark:border-gray-700">
                             {isAdmin && (
-                                <button onClick={() => window.pickContact && window.pickContact('edit', 'wa')} className="flex flex-col items-center gap-1.5 text-indigo-600 dark:text-indigo-400 hover:scale-105 transition-transform">
-                                    <div className="p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-full shadow-sm"><IconUsers size={22} /></div>
+                                <button onClick={() => window.pickContact && window.pickContact('edit', 'wa')} className="flex flex-col items-center gap-1.5 text-purple-600 dark:text-purple-400 hover:scale-105 transition-transform">
+                                    <div className="p-3 bg-purple-50 dark:bg-purple-900/30 rounded-full shadow-sm"><IconUsers size={22} /></div>
                                     <span className="text-xs font-medium">{i18n("add_member") || "הוסף חבר"}</span>
                                 </button>
                             )}
-                            <button onClick={() => window.copyInviteLink(group.id, group.invite_token)} className="flex flex-col items-center gap-1.5 text-indigo-600 dark:text-indigo-400 hover:scale-105 transition-transform">
-                                <div className="p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-full shadow-sm"><IconLink size={22} /></div>
+                            <button onClick={() => window.copyInviteLink(group.id, group.invite_token)} className="flex flex-col items-center gap-1.5 text-purple-600 dark:text-purple-400 hover:scale-105 transition-transform">
+                                <div className="p-3 bg-purple-50 dark:bg-purple-900/30 rounded-full shadow-sm"><IconLink size={22} /></div>
                                 <span className="text-xs font-medium">{i18n("copy_link") || "העתק קישור"}</span>
                             </button>
                         </div>
@@ -467,9 +467,9 @@ const GroupsScreen = () => {
                                         <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700">
                                             <div className="flex items-center gap-3">
                                                 {p.avatar_url ? (
-                                                    <img src={p.avatar_url} className="w-10 h-10 rounded-full object-cover border border-indigo-100" />
+                                                    <img src={p.avatar_url} className="w-10 h-10 rounded-full object-cover border border-purple-100" />
                                                 ) : (
-                                                    <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-lg">
+                                                    <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold text-lg">
                                                         {initial}
                                                     </div>
                                                 )}
@@ -484,14 +484,14 @@ const GroupsScreen = () => {
                                                 </div>
                                             ) : isParticipantAdmin ? 
                                                 <div className="flex items-center gap-1.5">
-                                                    <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/30 px-2.5 py-1 rounded-full">{i18n("role_admin") || "Admin"}</span>
+                                                    <span className="text-xs font-bold text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30 px-2.5 py-1 rounded-full">{i18n("role_admin") || "Admin"}</span>
                                                     {isAdmin && !p.is_owner && (
                                                         <button onClick={() => { if(window.removeMemberAdmin) window.removeMemberAdmin(group, p.contact); }} className="text-xs font-medium text-gray-600 bg-gray-100 hover:bg-red-100 hover:text-red-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-red-900/30 px-2.5 py-1.5 rounded-full transition-colors shadow-sm">{i18n("remove_admin") || "Remove Admin"}</button>
                                                     )}
                                                 </div> :
                                                 isAdmin && !p.is_owner ? (
                                                     <div className="flex items-center gap-1.5">
-                                                        <button onClick={() => { if(window.makeMemberAdmin) window.makeMemberAdmin(group, p.contact); }} className="text-xs font-medium text-indigo-600 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 px-2.5 py-1.5 rounded-full transition-colors shadow-sm">{i18n("make_admin") || "Admin"}</button>
+                                                        <button onClick={() => { if(window.makeMemberAdmin) window.makeMemberAdmin(group, p.contact); }} className="text-xs font-medium text-purple-600 bg-purple-100 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400 px-2.5 py-1.5 rounded-full transition-colors shadow-sm">{i18n("make_admin") || "Admin"}</button>
                                                         <button onClick={() => removeUser(p.contact)} className="text-xs font-medium text-red-600 bg-red-100 hover:bg-red-200 dark:bg-red-900/20 px-2.5 py-1.5 rounded-full transition-colors shadow-sm">{i18n("btn_remove") || "Remove"}</button>
                                                     </div>
                                                 ) : null
@@ -507,7 +507,7 @@ const GroupsScreen = () => {
                             <div className="p-4 border-t border-gray-100 dark:border-gray-700">
                                 <button onClick={() => setEditGroupDetails(prev => ({...prev, showAdvancedBudget: !prev.showAdvancedBudget}))} className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-2xl transition-colors border border-gray-100 dark:border-gray-700">
                                     <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200 font-medium">
-                                        <IconSettings size={18} className="text-indigo-500" /> {i18n("admin_settings") || "הגדרות מנהל"}  
+                                        <IconSettings size={18} className="text-purple-500" /> {i18n("admin_settings") || "הגדרות מנהל"}  
                                     </div>
                                     <IconChevronDown size={16} className={`text-gray-500 transition-transform duration-300 ${group.showAdvancedBudget ? 'rotate-180' : ''}`} />
                                 </button>
@@ -538,7 +538,7 @@ const GroupsScreen = () => {
                                                 {['daily', 'monthly', 'yearly'].map((type, i) => (
                                                     <div key={'global-' + type} className="flex flex-col gap-1 w-full">
                                                         <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300 text-center">{type === 'daily' ? (i18n('budget_daily') || 'תקציב יומי') : type === 'monthly' ? (i18n('budget_monthly') || 'תקציב חודשי') : (i18n('budget_yearly') || 'תקציב שנתי')}</span>
-                                                        <button type="button" onClick={() => setBudgetPopup({ key: 'global', type, value: group.budgets_json?.[type] || '', name: i18n('all_group') || 'כל הקבוצה' })} className="w-full text-center py-2.5 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 text-xs font-bold text-gray-900 dark:text-white shadow-sm hover:border-indigo-300 transition-colors">
+                                                        <button type="button" onClick={() => setBudgetPopup({ key: 'global', type, value: group.budgets_json?.[type] || '', name: i18n('all_group') || 'כל הקבוצה' })} className="w-full text-center py-2.5 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 text-xs font-bold text-gray-900 dark:text-white shadow-sm hover:border-purple-300 transition-colors">
                                                             {group.budgets_json?.[type] ? `${group.budgets_json?.[type]} ${currencySymbol}` : (i18n('enter_amount') || 'הזן סכום')}
                                                         </button>
                                                     </div>
@@ -549,7 +549,7 @@ const GroupsScreen = () => {
                                         <div className="flex items-center justify-between mb-4">
                                             <label className="text-sm font-bold text-gray-700 dark:text-gray-300">{i18n("personal_budget_per_user") || "תקציב אישי לכל משתתף"}</label>
                                             <div 
-                                                className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ease-in-out ${group.is_budget_per_user ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                                                className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ease-in-out ${group.is_budget_per_user ? 'bg-purple-500' : 'bg-gray-300 dark:bg-gray-600'}`}
                                                 onClick={() => togglePermission('is_budget_per_user')}
                                             >
                                                 <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${group.is_budget_per_user ? (isRTL ? 'translate-x-0' : 'translate-x-5') : (isRTL ? '-translate-x-5' : 'translate-x-0')}`}></div>
@@ -570,7 +570,7 @@ const GroupsScreen = () => {
                                                                 {['daily', 'monthly', 'yearly'].map((type, i) => (
                                                                     <div key={i} className="flex flex-col gap-1 w-full">
                                                                         <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300 text-center">{type === 'daily' ? (i18n('budget_daily') || 'תקציב יומי') : type === 'monthly' ? (i18n('budget_monthly') || 'תקציב חודשי') : (i18n('budget_yearly') || 'תקציב שנתי')}</span>
-                                                                        <button type="button" onClick={() => setBudgetPopup({ key, type, value: uBudget[type] || '', name: pName })} className="w-full text-center py-2.5 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-bold text-gray-900 dark:text-white shadow-sm hover:border-indigo-300 transition-colors">
+                                                                        <button type="button" onClick={() => setBudgetPopup({ key, type, value: uBudget[type] || '', name: pName })} className="w-full text-center py-2.5 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-bold text-gray-900 dark:text-white shadow-sm hover:border-purple-300 transition-colors">
                                                                             {uBudget[type] ? `${uBudget[type]} ${currencySymbol}` : (i18n('enter_amount') || 'הזן סכום')}
                                                                         </button>
                                                                     </div>
@@ -586,7 +586,7 @@ const GroupsScreen = () => {
                                             <div className="flex items-center justify-between">
                                                 <label className="text-sm text-gray-700 dark:text-gray-300">{i18n("public_expenses") || "הצג הוצאות לכולם"}</label>
                                                 <div 
-                                                    className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ease-in-out ${group.is_public_expenses !== false ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                                                    className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ease-in-out ${group.is_public_expenses !== false ? 'bg-purple-500' : 'bg-gray-300 dark:bg-gray-600'}`}
                                                     onClick={() => togglePermission('is_public_expenses')}
                                                 >
                                                     <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${group.is_public_expenses !== false ? (isRTL ? 'translate-x-0' : 'translate-x-5') : (isRTL ? '-translate-x-5' : 'translate-x-0')}`}></div>
@@ -595,7 +595,7 @@ const GroupsScreen = () => {
                                             <div className="flex items-center justify-between">
                                                 <label className="text-sm text-gray-700 dark:text-gray-300">{i18n("allow_member_delete_lbl") || "אפשר למשתתפים למחוק הוצאות"}</label>
                                                 <div 
-                                                    className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ease-in-out ${group.allow_member_delete !== false ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                                                    className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ease-in-out ${group.allow_member_delete !== false ? 'bg-purple-500' : 'bg-gray-300 dark:bg-gray-600'}`}
                                                     onClick={() => togglePermission('allow_member_delete')}
                                                 >
                                                     <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${group.allow_member_delete !== false ? (isRTL ? 'translate-x-0' : 'translate-x-5') : (isRTL ? '-translate-x-5' : 'translate-x-0')}`}></div>
@@ -610,7 +610,7 @@ const GroupsScreen = () => {
                         {/* Action Buttons inside scroll area */}
                         <div className="mt-8 mb-4 space-y-3 px-2">
                             {!group.is_readonly && (
-                                <button onClick={() => window.saveEditGroupFromReact(group)} className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-[0_0_15px_rgba(99,102,241,0.4)] transition-all flex items-center justify-center gap-2 active:scale-95">
+                                <button onClick={() => window.saveEditGroupFromReact(group)} className="w-full py-3.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow-[0_0_15px_rgba(99,102,241,0.4)] transition-all flex items-center justify-center gap-2 active:scale-95">
                                     <IconCheck size={18} /> {i18n("save_changes") || "שמור שינויים"}
                                 </button>
                             )}
@@ -633,7 +633,7 @@ const GroupsScreen = () => {
                                 </h4>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">{i18n("for") || "עבור"} {budgetPopup.name}</p>
                                 
-                                <div className="relative mb-5 flex items-center bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500">
+                                <div className="relative mb-5 flex items-center bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-purple-500">
                                     <span className={`px-4 text-gray-500 font-bold ${isRTL ? 'border-l' : 'border-r'} border-gray-200 dark:border-gray-700`}>{currencySymbol}</span>
                                     <input 
                                         type="number" 
@@ -654,7 +654,7 @@ const GroupsScreen = () => {
                                             updateBudget(budgetPopup.key, budgetPopup.type, budgetPopup.value);
                                         }
                                         setBudgetPopup(null); 
-                                    }} className="flex-1 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors">{i18n("btn_confirm") || "אישור"}</button>
+                                    }} className="flex-1 py-2 text-sm font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-xl transition-colors">{i18n("btn_confirm") || "אישור"}</button>
                                 </div>
                             </div>
                         </div>

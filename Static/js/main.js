@@ -1600,11 +1600,6 @@ async function aiParseExpense() {
 async function fetchExpenses() {
     if (!currentTripId) return;
     try {
-        const balancesMap = {};
-        if (window.cachedBalancesData && window.cachedBalancesData.balances) {
-             window.cachedBalancesData.balances.forEach(b => balancesMap[String(b.user_id)] = parseFloat(b.balance));
-        }
-
         const res = await fetch(`/api/expenses/${currentTripId}`);
         if (res.status === 401) { window.location.href = '/'; return; }
         const expenses = await res.json();
@@ -1657,17 +1652,22 @@ async function fetchExpenses() {
                     ? `<img class="expense-avatar avatar-img" src="${escapeHTML(exp.payer_avatar)}" alt="${safePayer}" referrerpolicy="no-referrer">`
                     : `<div class="expense-avatar avatar-initial">${escapeHTML(exp.payer.charAt(0))}</div>`;
 
-                // Currency display: show expense currency, with conversion to profile currency in parens
+                // Currency display: show the expense in its own currency, with the
+                // conversion to the viewer's PROFILE currency in parens. The backend
+                // supplies amount_in_profile (true amount converted via live rate);
+                // exp.amount is the trip-base value and must NOT be shown as profile.
                 let amountDisplay = '';
                 const expCurrency = exp.currency || 'ILS';
                 const expSym = getCurrencySymbol(expCurrency);
-                
-                if (exp.original_amount && expCurrency !== profileCurrency) {
-                    // Foreign currency: show original first, converted in parens
-                    amountDisplay = `<span class="primary-amount">${expSym}${parseFloat(exp.original_amount).toFixed(0)}</span>
-                        <span class="original-currency">(~${profileSym}${formatNumber(exp.amount)})</span>`;
+                const profileAmt = (exp.amount_in_profile != null) ? exp.amount_in_profile : exp.amount;
+
+                if (expCurrency !== profileCurrency) {
+                    // Foreign relative to the profile: original first, profile conversion in parens
+                    const origAmt = (exp.original_amount != null) ? exp.original_amount : exp.amount;
+                    amountDisplay = `<span class="primary-amount">${expSym}${parseFloat(origAmt).toFixed(0)}</span>
+                        <span class="original-currency">(~${profileSym}${formatNumber(profileAmt)})</span>`;
                 } else {
-                    amountDisplay = `${expSym}${formatNumber(exp.amount)}`;
+                    amountDisplay = `${profileSym}${formatNumber(profileAmt)}`;
                 }
 
                 const canEdit = window.currentUser && exp.user_id === window.currentUser.id;
@@ -1768,12 +1768,10 @@ async function fetchExpenses() {
                     </div>`;
                 }
 
-                let isSettled = false;
-                if (exp.type !== 'settlement') {
-                    const involvedIds = [String(exp.user_id)];
-                    (exp.splits || []).forEach(s => involvedIds.push(String(s.user_id)));
-                    isSettled = involvedIds.every(id => Math.abs(balancesMap[id] || 0) < 0.5);
-                }
+                // "Settled" is computed per-expense on the backend: a multi-person
+                // expense is settled once every debtor has repaid the payer for it.
+                // Solo/personal expenses never get the badge.
+                const isSettled = (exp.type !== 'settlement') && exp.settled === true;
                 const settledBorder = isSettled ? 'border: 2px solid var(--success-color);' : 'border: 1px solid var(--glass-border);';
                 const settledBadge = isSettled ? `<div style="position:absolute; top: -10px; right: 15px; background: var(--success-color); color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">✓ ${typeof i18n === 'function' ? i18n('settled') || 'מאוזן' : 'מאוזן'}</div>` : '';
 
@@ -2387,7 +2385,10 @@ function renderBalancesList() {
     }
 
     const isCurrencyView = window.currentBalancesView === 'currency';
-    const userSym = getTripCurrencySymbol();
+    // Converted-view amounts (header balance + optimized_settlements) are returned
+    // by the backend already converted to the viewer's PROFILE currency.
+    const profileCur = (window.currentUser && window.currentUser.default_currency) || optData.currency || 'ILS';
+    const userSym = getCurrencySymbol(profileCur);
 
     let activeBalances = data.balances.filter(b => {
         if (isCurrencyView) {
@@ -2490,8 +2491,8 @@ function renderBalancesList() {
                     let settleBtn = '';
                     if (isDebtor || isCreditor) {
                         const txtSettleUp = typeof i18n === 'function' ? i18n('settle_up') : 'סלק חוב 💸';
-                        // Use default currency for converted view settlement
-                        settleBtn = `<button class="settle-btn" onclick="event.stopPropagation(); triggerSettleUp(${s.from_id}, ${s.to_id}, ${s.amount}, 'ILS')">${txtSettleUp}</button>`;
+                        // Converted view settles in the viewer's profile currency
+                        settleBtn = `<button class="settle-btn" onclick="event.stopPropagation(); triggerSettleUp(${s.from_id}, ${s.to_id}, ${s.amount}, '${profileCur}')">${txtSettleUp}</button>`;
                     }
 
                     return `<div class="debt-line">
@@ -2509,8 +2510,6 @@ function renderBalancesList() {
             }
         }
 
-        const paidTxt = typeof i18n === 'function' ? i18n('balance_paid') : 'שילם: ';
-
         return `
         <div class="balance-item" onclick="this.classList.toggle('open')">
             <div class="balance-header">
@@ -2518,7 +2517,6 @@ function renderBalancesList() {
                     <div class="avatar bg-purple" style="width:40px;height:40px;font-size:1.2rem;">${escapeHTML(b.name.charAt(0))}</div>
                     <div class="item-details">
                         <h4>${safeName}${me}</h4>
-                        <p>${paidTxt}${userSym}${formatMoney(b.paid)}</p>
                     </div>
                 </div>
                 <div class="item-right">
@@ -2547,7 +2545,9 @@ function suggestLimboOffset() {
             optData.currency_settlements[cur].forEach(s => allDebts.push({...s, currency: cur}));
         }
     } else {
-        allDebts = optData.optimized_settlements.map(s => ({...s, currency: 'ILS'})); // Default fallback
+        // Converted view debts are already in the viewer's profile currency
+        const profileCur = (window.currentUser && window.currentUser.default_currency) || optData.currency || 'ILS';
+        allDebts = optData.optimized_settlements.map(s => ({...s, currency: profileCur}));
     }
     
     if (allDebts.length === 0) {

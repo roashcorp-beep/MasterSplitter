@@ -7,6 +7,7 @@ import hashlib
 import urllib.parse
 from datetime import datetime, timezone, timedelta
 from functools import wraps
+from collections import defaultdict
 from os.path import join, dirname
 
 import requests as http_requests  # renamed to avoid conflict with flask.request
@@ -561,6 +562,39 @@ def get_exchange_rate(from_currency, to_currency='ILS'):
         logger.error(f"Exchange rate fetch error: {e}")
 
     return None
+
+
+def trip_base_currency(cursor, trip_id):
+    """The trip's base currency, stored inside budgets_json.currency (defaults ILS)."""
+    row = cursor.execute("SELECT budgets_json FROM Trips WHERE id = ?", (trip_id,)).fetchone()
+    if row and row['budgets_json']:
+        try:
+            b = json.loads(row['budgets_json'])
+            if isinstance(b, dict) and b.get('currency'):
+                return b['currency']
+        except (ValueError, TypeError):
+            pass
+    return 'ILS'
+
+
+def user_display_currency(cursor, user_id):
+    """The user's preferred display currency (Users.default_currency), defaults ILS."""
+    row = cursor.execute("SELECT default_currency FROM Users WHERE id = ?", (user_id,)).fetchone()
+    if row and row['default_currency']:
+        return row['default_currency']
+    return 'ILS'
+
+
+def safe_rate(from_cur, to_cur):
+    """Like get_exchange_rate but never returns None — falls back to 1.0 with a warning,
+    so display/conversion code can never crash on `amount * None`."""
+    if from_cur == to_cur:
+        return 1.0
+    r = get_exchange_rate(from_cur, to_cur)
+    if not r:
+        logger.warning(f"No exchange rate {from_cur}->{to_cur}; using 1.0 fallback for display")
+        return 1.0
+    return r
 
 
 # ---------------------
@@ -2619,9 +2653,64 @@ def get_expenses(trip_id):
                 'amount': s['amount']
             })
 
+    # --- Per-expense "settled" status ---
+    # An expense is settled once EVERY debtor in it is net-square with the payer,
+    # i.e. the settle-up row for that pair has disappeared. We work in the trip
+    # BASE currency (splits and settlement.amount are both stored there), so no
+    # exchange rates are needed, and we net the two directions of each pair plus
+    # settlements — exactly mirroring what the balances screen shows.
+    owed_pair = defaultdict(float)      # (debtor, creditor) -> owed from expenses, base
+    for e in expenses:
+        payer = e['user_id']
+        for s in splits_map.get(e['id'], []):
+            d = s['user_id']
+            if d == payer:
+                continue
+            owed_pair[(d, payer)] += float(s['amount'] or 0)
+
+    paid_pair = defaultdict(float)      # (payer, payee) -> settlements paid, base
+    cursor.execute(
+        "SELECT payer_id, payee_id, COALESCE(amount, 0) AS amt FROM Settlements WHERE trip_id = ?",
+        (trip_id,))
+    for r in cursor.fetchall():
+        paid_pair[(r['payer_id'], r['payee_id'])] += float(r['amt'])
+
+    def debtor_clear(d, p):
+        # Net amount d still owes p (>0.01 means still outstanding).
+        net = (owed_pair[(d, p)] - owed_pair[(p, d)]) - (paid_pair[(d, p)] - paid_pair[(p, d)])
+        return net <= 0.01
+
+    settled_map = {}
+    for e in expenses:
+        payer = e['user_id']
+        debtors = [s['user_id'] for s in splits_map.get(e['id'], []) if s['user_id'] != payer]
+        # Only multi-person expenses can be "settled" — a solo/personal expense
+        # never creates a debt row, so it carries no badge.
+        settled_map[e['id']] = bool(debtors) and all(debtor_clear(d, payer) for d in debtors)
+
+    # --- Display amount in the requesting user's profile currency (for the parens) ---
+    profile_cur = user_display_currency(cursor, uid)
+    _rate_cache = {}
+
+    def to_profile(amt, cur):
+        if amt is None:
+            return None
+        cur = cur or 'ILS'
+        if cur == profile_cur:
+            return round(float(amt), 2)
+        if cur not in _rate_cache:
+            _rate_cache[cur] = safe_rate(cur, profile_cur)
+        return round(float(amt) * _rate_cache[cur], 2)
+
     def enrich(row):
         d = dict(row)
         d['splits'] = splits_map.get(d['id'], [])
+        # The expense's "true" value is original_amount in its own currency
+        # (or amount when it was entered directly in the trip base).
+        true_amt = d['original_amount'] if d['original_amount'] is not None else d['amount']
+        d['amount_in_profile'] = to_profile(true_amt, d.get('currency') or 'ILS')
+        d['profile_currency'] = profile_cur
+        d['settled'] = settled_map.get(d['id'], False)
         return d
 
     if is_public:
@@ -3038,6 +3127,13 @@ def get_balances(trip_id):
     """, (trip_id,))
     settled_in = {row['payee_id']: row['total'] for row in cursor.fetchall()}
 
+    # Per-user balances are converted to the REQUESTING user's display currency.
+    # (total/average stay in the trip base currency — they feed the budget card,
+    #  whose budget is defined in the trip base.)
+    base_cur = trip_base_currency(cursor, trip_id)
+    disp_cur = user_display_currency(cursor, session['user_id'])
+    disp_rate = safe_rate(base_cur, disp_cur)
+
     conn.close()
 
     total_expenses = sum(paid_data.values()) if paid_data else 0
@@ -3066,13 +3162,14 @@ def get_balances(trip_id):
         balances.append({
             'user_id': uid,
             'name': user['name'],
-            'paid': paid,
-            'balance': balance
+            'paid': round(paid * disp_rate, 2),
+            'balance': round(balance * disp_rate, 2)
         })
 
     return jsonify({
         'total': total_expenses,
         'average': total_expenses / num_users if num_users > 0 else 0,
+        'currency': disp_cur,
         'balances': balances
     })
 
@@ -3139,163 +3236,126 @@ def get_optimized_balances(trip_id):
         WHERE tm.trip_id = ?
     """, (trip_id,))
     users = cursor.fetchall()
+    user_name = {u['id']: u['name'] for u in users}
 
-    # --- Converted Balances (Existing Logic) ---
-    cursor.execute("SELECT user_id, SUM(amount) as total FROM Expenses WHERE trip_id = ? GROUP BY user_id", (trip_id,))
-    paid_data = {row['user_id']: row['total'] for row in cursor.fetchall()}
+    disp_cur = user_display_currency(cursor, session['user_id'])
+
+    # ---------------------------------------------------------------
+    # DIRECT per-expense debts (NOT greedy-netted across third parties):
+    # every split participant owes the expense's payer their share, in the
+    # expense's ORIGINAL currency. We only net the two directions of the SAME
+    # pair (A owes B for dinner, B owes A for a taxi -> one net debt). This
+    # makes "who pays whom" match the expenses screen 1:1.
+    # ---------------------------------------------------------------
+    cursor.execute("""
+        SELECT e.id, e.user_id AS payer_id, e.amount, e.original_amount,
+               COALESCE(e.currency, 'ILS') AS currency
+        FROM Expenses e WHERE e.trip_id = ?
+    """, (trip_id,))
+    exp_by_id = {r['id']: r for r in cursor.fetchall()}
 
     cursor.execute("""
-        SELECT es.user_id, SUM(es.amount) as total_owed
-        FROM ExpenseSplits es
-        JOIN Expenses e ON es.expense_id = e.id
+        SELECT es.expense_id, es.user_id, es.amount
+        FROM ExpenseSplits es JOIN Expenses e ON es.expense_id = e.id
         WHERE e.trip_id = ?
-        GROUP BY es.user_id
     """, (trip_id,))
-    owed_data = {row['user_id']: row['total_owed'] for row in cursor.fetchall()}
+    split_rows = cursor.fetchall()
 
-    cursor.execute("SELECT payer_id, SUM(amount) as total FROM Settlements WHERE trip_id = ? GROUP BY payer_id", (trip_id,))
-    settled_out = {row['payer_id']: row['total'] for row in cursor.fetchall()}
+    # pair_cur[(debtor, creditor)][currency] = amount debtor owes creditor in that currency
+    pair_cur = defaultdict(lambda: defaultdict(float))
+    for s in split_rows:
+        e = exp_by_id.get(s['expense_id'])
+        if not e:
+            continue
+        payer = e['payer_id']
+        debtor = s['user_id']
+        if debtor == payer:
+            continue
+        cur = e['currency']
+        # Express the split share in the expense's ORIGINAL currency.
+        if e['original_amount'] is not None and e['amount']:
+            share = float(s['amount']) / float(e['amount']) * float(e['original_amount'])
+        else:
+            share = float(s['amount'])
+        pair_cur[(debtor, payer)][cur] += share
 
-    cursor.execute("SELECT payee_id, SUM(amount) as total FROM Settlements WHERE trip_id = ? GROUP BY payee_id", (trip_id,))
-    settled_in = {row['payee_id']: row['total'] for row in cursor.fetchall()}
-
-    total_expenses = sum(paid_data.values()) if paid_data else 0
-    num_users = len(users)
-    has_splits = bool(owed_data)
-
-    def calculate_greedy_settlements(debts, credits):
-        debts.sort(key=lambda x: x['amount'], reverse=True)
-        credits.sort(key=lambda x: x['amount'], reverse=True)
-        settlements = []
-        di, ci = 0, 0
-        while di < len(debts) and ci < len(credits):
-            transfer = min(debts[di]['amount'], credits[ci]['amount'])
-            if transfer > 0.01:
-                settlements.append({
-                    "from_id": debts[di]['user_id'],
-                    "from": debts[di]['name'],
-                    "to_id": credits[ci]['user_id'],
-                    "to": credits[ci]['name'],
-                    "amount": transfer
-                })
-            debts[di]['amount'] -= transfer
-            credits[ci]['amount'] -= transfer
-            if debts[di]['amount'] < 0.01: di += 1
-            if credits[ci]['amount'] < 0.01: ci += 1
-        return settlements
-
-    conv_debts = []
-    conv_credits = []
-    for user in users:
-        uid = user['id']
-        paid = paid_data.get(uid, 0.0)
-        owed = owed_data.get(uid, 0.0) if has_splits else (total_expenses / num_users if num_users > 0 else 0)
-        s_out = settled_out.get(uid, 0.0)
-        s_in = settled_in.get(uid, 0.0)
-        balance = (paid + s_out) - (owed + s_in)
-        if balance < -0.01:
-            conv_debts.append({"user_id": uid, "name": user['name'], "amount": -balance})
-        elif balance > 0.01:
-            conv_credits.append({"user_id": uid, "name": user['name'], "amount": balance})
-    
-    converted_settlements = calculate_greedy_settlements(conv_debts, conv_credits)
-
-    # --- By-Currency Balances ---
-    # How much each user PAID in each original currency
+    # Settlements reduce the pair's debt in the settlement's own currency.
     cursor.execute("""
-        SELECT user_id, COALESCE(currency, 'ILS') as currency,
-               SUM(COALESCE(original_amount, amount)) as total
-        FROM Expenses WHERE trip_id = ?
-        GROUP BY user_id, COALESCE(currency, 'ILS')
-    """, (trip_id,))
-    cur_paid_data = {}
-    for row in cursor.fetchall():
-        cur_paid_data[(row['user_id'], row['currency'])] = row['total']
-
-    # How much each user OWES in each original currency.
-    # For each expense, distribute original_amount proportionally across splits based on split fraction.
-    # fraction = es.amount / e.amount (ILS fraction), then owed_original = fraction * original_amount
-    cursor.execute("""
-        SELECT es.user_id,
-               COALESCE(e.currency, 'ILS') as currency,
-               SUM(
-                   CASE
-                     WHEN e.original_amount IS NOT NULL AND e.amount > 0
-                       THEN CAST(es.amount AS REAL) / CAST(e.amount AS REAL) * e.original_amount
-                     ELSE es.amount
-                   END
-               ) as total_owed
-        FROM ExpenseSplits es
-        JOIN Expenses e ON es.expense_id = e.id
-        WHERE e.trip_id = ?
-        GROUP BY es.user_id, COALESCE(e.currency, 'ILS')
-    """, (trip_id,))
-    cur_owed_data = {}
-    for row in cursor.fetchall():
-        cur_owed_data[(row['user_id'], row['currency'])] = row['total_owed'] or 0
-
-    # How much each user PAID OUT in settlements (per original currency)
-    cursor.execute("""
-        SELECT payer_id, COALESCE(currency, 'ILS') as currency,
-               SUM(COALESCE(original_amount, amount)) as total
+        SELECT payer_id, payee_id, COALESCE(currency, 'ILS') AS currency,
+               COALESCE(original_amount, amount) AS amt
         FROM Settlements WHERE trip_id = ?
-        GROUP BY payer_id, COALESCE(currency, 'ILS')
     """, (trip_id,))
-    cur_settled_out = {}
-    for row in cursor.fetchall():
-        cur_settled_out[(row['payer_id'], row['currency'])] = row['total']
+    for st in cursor.fetchall():
+        pair_cur[(st['payer_id'], st['payee_id'])][st['currency']] -= float(st['amt'])
 
-    # How much each user RECEIVED in settlements (per original currency)
-    cursor.execute("""
-        SELECT payee_id, COALESCE(currency, 'ILS') as currency,
-               SUM(COALESCE(original_amount, amount)) as total
-        FROM Settlements WHERE trip_id = ?
-        GROUP BY payee_id, COALESCE(currency, 'ILS')
-    """, (trip_id,))
-    cur_settled_in = {}
-    for row in cursor.fetchall():
-        cur_settled_in[(row['payee_id'], row['currency'])] = row['total']
+    def net_directed(directed):
+        """directed: {(debtor,creditor): amount}. Net the two directions of each
+        unordered pair; return list of (debtor, creditor, positive_amount)."""
+        out = []
+        handled = set()
+        for (a, b), amt in directed.items():
+            if (a, b) in handled:
+                continue
+            handled.add((a, b))
+            handled.add((b, a))
+            net = amt - directed.get((b, a), 0.0)
+            if net > 0.01:
+                out.append((a, b, round(net, 2)))
+            elif net < -0.01:
+                out.append((b, a, round(-net, 2)))
+        return out
 
-    # Gather all unique currencies involved
-    all_keys = set(cur_paid_data.keys()).union(cur_owed_data.keys()).union(cur_settled_out.keys()).union(cur_settled_in.keys())
-    all_currencies = set(k[1] for k in all_keys)
-
-    user_currency_balances = {}
-    for user in users:
-        uid = user['id']
-        user_currency_balances[uid] = {}
+    # --- Per-currency view (one settlement list per original currency) ---
+    cur_set = set()
+    for cd in pair_cur.values():
+        cur_set.update(cd.keys())
 
     currency_settlements = {}
-    for cur in all_currencies:
-        c_debts = []
-        c_credits = []
-        for user in users:
-            uid = user['id']
-            paid = cur_paid_data.get((uid, cur), 0.0)
-            owed = cur_owed_data.get((uid, cur), 0.0)
-            s_out = cur_settled_out.get((uid, cur), 0.0)
-            s_in = cur_settled_in.get((uid, cur), 0.0)
+    user_currency_balances = {u['id']: {} for u in users}
+    for cur in cur_set:
+        directed = {}
+        for (a, b), cd in pair_cur.items():
+            amt = cd.get(cur, 0.0)
+            if abs(amt) > 0.0001:
+                directed[(a, b)] = directed.get((a, b), 0.0) + amt
+        lst = []
+        for deb, cred, val in net_directed(directed):
+            lst.append({"from_id": deb, "from": user_name.get(deb),
+                        "to_id": cred, "to": user_name.get(cred), "amount": val})
+            user_currency_balances[deb][cur] = round(user_currency_balances.get(deb, {}).get(cur, 0.0) - val, 2)
+            user_currency_balances[cred][cur] = round(user_currency_balances.get(cred, {}).get(cur, 0.0) + val, 2)
+        if lst:
+            currency_settlements[cur] = lst
 
-            # balance > 0: user is owed money; balance < 0: user owes money
-            balance = (paid - owed) + (s_out - s_in)
-            if abs(balance) > 0.01:
-                user_currency_balances[uid][cur] = round(balance, 2)
+    # --- Converted view: convert each pair's per-currency debts into the
+    #     requesting user's display currency, then net per pair. ---
+    rate_cache = {}
+    def to_disp(amt, cur):
+        if cur == disp_cur:
+            return amt
+        if cur not in rate_cache:
+            rate_cache[cur] = safe_rate(cur, disp_cur)
+        return amt * rate_cache[cur]
 
-            if balance < -0.01:
-                c_debts.append({"user_id": uid, "name": user['name'], "amount": -balance})
-            elif balance > 0.01:
-                c_credits.append({"user_id": uid, "name": user['name'], "amount": balance})
-        
-        c_settlements = calculate_greedy_settlements(c_debts, c_credits)
-        if c_settlements:
-            currency_settlements[cur] = c_settlements
+    conv_directed = {}
+    for (a, b), cd in pair_cur.items():
+        total = sum(to_disp(amt, cur) for cur, amt in cd.items())
+        if abs(total) > 0.0001:
+            conv_directed[(a, b)] = conv_directed.get((a, b), 0.0) + total
+
+    converted_settlements = [
+        {"from_id": deb, "from": user_name.get(deb),
+         "to_id": cred, "to": user_name.get(cred), "amount": val}
+        for deb, cred, val in net_directed(conv_directed)
+    ]
 
     conn.close()
 
     return jsonify({
         "optimized_settlements": converted_settlements,
         "currency_settlements": currency_settlements,
-        "user_currency_balances": user_currency_balances
+        "user_currency_balances": user_currency_balances,
+        "currency": disp_cur
     })
 
 
@@ -3634,15 +3694,12 @@ def create_settlement():
     if err:
         return jsonify({"error": err}), 400
 
+    # original_amount = the amount in the settlement's own currency.
+    # converted_amount = the same value expressed in the TRIP's base currency, so it
+    # nets correctly against expenses/splits (which are also stored in the trip base).
+    # Conversion happens below, once we have a cursor to look up the trip base currency.
     original_amount = amount
     converted_amount = amount
-    if currency != 'ILS':
-        rate = get_exchange_rate(currency)
-        if not rate:
-            # Exchange rate unavailable — do NOT crash (amount * None). Reject cleanly.
-            logger.warning(f"Settlement rejected: no exchange rate for {currency}->ILS")
-            return jsonify({"error": "לא ניתן לקבל שער המרה למטבע זה כרגע. נסה שוב מאוחר יותר."}), 503
-        converted_amount = round(amount * rate, 2)
 
     try:
         payer_id = int(payer_id)
@@ -3668,11 +3725,22 @@ def create_settlement():
         if not cursor.fetchone():
             return jsonify({"error": "Forbidden"}), 403
 
+        # Convert the settlement into the trip's base currency so it nets against
+        # expenses/splits (which are stored in the trip base). Was previously
+        # hard-coded to ILS, which corrupted balances on non-ILS trips.
+        base_cur = trip_base_currency(cursor, trip_id)
+        if currency != base_cur:
+            rate = get_exchange_rate(currency, base_cur)
+            if not rate:
+                logger.warning(f"Settlement rejected: no exchange rate for {currency}->{base_cur}")
+                return jsonify({"error": "לא ניתן לקבל שער המרה למטבע זה כרגע. נסה שוב מאוחר יותר."}), 503
+            converted_amount = round(amount * rate, 2)
+
         # --- Validation: the payer must actually owe money, and the settlement
-        #     must not exceed their outstanding debt (converted to ILS base).
+        #     must not exceed their outstanding debt (in the trip base currency).
         #     This prevents creating "phantom" balances by settling debts that
         #     don't exist or by over-settling. (Root cause of the BALANCES bug.) ---
-        TOL = 0.5  # ILS tolerance for rounding
+        TOL = max(1.0, converted_amount * 0.01)  # base-currency tolerance for rounding/rate round-trips
 
         def _converted_balance(target_uid):
             row = cursor.execute(

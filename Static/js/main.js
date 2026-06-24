@@ -1616,6 +1616,7 @@ async function fetchExpenses() {
         const profileSym = getCurrencySymbol(profileCurrency);
 
         let html = '';
+        let htmlSettled = '';  // settled expenses are grouped below a divider
         if (!expenses.length) {
             html = `<div class="loading-state">${typeof i18n === 'function' ? i18n('expenses_no_data') : 'אין הוצאות בינתיים'}</div>`;
         } else {
@@ -1779,15 +1780,11 @@ async function fetchExpenses() {
 
                 // "Settled" is computed per-expense on the backend: a multi-person
                 // expense is settled once every debtor has repaid the payer for it.
-                // Solo/personal expenses never get the badge.
+                // Settled expenses get no badge — they are moved below a divider.
                 const isSettled = (exp.type !== 'settlement') && exp.settled === true;
-                const settledBorder = isSettled ? 'border: 2px solid var(--success-color);' : 'border: 1px solid var(--glass-border);';
-                // Inline chip (normal flow) so it can never be clipped by an ancestor's
-                // overflow — the old absolute top:-10px badge could render off-card.
-                const settledTxt = typeof i18n === 'function' ? (i18n('balance_settled') || 'מאוזן') : 'מאוזן';
-                const settledBadge = isSettled ? `<span style="display:inline-block; margin-top:6px; background: var(--success-color); color:#fff; font-size:0.7rem; padding:2px 10px; border-radius:10px; font-weight:bold;">✓ ${settledTxt}</span>` : '';
+                const settledBorder = isSettled ? 'border: 1px solid var(--success);' : 'border: 1px solid var(--glass-border);';
 
-                html += `
+                const card = `
                 <div class="list-item${personalClass} expense-expandable" id="expense-${exp.id}" onclick="toggleExpenseSplits(${exp.id}, event)" style="display: flex; flex-direction: column; align-items: stretch; gap: 0; background: var(--surface-card); border-radius: 16px; padding: 16px 18px; margin-bottom: 12px; ${settledBorder} position: relative; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);">
                     <div class="list-item-main" style="display: flex; flex-wrap: nowrap; justify-content: space-between; align-items: stretch; width: 100%; gap: 10px;">
                         <div class="item-left" style="min-width: 0; flex: 1;">
@@ -1796,7 +1793,6 @@ async function fetchExpenses() {
                                 <h4 style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${safeDesc} ${personalBadge}</h4>
                                 <p style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${safePayer} \u2022 ${translateCategory(exp.category || 'כללי')}</p>
                                 ${participantsHTML}
-                                ${settledBadge}
                             </div>
                         </div>
                         <div class="item-right" style="flex-shrink: 0; align-self: stretch; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; padding-top: 4px;">
@@ -1810,8 +1806,23 @@ async function fetchExpenses() {
                     </div>
                     ${splitsDetailHTML}
                 </div>`;
+                if (isSettled) { htmlSettled += card; } else { html += card; }
             });
         }
+
+        // Append the settled section below a divider, if any expense is settled.
+        if (htmlSettled) {
+            const sectionLbl = (typeof i18n === 'function')
+                ? (i18n('expenses_settled_section') || 'הוצאות מאוזנות')
+                : 'הוצאות מאוזנות';
+            html += `
+                <div class="settled-divider" style="display:flex; align-items:center; gap:12px; margin:22px 4px 14px; color:var(--text-muted); font-size:0.8rem; font-weight:600;">
+                    <span style="flex:1; height:1px; background:var(--glass-border);"></span>
+                    <span style="white-space:nowrap;">✓ ${sectionLbl}</span>
+                    <span style="flex:1; height:1px; background:var(--glass-border);"></span>
+                </div>` + htmlSettled;
+        }
+
         const full = document.getElementById('expenses-list');
         const home = document.getElementById('home-expenses-list');
         if (full) full.innerHTML = html;

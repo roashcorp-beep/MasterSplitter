@@ -22,13 +22,13 @@ const CURRENCY_SYMBOLS = {
 function getCurrencySymbol(code) {
     return CURRENCY_SYMBOLS[code] || code;
 }
-function getTripCurrencySymbol(tripId = null) {
-    const tid = tripId || window.currentTripId;
+function getGroupCurrencySymbol(groupId = null) {
+    const tid = groupId || window.currentGroupId;
     let code = 'ILS';
-    if (tid && window.allTrips) {
-        const trip = window.allTrips.find(t => t.id === tid);
-        if (trip && trip.budgets_json && trip.budgets_json.currency) {
-            code = trip.budgets_json.currency;
+    if (tid && window.allGroups) {
+        const group = window.allGroups.find(t => t.id === tid);
+        if (group && group.budgets_json && group.budgets_json.currency) {
+            code = group.budgets_json.currency;
         }
     } else if (currentUser && currentUser.default_currency) {
         code = currentUser.default_currency;
@@ -36,7 +36,7 @@ function getTripCurrencySymbol(tripId = null) {
     return CURRENCY_SYMBOLS[code] || code;
 }
 
-window.getTripCurrencySymbol = getTripCurrencySymbol;
+window.getGroupCurrencySymbol = getGroupCurrencySymbol;
 
 function formatNumber(num) {
     if (num == null) return "0";
@@ -222,10 +222,10 @@ async function submitForgotPassword() {
 // =====================
 //  APP INIT
 // =====================
-let currentTripId = null;
-let currentTripData = null;
-let allTrips = [];
-let tripMembers = [];
+let currentGroupId = null;
+let currentGroupData = null;
+let allGroups = [];
+let groupMembers = [];
 
 document.addEventListener('DOMContentLoaded', () => {
     // Login page: Enter key
@@ -305,7 +305,7 @@ async function initApp() {
         await loadLobby();
         
         // Handle Post-Login Deep Linking Join
-        const pendingJoinId = localStorage.getItem('pending_join_trip_id');
+        const pendingJoinId = localStorage.getItem('pending_join_group_id');
         const hashMatch = window.location.hash.match(/#join=([^&]+)/);
         const joinToken = pendingJoinId || (hashMatch ? hashMatch[1] : null);
         
@@ -319,10 +319,10 @@ async function initApp() {
                 const joinRes = await fetch(`/api/join/${joinToken}`, { method: 'POST' });
                 const joinData = await joinRes.json();
                 if (joinData.success) {
-                    localStorage.removeItem('pending_join_trip_id');
+                    localStorage.removeItem('pending_join_group_id');
                     window.location.hash = '';
                     if (window.showToast) {
-                        window.showToast(typeof i18n === 'function' && i18n("toast_trip_created") ? 'Joined group successfully!' : 'Joined group successfully!', 'success');
+                        window.showToast(typeof i18n === 'function' && i18n("toast_group_created") ? 'Joined group successfully!' : 'Joined group successfully!', 'success');
                     } else {
                         alert('Joined group successfully!');
                     }
@@ -370,7 +370,7 @@ async function fetchInvitations() {
         banner.innerHTML = invs.map(inv => `
             <div class="invitation-card" id="invitation-${inv.id}">
                 <div class="invitation-text">
-                    <strong>${escapeHTML(inv.inviter_name)}</strong> הזמין אותך להצטרף לטיול <strong>${escapeHTML(inv.trip_name)}</strong>
+                    <strong>${escapeHTML(inv.inviter_name)}</strong> הזמין אותך להצטרף לטיול <strong>${escapeHTML(inv.group_name)}</strong>
                 </div>
                 <div class="invitation-actions">
                     <button class="btn-accept" onclick="respondInvitation(${inv.id}, 'approve')">אישור</button>
@@ -404,25 +404,25 @@ async function respondInvitation(id, action) {
 // =====================
 //  LOBBY
 // =====================
-let hasAutoOpenedTrip = false;
+let hasAutoOpenedGroup = false;
 
 async function loadLobby() {
     showView('lobby');
     try {
-        const res = await fetch('/api/trips');
+        const res = await fetch('/api/groups');
         if (res.status === 401) { window.location.href = '/'; return; }
-        allTrips = await res.json();
-        window.allTrips = allTrips;
+        allGroups = await res.json();
+        window.allGroups = allGroups;
 
-        // Auto-open the most recent trip on first load
-        if (!hasAutoOpenedTrip && allTrips.length > 0) {
-            hasAutoOpenedTrip = true;
-            openTrip(allTrips[0].id);
+        // Auto-open the most recent group on first load
+        if (!hasAutoOpenedGroup && allGroups.length > 0) {
+            hasAutoOpenedGroup = true;
+            openGroup(allGroups[0].id);
             return;
         }
 
         showView('lobby');
-        renderTripsList(allTrips);
+        renderGroupsList(allGroups);
     } catch (e) { 
         console.error('Load lobby error:', e); 
         showView('lobby');
@@ -464,35 +464,35 @@ function showView(view) {
     }
 }
 
-function renderTripsList(tripsArray, retryCount = 0) {
-    const tripsToRender = tripsArray || (typeof allTrips !== 'undefined' ? allTrips : []) || window.currentUser?.trips || [];
-    if (window.reactUpdateTrips) {
-        window.reactUpdateTrips(tripsToRender);
+function renderGroupsList(groupsArray, retryCount = 0) {
+    const groupsToRender = groupsArray || (typeof allGroups !== 'undefined' ? allGroups : []) || window.currentUser?.groups || [];
+    if (window.reactUpdateGroups) {
+        window.reactUpdateGroups(groupsToRender);
     } else {
         console.warn("React GroupsScreen not yet mounted. Retrying...");
         if (retryCount < 50) {
-            setTimeout(() => renderTripsList(tripsArray, retryCount + 1), 100);
+            setTimeout(() => renderGroupsList(groupsArray, retryCount + 1), 100);
         } else {
             console.error("React GroupsScreen failed to mount after 5 seconds.");
         }
     }
 }
 
-async function openTrip(tripId) {
-    currentTripId = tripId;
-    currentTripData = allTrips.find(t => t.id === tripId) || null;
-    if (currentTripData) {
-        const nameLabel = document.getElementById('trip-name-label');
-        const titleEl = document.getElementById('dashboard-trip-title');
-        if (nameLabel) nameLabel.textContent = currentTripData.name;
+async function openGroup(groupId) {
+    currentGroupId = groupId;
+    currentGroupData = allGroups.find(t => t.id === groupId) || null;
+    if (currentGroupData) {
+        const nameLabel = document.getElementById('group-name-label');
+        const titleEl = document.getElementById('dashboard-group-title');
+        if (nameLabel) nameLabel.textContent = currentGroupData.name;
         if (titleEl) {
-            const firstWord = escapeHTML(currentTripData.name.split(' ')[0]);
+            const firstWord = escapeHTML(currentGroupData.name.split(' ')[0]);
             titleEl.innerHTML = `<span class="purple-text">${firstWord}</span>`;
         }
 
         const navAddWrapper = document.querySelector('.nav-add-btn-wrapper');
         const aiFab = document.getElementById('ai-fab');
-        if (currentTripData.is_readonly) {
+        if (currentGroupData.is_readonly) {
             if (navAddWrapper) navAddWrapper.style.display = 'none';
             if (aiFab) aiFab.style.display = 'none';
         } else {
@@ -502,7 +502,7 @@ async function openTrip(tripId) {
     }
     showView('dashboard');
     switchTab('home');
-    await fetchTripMembers();
+    await fetchGroupMembers();
     await fetchGroupSettings();
     fetchExpenses();
     fetchBalances();
@@ -533,9 +533,9 @@ function showLobby() {
 }
 
 // =====================
-//  CREATE TRIP MODAL
+//  CREATE GROUP MODAL
 // =====================
-function openCreateTripModal() {
+function openCreateGroupModal() {
     window.currentCreatingParticipants = [];
     const currentUserPhone = window.currentUser?.phone || window.currentUser?.email;
     const hasAdmin = window.currentCreatingParticipants.find(p => p.contact === currentUserPhone || p.phone === currentUserPhone || p.email === currentUserPhone);
@@ -551,7 +551,7 @@ function openCreateTripModal() {
     }
 
     renderFriendsChips();
-    const nameInput = document.getElementById('trip-name');
+    const nameInput = document.getElementById('group-name');
     if (nameInput) nameInput.value = '';
     
     // reset global budgets if present
@@ -561,7 +561,7 @@ function openCreateTripModal() {
     });
     
     // default per user toggle off
-    const pbu = document.getElementById('trip-budget-per-user');
+    const pbu = document.getElementById('group-budget-per-user');
     if (pbu) pbu.checked = false;
     toggleBudgetFields('create');
     
@@ -574,7 +574,7 @@ function openCreateTripModal() {
     }
 }
 
-function closeCreateTripModal() {
+function closeCreateGroupModal() {
     if (typeof window.reactCloseCreateModal === 'function') {
         window.reactCloseCreateModal();
     }
@@ -640,7 +640,7 @@ function _buildWhatsAppUrl(phone) {
 const _whatsappSvg = `<svg viewBox="0 0 24 24" width="14" height="14" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>`;
 
 function getBudgetInputsHtml(mode, idx, memberBudgets = {}) {
-    const isPerUser = document.getElementById(mode === 'create' ? 'trip-budget-per-user' : 'edit-trip-budget-per-user')?.checked;
+    const isPerUser = document.getElementById(mode === 'create' ? 'group-budget-per-user' : 'edit-group-budget-per-user')?.checked;
     if (!isPerUser) return '';
 
     let html = '<div class="chip-budgets" style="display:flex; gap:5px; margin-top:5px; width: 100%;" onclick="event.stopPropagation()">';
@@ -709,9 +709,9 @@ function renderFriendsChips() {
     container.innerHTML = window.currentCreatingParticipants.map((n, idx) => createParticipantRowHTML(n, idx, 'create')).join('');
 }
 
-async function createTrip() {
-    const name = document.getElementById('create-trip-name')?.value.trim() || document.getElementById('trip-name')?.value.trim();
-    const isBudgetPerUser = document.getElementById('trip-budget-per-user')?.checked || false;
+async function createGroup() {
+    const name = document.getElementById('create-group-name')?.value.trim() || document.getElementById('group-name')?.value.trim();
+    const isBudgetPerUser = document.getElementById('group-budget-per-user')?.checked || false;
     
     // Collect budgets_json
     const budgets_json = {};
@@ -724,7 +724,7 @@ async function createTrip() {
     const yVal = parseFloat(document.getElementById('create-budget-yearly-amt')?.value);
     if (yVal > 0) budgets_json.yearly = yVal;
 
-    const cVal = document.getElementById('create-trip-currency')?.value;
+    const cVal = document.getElementById('create-group-currency')?.value;
     if (cVal) budgets_json.currency = cVal;
 
     if (!name) { showToast(typeof i18n === 'function' ? i18n('err_fill_all') : 'אנא מלא את כל השדות', 'error'); return; }
@@ -752,15 +752,15 @@ async function createTrip() {
     });
 
     try {
-        const res = await fetch('/api/trips', {
+        const res = await fetch('/api/groups', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, budgets_json, is_budget_per_user: isBudgetPerUser, participants })
         });
         const data = await res.json();
         if (res.ok && data.success) {
-            closeCreateTripModal();
-            showToast(typeof i18n === 'function' ? i18n('toast_trip_created') : 'Trip created', 'success');
+            closeCreateGroupModal();
+            showToast(typeof i18n === 'function' ? i18n('toast_group_created') : 'Group created', 'success');
             
             // Auto-open WhatsApp if a WhatsApp contact was added
             const waContact = window.currentCreatingParticipants.find(f => f.inviteMethod === 'whatsapp' && f.contact);
@@ -779,15 +779,15 @@ async function createTrip() {
             showToast(data.error || 'Network error', 'error');
         }
     } catch (e) {
-        console.error('Create trip error:', e);
+        console.error('Create group error:', e);
         showToast('Network error', 'error');
     }
 }
 
 // =====================
-//  EDIT TRIP MODAL
+//  EDIT GROUP MODAL
 // =====================
-let editTripId = null;
+let editGroupId = null;
 
 window.removeEditingParticipant = function(idx) {
     if (!window.confirm(typeof i18n === 'function' && i18n("confirm_delete_member") ? i18n("confirm_delete_member") : "Are you sure you want to remove this member?")) return;
@@ -801,35 +801,35 @@ window.removeCreatingParticipant = function(idx) {
     renderFriendsChips();
 };
 
-async function openEditTripModalAsync(tripId) {
-    editTripId = tripId;
+async function openEditGroupModalAsync(groupId) {
+    editGroupId = groupId;
     window.currentEditingParticipants = [];
     if (typeof window.reactOpenEditModal === 'function') {
-        window.reactOpenEditModal(tripId);
+        window.reactOpenEditModal(groupId);
     }
     
-    // Fetch full trip details including participants and budgets
+    // Fetch full group details including participants and budgets
     try {
-        const res = await fetch(`/api/trips/${tripId}`);
+        const res = await fetch(`/api/groups/${groupId}`);
         const data = await res.json();
         if (res.ok && !data.error) {
-            const trip = data.trip || data;
-            if (typeof window.reactSetEditTripDetails === 'function') {
-                window.reactSetEditTripDetails(trip);
+            const group = data.group || data;
+            if (typeof window.reactSetEditGroupDetails === 'function') {
+                window.reactSetEditGroupDetails(group);
             }
             const populateEditModal = () => {
-                const nameEl = document.getElementById('edit-trip-name');
+                const nameEl = document.getElementById('edit-group-name');
                 if (!nameEl) {
                     setTimeout(populateEditModal, 50);
                     return;
                 }
-                nameEl.value = trip.name || '';
+                nameEl.value = group.name || '';
             // Set per-user toggle
-            const bpuEl = document.getElementById('edit-trip-budget-per-user');
-            if (bpuEl) bpuEl.checked = !!trip.is_budget_per_user;
+            const bpuEl = document.getElementById('edit-group-budget-per-user');
+            if (bpuEl) bpuEl.checked = !!group.is_budget_per_user;
             
             // Set checkboxes and global inputs based on budgets_json
-            const budgets = trip.budgets_json || {};
+            const budgets = group.budgets_json || {};
             const dailyCb = document.getElementById('edit-budget-daily-cb');
             const monthlyCb = document.getElementById('edit-budget-monthly-cb');
             const yearlyCb = document.getElementById('edit-budget-yearly-cb');
@@ -845,14 +845,14 @@ async function openEditTripModalAsync(tripId) {
             const ybAmt = document.getElementById('edit-budget-yearly-amt');
             if (ybAmt) ybAmt.value = budgets.yearly || '';
             
-            const currEl = document.getElementById('edit-trip-currency');
+            const currEl = document.getElementById('edit-group-currency');
             if (currEl) currEl.value = budgets.currency || 'ILS';
             
             toggleBudgetFields('edit');
             
             // Populate members
-            if (trip.participants) {
-                window.currentEditingParticipants = trip.participants.map(p => ({
+            if (group.participants) {
+                window.currentEditingParticipants = group.participants.map(p => ({
                     id: p.id,
                     name: p.name,
                     contact: p.contact || p.name,
@@ -884,16 +884,16 @@ async function openEditTripModalAsync(tripId) {
             populateEditModal();
         }
     } catch (e) {
-        console.error('Failed to load trip details', e);
-        closeEditTripModal();
+        console.error('Failed to load group details', e);
+        closeEditGroupModal();
     }
 }
 
-function closeEditTripModal() {
+function closeEditGroupModal() {
     if (typeof window.reactCloseEditModal === 'function') {
         window.reactCloseEditModal();
     }
-    editTripId = null;
+    editGroupId = null;
     window.currentEditingParticipants = [];
 }
 
@@ -950,10 +950,10 @@ function renderEditFriendsChips() {
     container.innerHTML = window.currentEditingParticipants.map((n, idx) => createParticipantRowHTML(n, idx, 'edit')).join('');
 }
 
-async function saveEditTrip() {
-    if (!editTripId) return;
-    const name = document.getElementById('edit-trip-name')?.value.trim();
-    const isBudgetPerUser = document.getElementById('edit-trip-budget-per-user')?.checked || false;
+async function saveEditGroup() {
+    if (!editGroupId) return;
+    const name = document.getElementById('edit-group-name')?.value.trim();
+    const isBudgetPerUser = document.getElementById('edit-group-budget-per-user')?.checked || false;
 
     // Collect budgets_json
     const budgets_json = {};
@@ -966,7 +966,7 @@ async function saveEditTrip() {
     const yVal = parseFloat(document.getElementById('edit-budget-yearly-amt')?.value);
     if (yVal > 0) budgets_json.yearly = yVal;
 
-    const cVal = document.getElementById('edit-trip-currency')?.value;
+    const cVal = document.getElementById('edit-group-currency')?.value;
     if (cVal) budgets_json.currency = cVal;
 
     if (!name) { alert(typeof i18n === 'function' ? i18n('err_fill_all') : 'Missing fields'); return; }
@@ -999,21 +999,21 @@ async function saveEditTrip() {
     payload.participants = participants;
 
     try {
-        const res = await fetch(`/api/trips/${editTripId}`, {
+        const res = await fetch(`/api/groups/${editGroupId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
         const data = await res.json();
         if (res.ok && data.success) {
-            closeEditTripModal();
-            showToast(typeof i18n === 'function' ? i18n('toast_trip_updated') : 'Trip updated', 'success');
+            closeEditGroupModal();
+            showToast(typeof i18n === 'function' ? i18n('toast_group_updated') : 'Group updated', 'success');
             await loadLobby();
         } else {
             alert(data.error || 'Network error');
         }
     } catch (e) {
-        console.error('Save edit trip error:', e);
+        console.error('Save edit group error:', e);
         alert('Network error');
     }
 }
@@ -1065,7 +1065,7 @@ function toggleAdvancedBudget(mode) {
 }
 
 function toggleBudgetFields(mode) {
-    const isPerUser = document.getElementById(mode === 'create' ? 'trip-budget-per-user' : 'edit-trip-budget-per-user')?.checked;
+    const isPerUser = document.getElementById(mode === 'create' ? 'group-budget-per-user' : 'edit-group-budget-per-user')?.checked;
     
     const globalBlock = document.getElementById(`${mode}-global-budgets`);
     if (globalBlock) {
@@ -1085,7 +1085,7 @@ function toggleBudgetFields(mode) {
 
 function switchInviteTab(tabName, mode) {
     // Update tab buttons
-    const buttons = document.querySelectorAll(`#${mode}-trip-modal .invite-tab-btn`);
+    const buttons = document.querySelectorAll(`#${mode}-group-modal .invite-tab-btn`);
     buttons.forEach(btn => {
         if (btn.getAttribute('data-tab') === tabName) {
             btn.classList.add('active');
@@ -1095,7 +1095,7 @@ function switchInviteTab(tabName, mode) {
     });
 
     // Update panels
-    const panels = document.querySelectorAll(`#${mode}-trip-modal .invite-tab-panel`);
+    const panels = document.querySelectorAll(`#${mode}-group-modal .invite-tab-panel`);
     panels.forEach(panel => {
         if (panel.getAttribute('data-panel') === tabName) {
             panel.classList.add('active');
@@ -1125,14 +1125,14 @@ function sendWhatsAppInviteFromTab(mode, providedName = null, providedPhone = nu
         renderFriendsChips();
     } else {
         renderEditFriendsChips();
-        if (typeof window.reactAddParticipantToEditTrip === 'function') window.reactAddParticipantToEditTrip({ contact: phone, name: providedName || phone, type: 'registered' });
-        if (editTripId) {
-            const trip = allTrips.find(t => t.id === editTripId);
-            if (trip && trip.invite_token) {
+        if (typeof window.reactAddParticipantToEditGroup === 'function') window.reactAddParticipantToEditGroup({ contact: phone, name: providedName || phone, type: 'registered' });
+        if (editGroupId) {
+            const group = allGroups.find(t => t.id === editGroupId);
+            if (group && group.invite_token) {
                 const cleanPhone = phone.replace(/\D/g, '');
-                const link = `${window.location.origin}/#join=${trip.invite_token}`;
+                const link = `${window.location.origin}/#join=${group.invite_token}`;
                 const userName = window.currentUser ? window.currentUser.name : '';
-                const text = encodeURIComponent(`Hey! ${userName} invited you to join the group '${trip.name}' on MasterSplitter. Click here to join: ${link}`);
+                const text = encodeURIComponent(`Hey! ${userName} invited you to join the group '${group.name}' on MasterSplitter. Click here to join: ${link}`);
                 window.open(`https://wa.me/${cleanPhone}?text=${text}`, '_blank');
             }
         }
@@ -1163,19 +1163,19 @@ async function sendEmailInviteFromTab(mode) {
     if (mode === 'create') renderFriendsChips();
     else {
         renderEditFriendsChips();
-        if (typeof window.reactAddParticipantToEditTrip === 'function') window.reactAddParticipantToEditTrip({ contact: email, name: name, type: 'registered' });
+        if (typeof window.reactAddParticipantToEditGroup === 'function') window.reactAddParticipantToEditGroup({ contact: email, name: name, type: 'registered' });
     }
     
     nameInput.value = '';
     emailInput.value = '';
     
-    // In edit mode, if trip already exists, we could also directly fire the email invite API here.
+    // In edit mode, if group already exists, we could also directly fire the email invite API here.
     // For now we just queue it to be saved when user hits "Save" (or Create). 
     // Wait, the instructions say "Send Email Invite".
-    // If it's an existing trip, let's fire the API now.
-    if (mode === 'edit' && editTripId) {
+    // If it's an existing group, let's fire the API now.
+    if (mode === 'edit' && editGroupId) {
         try {
-            const res = await fetch(`/api/trips/${editTripId}/invite-email`, {
+            const res = await fetch(`/api/groups/${editGroupId}/invite-email`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name, email })
@@ -1207,7 +1207,7 @@ function addGuestFromTab(mode) {
     if (mode === 'create') renderFriendsChips();
     else {
         renderEditFriendsChips();
-        if (typeof window.reactAddParticipantToEditTrip === 'function') window.reactAddParticipantToEditTrip({ contact: email, name: name, type: 'registered' });
+        if (typeof window.reactAddParticipantToEditGroup === 'function') window.reactAddParticipantToEditGroup({ contact: email, name: name, type: 'registered' });
     }
     
     nameInput.value = '';
@@ -1271,26 +1271,26 @@ async function logout() {
 // Global showToast is defined in DOMContentLoaded
 
 // =====================
-//  TRIP MEMBERS
+//  GROUP MEMBERS
 // =====================
-async function fetchTripMembers() {
-    if (!currentTripId) return;
+async function fetchGroupMembers() {
+    if (!currentGroupId) return;
     try {
-        const res = await fetch(`/api/trip_members/${currentTripId}`);
+        const res = await fetch(`/api/group_members/${currentGroupId}`);
         if (res.ok) {
-            tripMembers = await res.json();
+            groupMembers = await res.json();
             renderParticipantAvatars();
         }
     } catch (e) { console.error('Fetch members error:', e); }
 }
 
 function renderParticipantAvatars() {
-    const container = document.getElementById('trip-avatars');
-    const sub = document.getElementById('trip-participants-label');
+    const container = document.getElementById('group-avatars');
+    const sub = document.getElementById('group-participants-label');
     if (!container) return;
     const colors = ['bg-yellow', 'bg-purple', 'bg-light'];
-    const shown = tripMembers.slice(0, 3);
-    const extra = tripMembers.length - 3;
+    const shown = groupMembers.slice(0, 3);
+    const extra = groupMembers.length - 3;
     container.innerHTML = shown.map((m, i) => {
         if (m.avatar_url) {
             return `<img class="avatar avatar-img" src="${escapeHTML(m.avatar_url)}" alt="${escapeHTML(m.name)}" referrerpolicy="no-referrer">`;
@@ -1298,7 +1298,7 @@ function renderParticipantAvatars() {
         return `<div class="avatar ${colors[i % colors.length]}">${escapeHTML(m.name.charAt(0))}</div>`;
     }).join('');
     if (extra > 0) container.innerHTML += `<div class="avatar bg-light">+${extra}</div>`;
-    if (sub) sub.textContent = tripMembers.map(m => m.name).join(', ') || '';
+    if (sub) sub.textContent = groupMembers.map(m => m.name).join(', ') || '';
 }
 
 // =====================
@@ -1316,7 +1316,7 @@ function renderParticipants() {
 
     const payerContainer = document.getElementById('payer-container');
     if (payerContainer) {
-        payerContainer.innerHTML = tripMembers.map(m => {
+        payerContainer.innerHTML = groupMembers.map(m => {
             const isSelected = String(m.id) === String(currentPayerId);
             const style = isSelected ? 'border: 2px solid #a855f7; background-color: rgba(168, 85, 247, 0.1);' : '';
             return `<div class="participant-pill ${isSelected ? 'selected' : ''}" style="${style}" onclick="currentPayerId = '${escapeHTML(String(m.id))}'; renderParticipants();">
@@ -1326,7 +1326,7 @@ function renderParticipants() {
         }).join('');
     }
 
-    container.innerHTML = tripMembers.map(m => {
+    container.innerHTML = groupMembers.map(m => {
         const safeName = escapeHTML(m.name);
         const initial = escapeHTML(m.name.charAt(0));
         const isPayer = String(m.id) === String(currentPayerId);
@@ -1495,7 +1495,7 @@ async function aiParseExpense() {
     if (errMsg) errMsg.style.display = 'none';
 
     // Gather member names
-    const memberNames = tripMembers
+    const memberNames = groupMembers
         .filter(m => m.type !== 'local')
         .map(m => m.name);
 
@@ -1503,7 +1503,7 @@ async function aiParseExpense() {
         const res = await fetch('/api/ai/parse-expense', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text, trip_members: memberNames })
+            body: JSON.stringify({ text, group_members: memberNames })
         });
 
         const data = await res.json();
@@ -1555,7 +1555,7 @@ async function aiParseExpense() {
 
             // Fill in split amounts
             for (const split of parsed.splits) {
-                const member = tripMembers.find(m =>
+                const member = groupMembers.find(m =>
                     m.name === split.name || m.name.includes(split.name) || split.name.includes(m.name)
                 );
                 if (member) {
@@ -1568,7 +1568,7 @@ async function aiParseExpense() {
 
             // Zero out members not in the splits
             const splitNames = parsed.splits.map(s => s.name);
-            for (const m of tripMembers) {
+            for (const m of groupMembers) {
                 const isInSplit = splitNames.some(sn =>
                     m.name === sn || m.name.includes(sn) || sn.includes(m.name)
                 );
@@ -1603,9 +1603,9 @@ async function aiParseExpense() {
 }
 
 async function fetchExpenses() {
-    if (!currentTripId) return;
+    if (!currentGroupId) return;
     try {
-        const res = await fetch(`/api/expenses/${currentTripId}`);
+        const res = await fetch(`/api/expenses/${currentGroupId}`);
         if (res.status === 401) { window.location.href = '/'; return; }
         const expenses = await res.json();
         _cachedExpenses = expenses; // Cache for stats modal
@@ -1660,7 +1660,7 @@ async function fetchExpenses() {
                 // Currency display: show the expense in its own currency, with the
                 // conversion to the viewer's PROFILE currency in parens. The backend
                 // supplies amount_in_profile (true amount converted via live rate);
-                // exp.amount is the trip-base value and must NOT be shown as profile.
+                // exp.amount is the group-base value and must NOT be shown as profile.
                 let amountDisplay = '';
                 const expCurrency = exp.currency || 'ILS';
                 const expSym = getCurrencySymbol(expCurrency);
@@ -1890,12 +1890,12 @@ function openEditExpenseModal(id, amount, desc, category, currency) {
         document.getElementById('edit-expense-participants-group').style.display = 'block';
         
         const editPayerContainer = document.getElementById('edit-payer-container');
-        if (editPayerContainer && typeof tripMembers !== 'undefined') {
+        if (editPayerContainer && typeof groupMembers !== 'undefined') {
             if (typeof window.currentEditPayerId === 'undefined') {
                 window.currentEditPayerId = expense ? String(expense.user_id) : (window.currentUser ? String(window.currentUser.id) : '');
             }
             window.renderEditPayer = function() {
-                editPayerContainer.innerHTML = tripMembers.map(m => {
+                editPayerContainer.innerHTML = groupMembers.map(m => {
                     const isSelected = String(m.id) === String(window.currentEditPayerId);
                     const style = isSelected ? 'border: 2px solid #a855f7; background-color: rgba(168, 85, 247, 0.1);' : '';
                     return `<div class="participant-pill ${isSelected ? 'selected' : ''}" style="${style}" onclick="window.currentEditPayerId = '${escapeHTML(String(m.id))}'; window.renderEditPayer();">
@@ -1908,11 +1908,11 @@ function openEditExpenseModal(id, amount, desc, category, currency) {
         }
         
         // Render participants pills
-        if (participantsContainer && typeof tripMembers !== 'undefined') {
+        if (participantsContainer && typeof groupMembers !== 'undefined') {
             const expSplits = expense ? (expense.splits || []) : [];
             const involvedIds = expSplits.map(s => String(s.user_id));
             
-            participantsContainer.innerHTML = tripMembers.map(m => {
+            participantsContainer.innerHTML = groupMembers.map(m => {
                 const safeName = escapeHTML(m.name);
                 const initial = escapeHTML(m.name.charAt(0));
                 // Only select those who were in the original split, or all if empty
@@ -1978,7 +1978,7 @@ function renderEditCustomSplits(existingSplits = []) {
     if (!container) return;
     
     const selectedIds = Array.from(document.querySelectorAll('#edit-participants-container .participant-pill.selected')).map(pill => pill.dataset.id);
-    const selectedMembers = (typeof tripMembers !== 'undefined' ? tripMembers : []).filter(m => selectedIds.includes(String(m.id)));
+    const selectedMembers = (typeof groupMembers !== 'undefined' ? groupMembers : []).filter(m => selectedIds.includes(String(m.id)));
     
     if (selectedMembers.length === 0) {
         container.innerHTML = `<div style="padding:10px; color:var(--text-sec); font-size:0.9rem;" data-i18n="select_participants_first">בחר משתתפים קודם</div>`;
@@ -2161,7 +2161,7 @@ async function addExpense() {
     if (!amountVal || parseFloat(amountVal) <= 0) { alert(errAmount); return; }
     if (!desc) { alert(errDesc); return; }
     if (!parts.length) { alert(errParts); return; }
-    if (!currentTripId) { alert('לא נבחר טיול.'); return; }
+    if (!currentGroupId) { alert('לא נבחר טיול.'); return; }
 
     const amount = parseFloat(amountVal);
     let splits = [];
@@ -2222,7 +2222,7 @@ async function addExpense() {
 
     try {
         const payload = {
-            trip_id: currentTripId,
+            group_id: currentGroupId,
             amount: amount,
             description: desc,
             category,
@@ -2330,11 +2330,11 @@ function setBalancesView(view) {
 }
 
 async function fetchBalances() {
-    if (!currentTripId) return;
+    if (!currentGroupId) return;
     try {
         const [resBal, resOpt] = await Promise.all([
-            fetch(`/api/balances/${currentTripId}`),
-            fetch(`/api/trips/${currentTripId}/optimized-balances`)
+            fetch(`/api/balances/${currentGroupId}`),
+            fetch(`/api/groups/${currentGroupId}/optimized-balances`)
         ]);
 
         if (resBal.status === 401 || resOpt.status === 401) { window.location.href = '/'; return; }
@@ -2343,8 +2343,8 @@ async function fetchBalances() {
         window.cachedOptimizedData = await resOpt.json();
 
         const data = window.cachedBalancesData;
-        const budget = currentTripData?.budget || 0;
-        const budgetType = currentTripData?.budget_type || 'none';
+        const budget = currentGroupData?.budget || 0;
+        const budgetType = currentGroupData?.budget_type || 'none';
         const spent = data.total || 0;
         const left = budget - spent;
         const pct = budget > 0 ? Math.min(100, Math.round(spent / budget * 100)) : 0;
@@ -2363,7 +2363,7 @@ async function fetchBalances() {
         const elBudget = document.getElementById('total-budget');
         const elLeft = document.getElementById('budget-left');
         const elPct = document.getElementById('circle-percent');
-        const userSym = getTripCurrencySymbol();
+        const userSym = getGroupCurrencySymbol();
         if (elSpent) elSpent.textContent = `${userSym}${formatNumber(spent)}`;
         if (elBudget) elBudget.textContent = `${userSym}${budget}`;
         if (elLeft) elLeft.textContent = `${userSym}${formatNumber(Math.max(0, left))}`;
@@ -2375,7 +2375,7 @@ async function fetchBalances() {
         const resetBtn = document.getElementById('btn-reset-settlements');
         if (resetBtn) {
             const isAdmin = (typeof _groupSettings !== 'undefined' && _groupSettings.is_admin)
-                || (currentTripData && currentTripData.is_owner);
+                || (currentGroupData && currentGroupData.is_owner);
             resetBtn.style.display = isAdmin ? 'block' : 'none';
         }
     } catch (e) { console.error('Fetch balances error:', e); }
@@ -2593,7 +2593,7 @@ async function executeLimboOffset() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    trip_id: currentTripId,
+                    group_id: currentGroupId,
                     payer_id: s.from_id,
                     payee_id: s.to_id,
                     amount: s.amount,
@@ -2622,7 +2622,7 @@ async function triggerSettleUp(payerId, payeeId, amount, currency = 'ILS') {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                trip_id: currentTripId,
+                group_id: currentGroupId,
                 payer_id: payerId,
                 payee_id: payeeId,
                 amount: amount,
@@ -2646,16 +2646,16 @@ async function triggerSettleUp(payerId, payeeId, amount, currency = 'ILS') {
 }
 
 /**
- * Admin-only: clear ALL settlements for the current trip.
+ * Admin-only: clear ALL settlements for the current group.
  * Use to recover from stuck/phantom balances caused by bad settle data.
  */
-async function resetTripSettlements() {
-    if (!currentTripId) return;
+async function resetGroupSettlements() {
+    if (!currentGroupId) return;
     const msg = typeof i18n === 'function' ? i18n('reset_settlements_confirm')
         : 'לאפס את כל הקיזוזים בקבוצה? פעולה זו מוחקת את כל רשומות הסליקה ולא ניתנת לביטול.';
     if (!confirm(msg)) return;
     try {
-        const res = await fetch(`/api/trips/${currentTripId}/settlements/reset`, { method: 'POST' });
+        const res = await fetch(`/api/groups/${currentGroupId}/settlements/reset`, { method: 'POST' });
         const data = await res.json();
         if (res.ok && data.success) {
             showToast(`נמחקו ${data.deleted} קיזוזים. המאזן חושב מחדש.`, 'success');
@@ -2895,7 +2895,7 @@ function renderCategoryChart(expenses) {
         if (val > 0) {
             html += `
             <div class="chart-bar-wrapper">
-                <div class="chart-bar" style="height: ${heightPct}%; background: ${c.color};" data-tooltip="${translateCategory(c.name)}: ${getTripCurrencySymbol()}${val.toFixed(0)}"></div>
+                <div class="chart-bar" style="height: ${heightPct}%; background: ${c.color};" data-tooltip="${translateCategory(c.name)}: ${getGroupCurrencySymbol()}${val.toFixed(0)}"></div>
                 <div class="chart-icon">${c.icon}</div>
             </div>`;
         }
@@ -2983,7 +2983,7 @@ function updateAssignItemsDOM() {
         
         let chipsHtml = '';
         availableUsers.forEach(uid => {
-            const member = tripMembers.find(m => String(m.id) === String(uid));
+            const member = groupMembers.find(m => String(m.id) === String(uid));
             const name = member ? member.name : `User ${uid}`;
             const isSelected = item.taggedUsers.includes(String(uid));
             const chipClass = isSelected ? 'assign-user-chip selected' : 'assign-user-chip';
@@ -3143,7 +3143,7 @@ function renderCustomSplits() {
     const equalShare = totalAmount > 0 ? (totalAmount / parts.length) : 0;
 
     container.innerHTML = parts.map(pid => {
-        const member = tripMembers.find(m => String(m.id) === String(pid));
+        const member = groupMembers.find(m => String(m.id) === String(pid));
         const name = member ? member.name : `משתתף ${pid}`;
         
         let step = "0.01";
@@ -3227,9 +3227,9 @@ document.getElementById('amount')?.addEventListener('input', () => {
 //   FETCH GROUP SETTINGS (admin, delete perms)
 // ============================================
 async function fetchGroupSettings() {
-    if (!currentTripId) return;
+    if (!currentGroupId) return;
     try {
-        const res = await fetch(`/api/trips/${currentTripId}/settings`);
+        const res = await fetch(`/api/groups/${currentGroupId}/settings`);
         if (res.ok) {
             const data = await res.json();
             _groupSettings.is_admin = data.is_admin || false;
@@ -3253,7 +3253,7 @@ function showStatsView() {
     if (!chartArea || !summaryArea) return;
 
     // Render category chart into modal
-    const userSym = getTripCurrencySymbol();
+    const userSym = getGroupCurrencySymbol();
     const expenseItems = document.querySelectorAll('.list-item');
 
     // Use cached expenses data if available
@@ -3295,7 +3295,7 @@ function showStatsView() {
 
         chartArea.innerHTML = barsHtml || `<div style="color:var(--text-muted); width:100%; text-align:center;">${typeof i18n === 'function' ? i18n('balances_no_data') : 'No data'}</div>`;
 
-        const numMembers = tripMembers ? tripMembers.length : 1;
+        const numMembers = groupMembers ? groupMembers.length : 1;
         const avg = numMembers > 0 ? total / numMembers : 0;
         const totalLabel = typeof i18n === 'function' ? i18n('home_total_expenses') : 'Total Expenses';
         const avgLabel = typeof currentLang !== 'undefined' && currentLang === 'he' ? '\u05de\u05de\u05d5\u05e6\u05e2 \u05dc\u05d0\u05d3\u05dd' : 'Avg / Person';
@@ -3339,12 +3339,12 @@ function closeActivityDrawer() {
 }
 
 async function fetchActivity() {
-    if (!currentTripId) return;
+    if (!currentGroupId) return;
     const container = document.getElementById('activity-list');
     if (!container) return;
 
     try {
-        const res = await fetch(`/api/activity/${currentTripId}`);
+        const res = await fetch(`/api/activity/${currentGroupId}`);
         if (!res.ok) return;
         const data = await res.json();
 
@@ -3359,7 +3359,7 @@ async function fetchActivity() {
             const actionText = typeof i18n === 'function' ? (i18n(`activity_${item.action}`) || item.action) : item.action;
             let detailText = item.detail ? escapeHTML(item.detail) : '';
             if (detailText) {
-                const sym = getTripCurrencySymbol();
+                const sym = getGroupCurrencySymbol();
                 detailText = detailText.replace(/₪|\$/g, sym);
                 detailText = ` (${detailText})`;
             }
@@ -3385,7 +3385,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Register updateUI for i18n system to call when language changes
     window.updateUI = function() {
-        if (typeof renderTripsList === 'function') renderTripsList();
+        if (typeof renderGroupsList === 'function') renderGroupsList();
         if (typeof renderFriendsChips === 'function') renderFriendsChips();
         if (typeof renderEditFriendsChips === 'function') renderEditFriendsChips();
         if (document.getElementById('screen-dashboard')?.classList.contains('active')) {
@@ -3595,11 +3595,11 @@ window.addEventListener('appinstalled', () => {
 // =====================
 //  INVITE LINK
 // =====================
-async function copyInviteLink(tripId) {
-    const tid = tripId || currentTripId;
+async function copyInviteLink(groupId) {
+    const tid = groupId || currentGroupId;
     if (!tid) return;
     try {
-        const res = await fetch(`/api/trips/${tid}/invite-link`, {
+        const res = await fetch(`/api/groups/${tid}/invite-link`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
         });
@@ -3621,16 +3621,16 @@ async function copyInviteLink(tripId) {
 }
 
 async function generateInviteAndShareWA() {
-    if (!currentTripId) return;
+    if (!currentGroupId) return;
     try {
-        const res = await fetch(`/api/trips/${currentTripId}/invite-link`, {
+        const res = await fetch(`/api/groups/${currentGroupId}/invite-link`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
         });
         const data = await res.json();
         if (data.success && data.invite_token) {
             const link = `${window.location.origin}/join/${data.invite_token}`;
-            const msg = encodeURIComponent(`Join my trip on MasterSplitter! ${link}`);
+            const msg = encodeURIComponent(`Join my group on MasterSplitter! ${link}`);
             const waUrl = `https://wa.me/?text=${msg}`;
             window.open(waUrl, '_blank');
         } else {
@@ -3656,9 +3656,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const lastUsed = localStorage.getItem('last_currency') || 'ILS';
         const isHe = window.currentLanguage === 'he' || document.documentElement.lang === 'he';
         
-        let tripCurrency = null;
-        if (window.currentTrip && window.currentTrip.budgets_json && window.currentTrip.budgets_json.currency) {
-            tripCurrency = window.currentTrip.budgets_json.currency;
+        let groupCurrency = null;
+        if (window.currentGroup && window.currentGroup.budgets_json && window.currentGroup.budgets_json.currency) {
+            groupCurrency = window.currentGroup.budgets_json.currency;
         }
 
         const buildOption = (code) => {
@@ -3692,7 +3692,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             };
 
-            addFav(tripCurrency);
+            addFav(groupCurrency);
             addFav('ILS');
             addFav('USD');
             addFav('EUR');
@@ -3773,8 +3773,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 .then(data => {
                     if (data.success) {
                         showToast(typeof i18n === 'function' ? i18n('invite_joined') : 'Joined group!', 'success');
-                        if (data.trip_id) {
-                            currentTripId = data.trip_id;
+                        if (data.group_id) {
+                            currentGroupId = data.group_id;
                             loadLobby();
                         }
                     } else {
@@ -3857,23 +3857,23 @@ window.applyGlobalTranslations = function() {
 // =====================
 //  REACT MODAL ACTIONS
 // =====================
-window.makeMemberAdmin = async function(trip, contact) {
-    if (!trip) return;
-    const tripId = trip.id;
-    const member = trip.participants.find(p => p.contact === contact || p.email === contact || p.phone === contact);
+window.makeMemberAdmin = async function(group, contact) {
+    if (!group) return;
+    const groupId = group.id;
+    const member = group.participants.find(p => p.contact === contact || p.email === contact || p.phone === contact);
     if (!member || member.type === 'guest') {
         showToast("Guests cannot be admins.", "error");
         return;
     }
     
     try {
-        const res = await fetch(`/api/trips/${tripId}/members/${member.id}/promote`, { method: 'PUT' });
+        const res = await fetch(`/api/groups/${groupId}/members/${member.id}/promote`, { method: 'PUT' });
         const data = await res.json();
         if (res.ok && data.success) {
             showToast("Member promoted to admin", "success");
-            await loadLobby(); // reload trips to update state
-            // If the modal is open, we should also update its state by re-triggering openEditTripModal or it will auto-update if we re-fetch.
-            openEditTripModalAsync(tripId);
+            await loadLobby(); // reload groups to update state
+            // If the modal is open, we should also update its state by re-triggering openEditGroupModal or it will auto-update if we re-fetch.
+            openEditGroupModalAsync(groupId);
         } else {
             showToast(data.error || "Error", "error");
         }
@@ -3882,10 +3882,10 @@ window.makeMemberAdmin = async function(trip, contact) {
     }
 };
 
-window.removeMemberAdmin = async function(trip, contact) {
-    if (!trip) return;
-    const tripId = trip.id;
-    const member = trip.participants.find(p => p.contact === contact || p.email === contact || p.phone === contact);
+window.removeMemberAdmin = async function(group, contact) {
+    if (!group) return;
+    const groupId = group.id;
+    const member = group.participants.find(p => p.contact === contact || p.email === contact || p.phone === contact);
     if (!member || member.type === 'guest') {
         return;
     }
@@ -3894,12 +3894,12 @@ window.removeMemberAdmin = async function(trip, contact) {
     
     try {
         // Demote endpoint uses POST according to Server.py line 2048
-        const res = await fetch(`/api/trips/${tripId}/demote/${member.id}`, { method: 'POST' });
+        const res = await fetch(`/api/groups/${groupId}/demote/${member.id}`, { method: 'POST' });
         const data = await res.json();
         if (res.ok && data.success) {
             showToast("הרשאת הניהול הוסרה בהצלחה", "success");
-            await loadLobby(); // reload trips to update state
-            openEditTripModalAsync(tripId);
+            await loadLobby(); // reload groups to update state
+            openEditGroupModalAsync(groupId);
         } else {
             showToast(data.error || "Error", "error");
         }
@@ -3908,14 +3908,14 @@ window.removeMemberAdmin = async function(trip, contact) {
     }
 };
 
-window.removeTripMember = async function(tripId, contact) {
+window.removeGroupMember = async function(groupId, contact) {
     try {
-        const res = await fetch(`/api/trips/${tripId}/members/${encodeURIComponent(contact)}`, { method: 'DELETE' });
+        const res = await fetch(`/api/groups/${groupId}/members/${encodeURIComponent(contact)}`, { method: 'DELETE' });
         const data = await res.json();
         if (res.ok && data.success) {
             showToast("Member removed", "success");
             await loadLobby();
-            openEditTripModalAsync(tripId);
+            openEditGroupModalAsync(groupId);
         } else {
             showToast(data.error || "Error", "error");
         }
@@ -3924,15 +3924,15 @@ window.removeTripMember = async function(tripId, contact) {
     }
 };
 
-window.saveEditTripFromReact = async function(trip) {
-    if (!trip.id) return;
+window.saveEditGroupFromReact = async function(group) {
+    if (!group.id) return;
 
     // Remove duplicates or match participants
-    const participants = (trip.participants || []).map(p => {
+    const participants = (group.participants || []).map(p => {
         const key = p.contact || p.email || p.phone || p.name;
         let bJson = p.budgets_json || {};
-        if (trip.is_budget_per_user && trip.user_budgets && trip.user_budgets[key]) {
-            const uBudget = trip.user_budgets[key];
+        if (group.is_budget_per_user && group.user_budgets && group.user_budgets[key]) {
+            const uBudget = group.user_budgets[key];
             bJson = {
                 daily: uBudget.daily || '',
                 monthly: uBudget.monthly || '',
@@ -3949,31 +3949,31 @@ window.saveEditTripFromReact = async function(trip) {
     });
 
     const payload = { 
-        name: trip.name, 
-        budgets_json: trip.budgets_json || {},
-        is_budget_per_user: trip.is_budget_per_user,
-        is_public_expenses: trip.is_public_expenses,
-        allow_member_delete: trip.allow_member_delete,
-        user_budgets: trip.user_budgets || {},
+        name: group.name, 
+        budgets_json: group.budgets_json || {},
+        is_budget_per_user: group.is_budget_per_user,
+        is_public_expenses: group.is_public_expenses,
+        allow_member_delete: group.allow_member_delete,
+        user_budgets: group.user_budgets || {},
         participants: participants
     };
 
     try {
-        const res = await fetch(`/api/trips/${trip.id}`, {
+        const res = await fetch(`/api/groups/${group.id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
         const data = await res.json();
         if (res.ok && data.success) {
-            closeEditTripModal();
-            showToast(typeof i18n === 'function' ? i18n('toast_trip_updated') : 'Trip updated', 'success');
+            closeEditGroupModal();
+            showToast(typeof i18n === 'function' ? i18n('toast_group_updated') : 'Group updated', 'success');
             await loadLobby();
         } else {
             alert(data.error || 'Network error');
         }
     } catch (e) {
-        console.error('Save edit trip error:', e);
+        console.error('Save edit group error:', e);
         alert('Network error');
     }
 };
@@ -3981,14 +3981,14 @@ window.saveEditTripFromReact = async function(trip) {
 
 window.openGroupInfo = function() {
     // Aggressively find the current group ID
-    let groupId = currentTripId || window.currentTripId || window.activeTripId || window.currentGroupId;
-    if (!groupId && typeof currentTripData !== 'undefined' && currentTripData) groupId = currentTripData.id;
-    if (!groupId && window.currentTrip && window.currentTrip.id) groupId = window.currentTrip.id;
+    let groupId = currentGroupId || window.currentGroupId || window.activeGroupId || window.currentGroupId;
+    if (!groupId && typeof currentGroupData !== 'undefined' && currentGroupData) groupId = currentGroupData.id;
+    if (!groupId && window.currentGroup && window.currentGroup.id) groupId = window.currentGroup.id;
     if (!groupId && window.currentGroup && window.currentGroup.id) groupId = window.currentGroup.id;
     if (!groupId) {
-        // Fallback: try to read from DOM if active trip is stored in an attribute
-        const activeTab = document.querySelector('.trip-tab.active');
-        if (activeTab) groupId = activeTab.dataset.id || activeTab.dataset.tripId;
+        // Fallback: try to read from DOM if active group is stored in an attribute
+        const activeTab = document.querySelector('.group-tab.active');
+        if (activeTab) groupId = activeTab.dataset.id || activeTab.dataset.groupId;
     }
     
     if (!groupId) {
@@ -4000,7 +4000,7 @@ window.openGroupInfo = function() {
 
     setTimeout(() => {
         if (typeof window.reactOpenEditModal === 'function') {
-            openEditTripModalAsync(parseInt(groupId, 10));
+            openEditGroupModalAsync(parseInt(groupId, 10));
         } else {
             console.error("reactOpenEditModal is not available.");
         }
@@ -4010,9 +4010,9 @@ window.openGroupInfo = function() {
     if (navMenu) navMenu.classList.remove('active');
 };
 
-window.openEditTripModal = function(id, event) {
+window.openEditGroupModal = function(id, event) {
     if(event) event.stopPropagation();
-    openEditTripModalAsync(id);
+    openEditGroupModalAsync(id);
 };
 
 // =====================

@@ -87,12 +87,48 @@ def check_db_schema():
     """Ensure database has the latest schema modifications."""
     conn = get_db_connection()
     try:
-        conn.execute("ALTER TABLE Trips ADD COLUMN image_url TEXT")
+        conn.execute("ALTER TABLE Groups ADD COLUMN image_url TEXT")
         conn.commit()
     except sqlite3.OperationalError:
         pass # Column already exists
     conn.close()
 
+
+def migrate_groups_terminology():
+    """One-time, idempotent rename of the legacy 'trip' schema to 'group' terminology.
+    Only runs when the old tables still exist (so it's a no-op on already-migrated DBs,
+    e.g. local dev) and preserves all existing data. Must run BEFORE check_db_schema()
+    and init_db_updates() so their ALTER/CREATE statements see the renamed tables and
+    don't recreate empty 'Groups' tables that orphan the old data."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        names = [r[0] for r in cur.execute("SELECT name FROM sqlite_master WHERE type='table'")]
+        if not any(t in names for t in ('Trips', 'TripMembers', 'trip_invitations')):
+            conn.close()
+            return  # already migrated
+        cur.execute("PRAGMA foreign_keys=OFF")
+        for old, new in (("Trips", "Groups"), ("TripMembers", "GroupMembers"), ("trip_invitations", "group_invitations")):
+            n = [r[0] for r in cur.execute("SELECT name FROM sqlite_master WHERE type='table'")]
+            if old in n and new not in n:
+                cur.execute(f'ALTER TABLE "{old}" RENAME TO "{new}"')
+        for t in ("Expenses", "group_invitations", "Settlements", "ActivityLog", "GroupMembers", "Notifications"):
+            try:
+                cols = [r[1] for r in cur.execute(f"PRAGMA table_info({t})")]
+                if 'trip_id' in cols and 'group_id' not in cols:
+                    cur.execute(f'ALTER TABLE "{t}" RENAME COLUMN trip_id TO group_id')
+            except sqlite3.OperationalError:
+                pass
+        conn.commit()
+        cur.execute("PRAGMA foreign_keys=ON")
+        logger.info("Migrated legacy 'trip' schema to 'group' terminology.")
+    except sqlite3.Error as e:
+        logger.error(f"trip->group schema migration error: {e}")
+    finally:
+        conn.close()
+
+
+migrate_groups_terminology()
 check_db_schema()
 
 # ---- Authentication Helpers ----
@@ -170,7 +206,7 @@ def init_db_updates():
         conn.commit()
 
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS Trips (
+        CREATE TABLE IF NOT EXISTS Groups (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             destination TEXT NOT NULL,
             budget REAL DEFAULT 0,
@@ -182,43 +218,43 @@ def init_db_updates():
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS Expenses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            trip_id INTEGER NOT NULL,
+            group_id INTEGER NOT NULL,
             user_id INTEGER NOT NULL,
             amount REAL NOT NULL,
             currency TEXT DEFAULT 'ILS',
             description TEXT,
             category TEXT DEFAULT 'General',
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY(trip_id) REFERENCES Trips(id),
+            FOREIGN KEY(group_id) REFERENCES Groups(id),
             FOREIGN KEY(user_id) REFERENCES Users(id)
         )
     """)
 
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS TripMembers (
-            trip_id INTEGER NOT NULL,
+        CREATE TABLE IF NOT EXISTS GroupMembers (
+            group_id INTEGER NOT NULL,
             user_id INTEGER NOT NULL,
-            PRIMARY KEY (trip_id, user_id),
-            FOREIGN KEY(trip_id) REFERENCES Trips(id),
+            PRIMARY KEY (group_id, user_id),
+            FOREIGN KEY(group_id) REFERENCES Groups(id),
             FOREIGN KEY(user_id) REFERENCES Users(id)
         )
     """)
 
     # --- Safe migrations for existing tables ---
     try:
-        cursor.execute("PRAGMA table_info(Trips)")
+        cursor.execute("PRAGMA table_info(Groups)")
         cols = [c['name'] for c in cursor.fetchall()]
         if 'budget' not in cols:
-            cursor.execute("ALTER TABLE Trips ADD COLUMN budget REAL DEFAULT 0")
-            logger.info("Migration: added 'budget' column to Trips")
+            cursor.execute("ALTER TABLE Groups ADD COLUMN budget REAL DEFAULT 0")
+            logger.info("Migration: added 'budget' column to Groups")
         if 'owner_id' not in cols:
-            cursor.execute("ALTER TABLE Trips ADD COLUMN owner_id INTEGER")
-            logger.info("Migration: added 'owner_id' column to Trips")
+            cursor.execute("ALTER TABLE Groups ADD COLUMN owner_id INTEGER")
+            logger.info("Migration: added 'owner_id' column to Groups")
         if 'local_participants' not in cols:
-            cursor.execute("ALTER TABLE Trips ADD COLUMN local_participants TEXT DEFAULT '[]'")
-            logger.info("Migration: added 'local_participants' column to Trips")
+            cursor.execute("ALTER TABLE Groups ADD COLUMN local_participants TEXT DEFAULT '[]'")
+            logger.info("Migration: added 'local_participants' column to Groups")
     except sqlite3.Error as e:
-        logger.error(f"Trips migration error: {e}")
+        logger.error(f"Groups migration error: {e}")
 
     try:
         cursor.execute("PRAGMA table_info(Expenses)")
@@ -297,16 +333,16 @@ def init_db_updates():
     except sqlite3.Error as e:
         logger.error(f"Users google_id, two_fa, or notification migration error: {e}")
 
-    # --- Create trip_invitations table ---
+    # --- Create group_invitations table ---
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS trip_invitations (
+        CREATE TABLE IF NOT EXISTS group_invitations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            trip_id INTEGER NOT NULL,
+            group_id INTEGER NOT NULL,
             inviter_id INTEGER NOT NULL,
             invitee_phone_or_email TEXT NOT NULL,
             status TEXT DEFAULT 'PENDING',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY(trip_id) REFERENCES Trips(id),
+            FOREIGN KEY(group_id) REFERENCES Groups(id),
             FOREIGN KEY(inviter_id) REFERENCES Users(id)
         )
     """)
@@ -327,101 +363,101 @@ def init_db_updates():
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS Settlements (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            trip_id INTEGER NOT NULL,
+            group_id INTEGER NOT NULL,
             payer_id INTEGER NOT NULL,
             payee_id INTEGER NOT NULL,
             amount REAL NOT NULL,
             original_amount REAL,
             currency TEXT DEFAULT 'ILS',
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY(trip_id) REFERENCES Trips(id),
+            FOREIGN KEY(group_id) REFERENCES Groups(id),
             FOREIGN KEY(payer_id) REFERENCES Users(id),
             FOREIGN KEY(payee_id) REFERENCES Users(id)
         )
     """)
 
-    # --- TripMembers migration: add guest_name, make user_id nullable ---
+    # --- GroupMembers migration: add guest_name, make user_id nullable ---
     try:
-        cursor.execute("PRAGMA table_info(TripMembers)")
+        cursor.execute("PRAGMA table_info(GroupMembers)")
         tm_cols = [c['name'] for c in cursor.fetchall()]
         if 'guest_name' not in tm_cols:
             # Need to recreate table — SQLite can't ALTER to change NOT NULL
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS TripMembers_new (
+                CREATE TABLE IF NOT EXISTS GroupMembers_new (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    trip_id INTEGER NOT NULL,
+                    group_id INTEGER NOT NULL,
                     user_id INTEGER,
                     guest_name TEXT,
-                    FOREIGN KEY(trip_id) REFERENCES Trips(id),
+                    FOREIGN KEY(group_id) REFERENCES Groups(id),
                     FOREIGN KEY(user_id) REFERENCES Users(id)
                 )
             """)
             # Migrate existing data
-            cursor.execute("INSERT INTO TripMembers_new (trip_id, user_id) SELECT trip_id, user_id FROM TripMembers")
-            cursor.execute("DROP TABLE TripMembers")
-            cursor.execute("ALTER TABLE TripMembers_new RENAME TO TripMembers")
+            cursor.execute("INSERT INTO GroupMembers_new (group_id, user_id) SELECT group_id, user_id FROM GroupMembers")
+            cursor.execute("DROP TABLE GroupMembers")
+            cursor.execute("ALTER TABLE GroupMembers_new RENAME TO GroupMembers")
             # Create unique index to prevent duplicates
-            cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_tm_user ON TripMembers(trip_id, user_id) WHERE user_id IS NOT NULL")
-            cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_tm_guest ON TripMembers(trip_id, guest_name) WHERE guest_name IS NOT NULL")
-            logger.info("Migration: TripMembers table upgraded with guest_name column and nullable user_id.")
+            cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_tm_user ON GroupMembers(group_id, user_id) WHERE user_id IS NOT NULL")
+            cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_tm_guest ON GroupMembers(group_id, guest_name) WHERE guest_name IS NOT NULL")
+            logger.info("Migration: GroupMembers table upgraded with guest_name column and nullable user_id.")
     except sqlite3.Error as e:
-        logger.error(f"TripMembers migration error: {e}")
+        logger.error(f"GroupMembers migration error: {e}")
 
-    # --- Add is_admin to TripMembers ---
+    # --- Add is_admin to GroupMembers ---
     try:
-        cursor.execute("PRAGMA table_info(TripMembers)")
+        cursor.execute("PRAGMA table_info(GroupMembers)")
         tm_cols2 = [c['name'] for c in cursor.fetchall()]
         if 'is_admin' not in tm_cols2:
-            cursor.execute("ALTER TABLE TripMembers ADD COLUMN is_admin INTEGER DEFAULT 0")
-            # Mark existing trip owners as admins
+            cursor.execute("ALTER TABLE GroupMembers ADD COLUMN is_admin INTEGER DEFAULT 0")
+            # Mark existing group owners as admins
             cursor.execute("""
-                UPDATE TripMembers SET is_admin = 1
-                WHERE (trip_id, user_id) IN (
-                    SELECT id, owner_id FROM Trips WHERE owner_id IS NOT NULL
+                UPDATE GroupMembers SET is_admin = 1
+                WHERE (group_id, user_id) IN (
+                    SELECT id, owner_id FROM Groups WHERE owner_id IS NOT NULL
                 )
             """)
-            logger.info("Migration: added 'is_admin' column to TripMembers")
+            logger.info("Migration: added 'is_admin' column to GroupMembers")
             
         if 'budgets_json' not in tm_cols2:
-            cursor.execute("ALTER TABLE TripMembers ADD COLUMN budgets_json TEXT DEFAULT '{}'")
-            logger.info("Migration: added 'budgets_json' column to TripMembers")
+            cursor.execute("ALTER TABLE GroupMembers ADD COLUMN budgets_json TEXT DEFAULT '{}'")
+            logger.info("Migration: added 'budgets_json' column to GroupMembers")
     except sqlite3.Error as e:
-        logger.error(f"TripMembers is_admin migration error: {e}")
+        logger.error(f"GroupMembers is_admin migration error: {e}")
 
-    # --- Add is_hidden and is_left to TripMembers ---
+    # --- Add is_hidden and is_left to GroupMembers ---
     try:
-        cursor.execute("PRAGMA table_info(TripMembers)")
+        cursor.execute("PRAGMA table_info(GroupMembers)")
         tm_cols_hide = [c['name'] for c in cursor.fetchall()]
         if 'is_hidden' not in tm_cols_hide:
-            cursor.execute("ALTER TABLE TripMembers ADD COLUMN is_hidden INTEGER DEFAULT 0")
-            logger.info("Migration: added 'is_hidden' column to TripMembers")
+            cursor.execute("ALTER TABLE GroupMembers ADD COLUMN is_hidden INTEGER DEFAULT 0")
+            logger.info("Migration: added 'is_hidden' column to GroupMembers")
         if 'is_left' not in tm_cols_hide:
-            cursor.execute("ALTER TABLE TripMembers ADD COLUMN is_left INTEGER DEFAULT 0")
-            logger.info("Migration: added 'is_left' column to TripMembers")
+            cursor.execute("ALTER TABLE GroupMembers ADD COLUMN is_left INTEGER DEFAULT 0")
+            logger.info("Migration: added 'is_left' column to GroupMembers")
     except sqlite3.Error as e:
-        logger.error(f"TripMembers hide/leave migration error: {e}")
+        logger.error(f"GroupMembers hide/leave migration error: {e}")
 
-    # --- Add is_public_expenses to Trips ---
+    # --- Add is_public_expenses to Groups ---
     try:
-        cursor.execute("PRAGMA table_info(Trips)")
-        trips_cols = [c['name'] for c in cursor.fetchall()]
-        if 'is_public_expenses' not in trips_cols:
-            cursor.execute("ALTER TABLE Trips ADD COLUMN is_public_expenses INTEGER DEFAULT 0")
-            logger.info("Migration: added 'is_public_expenses' column to Trips")
-        if 'budget_type' not in trips_cols:
-            cursor.execute("ALTER TABLE Trips ADD COLUMN budget_type TEXT DEFAULT 'none'")
-            logger.info("Migration: added 'budget_type' column to Trips")
-        if 'is_budget_per_user' not in trips_cols:
-            cursor.execute("ALTER TABLE Trips ADD COLUMN is_budget_per_user INTEGER DEFAULT 0")
-            logger.info("Migration: added 'is_budget_per_user' column to Trips")
-        if 'budgets_json' not in trips_cols:
-            cursor.execute("ALTER TABLE Trips ADD COLUMN budgets_json TEXT DEFAULT '{}'")
-            logger.info("Migration: added 'budgets_json' column to Trips")
-        if 'user_budgets' not in trips_cols:
-            cursor.execute("ALTER TABLE Trips ADD COLUMN user_budgets TEXT DEFAULT '{}'")
-            logger.info("Migration: added 'user_budgets' column to Trips")
+        cursor.execute("PRAGMA table_info(Groups)")
+        groups_cols = [c['name'] for c in cursor.fetchall()]
+        if 'is_public_expenses' not in groups_cols:
+            cursor.execute("ALTER TABLE Groups ADD COLUMN is_public_expenses INTEGER DEFAULT 0")
+            logger.info("Migration: added 'is_public_expenses' column to Groups")
+        if 'budget_type' not in groups_cols:
+            cursor.execute("ALTER TABLE Groups ADD COLUMN budget_type TEXT DEFAULT 'none'")
+            logger.info("Migration: added 'budget_type' column to Groups")
+        if 'is_budget_per_user' not in groups_cols:
+            cursor.execute("ALTER TABLE Groups ADD COLUMN is_budget_per_user INTEGER DEFAULT 0")
+            logger.info("Migration: added 'is_budget_per_user' column to Groups")
+        if 'budgets_json' not in groups_cols:
+            cursor.execute("ALTER TABLE Groups ADD COLUMN budgets_json TEXT DEFAULT '{}'")
+            logger.info("Migration: added 'budgets_json' column to Groups")
+        if 'user_budgets' not in groups_cols:
+            cursor.execute("ALTER TABLE Groups ADD COLUMN user_budgets TEXT DEFAULT '{}'")
+            logger.info("Migration: added 'user_budgets' column to Groups")
     except sqlite3.Error as e:
-        logger.error(f"Trips columns migration error: {e}")
+        logger.error(f"Groups columns migration error: {e}")
 
     # --- Add original_amount to Expenses ---
     try:
@@ -453,26 +489,26 @@ def init_db_updates():
     except sqlite3.Error as e:
         logger.error(f"Users default_currency migration error: {e}")
 
-    # --- Add allow_member_delete to Trips ---
+    # --- Add allow_member_delete to Groups ---
     try:
-        cursor.execute("PRAGMA table_info(Trips)")
-        trips_cols_amd = [c['name'] for c in cursor.fetchall()]
-        if 'allow_member_delete' not in trips_cols_amd:
-            cursor.execute("ALTER TABLE Trips ADD COLUMN allow_member_delete INTEGER DEFAULT 1")
-            logger.info("Migration: added 'allow_member_delete' column to Trips")
+        cursor.execute("PRAGMA table_info(Groups)")
+        groups_cols_amd = [c['name'] for c in cursor.fetchall()]
+        if 'allow_member_delete' not in groups_cols_amd:
+            cursor.execute("ALTER TABLE Groups ADD COLUMN allow_member_delete INTEGER DEFAULT 1")
+            logger.info("Migration: added 'allow_member_delete' column to Groups")
     except sqlite3.Error as e:
-        logger.error(f"Trips allow_member_delete migration error: {e}")
+        logger.error(f"Groups allow_member_delete migration error: {e}")
 
     # --- Phase 4: ActivityLog table (audit trail) ---
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS ActivityLog (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            trip_id INTEGER NOT NULL,
+            group_id INTEGER NOT NULL,
             user_id INTEGER NOT NULL,
             action TEXT NOT NULL,
             detail TEXT,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY(trip_id) REFERENCES Trips(id),
+            FOREIGN KEY(group_id) REFERENCES Groups(id),
             FOREIGN KEY(user_id) REFERENCES Users(id)
         )
     """)
@@ -482,13 +518,13 @@ def init_db_updates():
         CREATE TABLE IF NOT EXISTS Notifications (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
-            trip_id INTEGER NOT NULL,
+            group_id INTEGER NOT NULL,
             type TEXT NOT NULL,
             message TEXT,
             is_read INTEGER DEFAULT 0,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(user_id) REFERENCES Users(id),
-            FOREIGN KEY(trip_id) REFERENCES Trips(id)
+            FOREIGN KEY(group_id) REFERENCES Groups(id)
         )
     """)
 
@@ -505,16 +541,16 @@ def init_db_updates():
     except sqlite3.Error as e:
         logger.error(f"Settlements currency migration error: {e}")
 
-    # --- Add invite_token to Trips ---
+    # --- Add invite_token to Groups ---
     try:
-        cursor.execute("PRAGMA table_info(Trips)")
-        trips_cols_inv = [c['name'] for c in cursor.fetchall()]
-        if 'invite_token' not in trips_cols_inv:
-            cursor.execute("ALTER TABLE Trips ADD COLUMN invite_token TEXT")
-            logger.info("Migration: added 'invite_token' column to Trips")
+        cursor.execute("PRAGMA table_info(Groups)")
+        groups_cols_inv = [c['name'] for c in cursor.fetchall()]
+        if 'invite_token' not in groups_cols_inv:
+            cursor.execute("ALTER TABLE Groups ADD COLUMN invite_token TEXT")
+            logger.info("Migration: added 'invite_token' column to Groups")
             conn.commit()
     except sqlite3.Error as e:
-        logger.error(f"Trips invite_token migration error: {e}")
+        logger.error(f"Groups invite_token migration error: {e}")
 
     conn.commit()
     conn.close()
@@ -564,9 +600,9 @@ def get_exchange_rate(from_currency, to_currency='ILS'):
     return None
 
 
-def trip_base_currency(cursor, trip_id):
-    """The trip's base currency, stored inside budgets_json.currency (defaults ILS)."""
-    row = cursor.execute("SELECT budgets_json FROM Trips WHERE id = ?", (trip_id,)).fetchone()
+def group_base_currency(cursor, group_id):
+    """The group's base currency, stored inside budgets_json.currency (defaults ILS)."""
+    row = cursor.execute("SELECT budgets_json FROM Groups WHERE id = ?", (group_id,)).fetchone()
     if row and row['budgets_json']:
         try:
             b = json.loads(row['budgets_json'])
@@ -600,14 +636,14 @@ def safe_rate(from_cur, to_cur):
 # ---------------------
 #   ACTIVITY LOG HELPER
 # ---------------------
-def log_activity(trip_id, user_id, action, detail=None):
+def log_activity(group_id, user_id, action, detail=None):
     """Insert an entry into the ActivityLog table. Non-blocking."""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO ActivityLog (trip_id, user_id, action, detail, created_at) VALUES (?, ?, ?, ?, ?)",
-            (trip_id, user_id, action, detail, datetime.now(timezone.utc).isoformat())
+            "INSERT INTO ActivityLog (group_id, user_id, action, detail, created_at) VALUES (?, ?, ?, ?, ?)",
+            (group_id, user_id, action, detail, datetime.now(timezone.utc).isoformat())
         )
         conn.commit()
         conn.close()
@@ -617,38 +653,38 @@ def log_activity(trip_id, user_id, action, detail=None):
 # ---------------------
 #   NOTIFICATION HELPER
 # ---------------------
-def create_notification(user_id, trip_id, notif_type, message):
+def create_notification(user_id, group_id, notif_type, message):
     """Insert an entry into the Notifications table."""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO Notifications (user_id, trip_id, type, message, created_at) VALUES (?, ?, ?, ?, ?)",
-            (user_id, trip_id, notif_type, message, datetime.now(timezone.utc).isoformat())
+            "INSERT INTO Notifications (user_id, group_id, type, message, created_at) VALUES (?, ?, ?, ?, ?)",
+            (user_id, group_id, notif_type, message, datetime.now(timezone.utc).isoformat())
         )
         conn.commit()
         conn.close()
     except Exception as e:
         logger.error(f"create_notification error: {e}")
 
-def notify_trip_members(trip_id, notif_type, message, exclude_user_id=None):
+def notify_group_members(group_id, notif_type, message, exclude_user_id=None):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT user_id FROM TripMembers WHERE trip_id = ? AND user_id IS NOT NULL", (trip_id,))
+        cursor.execute("SELECT user_id FROM GroupMembers WHERE group_id = ? AND user_id IS NOT NULL", (group_id,))
         members = cursor.fetchall()
         
         for m in members:
             uid = m['user_id']
             if exclude_user_id is None or uid != exclude_user_id:
                 cursor.execute(
-                    "INSERT INTO Notifications (user_id, trip_id, type, message, created_at) VALUES (?, ?, ?, ?, ?)",
-                    (uid, trip_id, notif_type, message, datetime.now(timezone.utc).isoformat())
+                    "INSERT INTO Notifications (user_id, group_id, type, message, created_at) VALUES (?, ?, ?, ?, ?)",
+                    (uid, group_id, notif_type, message, datetime.now(timezone.utc).isoformat())
                 )
         conn.commit()
         conn.close()
     except Exception as e:
-        logger.error(f"notify_trip_members error: {e}")
+        logger.error(f"notify_group_members error: {e}")
 
 
 
@@ -665,25 +701,25 @@ def login_required(f):
     return decorated
 
 
-def require_trip_access(f):
-    """Decorator: verifies the logged-in user is a member or owner of the trip.
-    Expects 'trip_id' as a URL parameter (kwargs)."""
+def require_group_access(f):
+    """Decorator: verifies the logged-in user is a member or owner of the group.
+    Expects 'group_id' as a URL parameter (kwargs)."""
     @wraps(f)
     def decorated(*args, **kwargs):
-        trip_id = kwargs.get('trip_id')
-        if trip_id is None:
-            return jsonify({"error": "Missing trip_id"}), 400
+        group_id = kwargs.get('group_id')
+        if group_id is None:
+            return jsonify({"error": "Missing group_id"}), 400
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT 1 FROM TripMembers WHERE trip_id = ? AND user_id = ?
+            SELECT 1 FROM GroupMembers WHERE group_id = ? AND user_id = ?
             UNION
-            SELECT 1 FROM Trips WHERE id = ? AND owner_id = ?
-        """, (trip_id, session['user_id'], trip_id, session['user_id']))
+            SELECT 1 FROM Groups WHERE id = ? AND owner_id = ?
+        """, (group_id, session['user_id'], group_id, session['user_id']))
         has_access = cursor.fetchone() is not None
         conn.close()
         if not has_access:
-            logger.warning(f"User {session['user_id']} denied access to trip {trip_id}")
+            logger.warning(f"User {session['user_id']} denied access to group {group_id}")
             return jsonify({"error": "Forbidden"}), 403
         return f(*args, **kwargs)
     return decorated
@@ -1628,35 +1664,35 @@ def check_user_exists():
 
 
 # =====================
-#   TRIP APIS
+#   GROUP APIS
 # =====================
 
-@app.route('/api/trips', methods=['GET'])
+@app.route('/api/groups', methods=['GET'])
 @login_required
-def get_trips():
+def get_groups():
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
         SELECT DISTINCT t.id, t.destination, t.budget, t.budget_type, t.budgets_json, t.image_url,
             COALESCE(t.is_budget_per_user, 0) as is_budget_per_user, t.owner_id, t.invite_token,
             (SELECT GROUP_CONCAT(COALESCE(u.name, tm2.guest_name))
-             FROM TripMembers tm2 
+             FROM GroupMembers tm2 
              LEFT JOIN Users u ON tm2.user_id = u.id 
-             WHERE tm2.trip_id = t.id AND COALESCE(tm2.is_hidden, 0) = 0) as members,
-            (SELECT COALESCE(tm3.is_left, 0) FROM TripMembers tm3 WHERE tm3.trip_id = t.id AND tm3.user_id = ?) as is_readonly
-        FROM Trips t
-        LEFT JOIN TripMembers tm ON t.id = tm.trip_id
+             WHERE tm2.group_id = t.id AND COALESCE(tm2.is_hidden, 0) = 0) as members,
+            (SELECT COALESCE(tm3.is_left, 0) FROM GroupMembers tm3 WHERE tm3.group_id = t.id AND tm3.user_id = ?) as is_readonly
+        FROM Groups t
+        LEFT JOIN GroupMembers tm ON t.id = tm.group_id
         WHERE (t.owner_id = ? OR tm.user_id = ?)
           AND NOT EXISTS (
-              SELECT 1 FROM TripMembers tm4 
-              WHERE tm4.trip_id = t.id AND tm4.user_id = ? AND tm4.is_hidden = 1
+              SELECT 1 FROM GroupMembers tm4 
+              WHERE tm4.group_id = t.id AND tm4.user_id = ? AND tm4.is_hidden = 1
           )
         ORDER BY t.id DESC
     """, (session['user_id'], session['user_id'], session['user_id'], session['user_id']))
-    trips = cursor.fetchall()
+    groups = cursor.fetchall()
     conn.close()
     result = []
-    for t in trips:
+    for t in groups:
         participants = t['members'].split(',') if t['members'] else []
         result.append({
             'id': t['id'],
@@ -1674,9 +1710,9 @@ def get_trips():
     return jsonify(result)
 
 
-@app.route('/api/trips', methods=['POST'])
+@app.route('/api/groups', methods=['POST'])
 @login_required
-def create_trip():
+def create_group():
     data = request.json or {}
     name, err = validate_string(data.get('name'), 'שם הטיול')
     if err:
@@ -1728,15 +1764,15 @@ def create_trip():
 
         participants_json = json.dumps([], ensure_ascii=False)
         cursor.execute(
-            "INSERT INTO Trips (destination, budget, budget_type, is_budget_per_user, budgets_json, owner_id, local_participants, invite_token) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO Groups (destination, budget, budget_type, is_budget_per_user, budgets_json, owner_id, local_participants, invite_token) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             (name, budget, budget_type, is_budget_per_user, global_budgets_json, session['user_id'], participants_json, invite_token)
         )
-        trip_id = cursor.lastrowid
+        group_id = cursor.lastrowid
 
-        # Auto-add the creator as a TripMember AND admin
+        # Auto-add the creator as a GroupMember AND admin
         cursor.execute(
-            "INSERT OR IGNORE INTO TripMembers (trip_id, user_id, is_admin) VALUES (?, ?, 1)",
-            (trip_id, session['user_id'])
+            "INSERT OR IGNORE INTO GroupMembers (group_id, user_id, is_admin) VALUES (?, ?, 1)",
+            (group_id, session['user_id'])
         )
 
         # Process each participant
@@ -1748,8 +1784,8 @@ def create_trip():
                 guest_name = str(p.get('name', '')).strip()
                 if guest_name:
                     cursor.execute(
-                        "INSERT OR IGNORE INTO TripMembers (trip_id, user_id, guest_name, budgets_json) VALUES (?, NULL, ?, ?)",
-                        (trip_id, guest_name, p_budgets)
+                        "INSERT OR IGNORE INTO GroupMembers (group_id, user_id, guest_name, budgets_json) VALUES (?, NULL, ?, ?)",
+                        (group_id, guest_name, p_budgets)
                     )
             elif ptype == 'registered':
                 contact = str(p.get('contact', '')).strip()
@@ -1759,50 +1795,50 @@ def create_trip():
                 found_user = cursor.fetchone()
                 if found_user:
                     cursor.execute(
-                        "INSERT OR IGNORE INTO TripMembers (trip_id, user_id, budgets_json) VALUES (?, ?, ?)",
-                        (trip_id, found_user['id'], p_budgets)
+                        "INSERT OR IGNORE INTO GroupMembers (group_id, user_id, budgets_json) VALUES (?, ?, ?)",
+                        (group_id, found_user['id'], p_budgets)
                     )
                     cursor.execute(
-                        "INSERT INTO trip_invitations (trip_id, inviter_id, invitee_phone_or_email, status) VALUES (?, ?, ?, 'APPROVED')",
-                        (trip_id, session['user_id'], contact)
+                        "INSERT INTO group_invitations (group_id, inviter_id, invitee_phone_or_email, status) VALUES (?, ?, ?, 'APPROVED')",
+                        (group_id, session['user_id'], contact)
                     )
             elif ptype == 'unregistered':
                 contact = str(p.get('contact', '')).strip()
                 if contact:
                     cursor.execute(
-                        "INSERT INTO trip_invitations (trip_id, inviter_id, invitee_phone_or_email, status) VALUES (?, ?, ?, 'PENDING')",
-                        (trip_id, session['user_id'], contact)
+                        "INSERT INTO group_invitations (group_id, inviter_id, invitee_phone_or_email, status) VALUES (?, ?, ?, 'PENDING')",
+                        (group_id, session['user_id'], contact)
                     )
         conn.commit()
-        logger.info(f"Trip created: '{name}' (id={trip_id}) by user {session['user_id']}")
-        return jsonify({"success": True, "trip_id": trip_id, "invite_token": invite_token})
+        logger.info(f"Group created: '{name}' (id={group_id}) by user {session['user_id']}")
+        return jsonify({"success": True, "group_id": group_id, "invite_token": invite_token})
     except sqlite3.Error as e:
-        logger.error(f"Create trip error: {e}")
+        logger.error(f"Create group error: {e}")
         return jsonify({"error": "שגיאה ביצירת הטיול."}), 500
     finally:
         conn.close()
 
 
-@app.route('/api/trips/<int:trip_id>', methods=['GET'])
+@app.route('/api/groups/<int:group_id>', methods=['GET'])
 @login_required
-@require_trip_access
-def get_trip(trip_id):
-    """Get full details for a single trip, including members and budgets."""
+@require_group_access
+def get_group(group_id):
+    """Get full details for a single group, including members and budgets."""
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute("SELECT * FROM Trips WHERE id = ?", (trip_id,))
-        trip = cursor.fetchone()
-        if not trip:
+        cursor.execute("SELECT * FROM Groups WHERE id = ?", (group_id,))
+        group = cursor.fetchone()
+        if not group:
             return jsonify({"error": "טיול לא נמצא."}), 404
 
         # Get members
         cursor.execute("""
             SELECT tm.*, u.name, u.phone, u.email, u.avatar_url 
-            FROM TripMembers tm
+            FROM GroupMembers tm
             LEFT JOIN Users u ON tm.user_id = u.id
-            WHERE tm.trip_id = ?
-        """, (trip_id,))
+            WHERE tm.group_id = ?
+        """, (group_id,))
         members = cursor.fetchall()
         
         participants = []
@@ -1815,12 +1851,12 @@ def get_trip(trip_id):
                 'avatar_url': m['avatar_url'] if 'avatar_url' in m.keys() else None,
                 'type': 'guest' if not m['user_id'] else 'registered',
                 'is_admin': bool(m['is_admin']),
-                'is_owner': m['user_id'] == trip['owner_id'] if m['user_id'] else False,
+                'is_owner': m['user_id'] == group['owner_id'] if m['user_id'] else False,
                 'budgets_json': json.loads(m['budgets_json']) if m['budgets_json'] else {}
             })
 
         # Get pending invitations
-        cursor.execute("SELECT invitee_phone_or_email FROM trip_invitations WHERE trip_id = ? AND status = 'PENDING'", (trip_id,))
+        cursor.execute("SELECT invitee_phone_or_email FROM group_invitations WHERE group_id = ? AND status = 'PENDING'", (group_id,))
         pending_invites = cursor.fetchall()
         for p in pending_invites:
             participants.append({
@@ -1831,50 +1867,50 @@ def get_trip(trip_id):
                 'budgets_json': {}
             })
 
-        cursor.execute("SELECT COALESCE(is_left, 0) FROM TripMembers WHERE trip_id = ? AND user_id = ?", (trip_id, session['user_id']))
+        cursor.execute("SELECT COALESCE(is_left, 0) FROM GroupMembers WHERE group_id = ? AND user_id = ?", (group_id, session['user_id']))
         row = cursor.fetchone()
         is_readonly = bool(row[0]) if row else False
 
         return jsonify({
-            'id': trip['id'],
-            'name': trip['destination'],
-            'image_url': trip['image_url'] if 'image_url' in trip.keys() else None,
-            'budget': trip['budget'],
-            'budget_type': trip['budget_type'] or 'none',
-            'is_budget_per_user': bool(trip['is_budget_per_user']),
-            'budgets_json': json.loads(trip['budgets_json']) if trip['budgets_json'] else {},
-            'user_budgets': json.loads(trip['user_budgets']) if trip.keys() and 'user_budgets' in trip.keys() and trip['user_budgets'] else {},
-            'is_owner': trip['owner_id'] == session['user_id'],
-            'invite_token': trip['invite_token'],
-            'is_public_expenses': bool(trip['is_public_expenses']) if 'is_public_expenses' in trip.keys() else False,
-            'allow_member_delete': bool(trip['allow_member_delete']) if 'allow_member_delete' in trip.keys() else True,
+            'id': group['id'],
+            'name': group['destination'],
+            'image_url': group['image_url'] if 'image_url' in group.keys() else None,
+            'budget': group['budget'],
+            'budget_type': group['budget_type'] or 'none',
+            'is_budget_per_user': bool(group['is_budget_per_user']),
+            'budgets_json': json.loads(group['budgets_json']) if group['budgets_json'] else {},
+            'user_budgets': json.loads(group['user_budgets']) if group.keys() and 'user_budgets' in group.keys() and group['user_budgets'] else {},
+            'is_owner': group['owner_id'] == session['user_id'],
+            'invite_token': group['invite_token'],
+            'is_public_expenses': bool(group['is_public_expenses']) if 'is_public_expenses' in group.keys() else False,
+            'allow_member_delete': bool(group['allow_member_delete']) if 'allow_member_delete' in group.keys() else True,
             'participants': participants,
             'is_readonly': is_readonly
         })
     except sqlite3.Error as e:
-        logger.error(f"Get trip error: {e}")
+        logger.error(f"Get group error: {e}")
         return jsonify({"error": "שגיאה בטעינת הטיול."}), 500
     finally:
         conn.close()
 
 
-@app.route('/api/trips/<int:trip_id>', methods=['PUT'])
+@app.route('/api/groups/<int:group_id>', methods=['PUT'])
 @login_required
-@require_trip_access
-def update_trip(trip_id):
-    """Update trip details. The trip owner or any group admin can edit."""
+@require_group_access
+def update_group(group_id):
+    """Update group details. The group owner or any group admin can edit."""
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
         # Verify the caller is the owner OR a group admin (the edit modal is shown
         # to admins, so admins must be able to save — not just the owner).
-        cursor.execute("SELECT owner_id FROM Trips WHERE id = ?", (trip_id,))
-        trip = cursor.fetchone()
-        if not trip:
+        cursor.execute("SELECT owner_id FROM Groups WHERE id = ?", (group_id,))
+        group = cursor.fetchone()
+        if not group:
             return jsonify({"error": "טיול לא נמצא."}), 404
-        is_owner = trip['owner_id'] == session['user_id']
-        cursor.execute("SELECT COALESCE(is_admin, 0) AS is_admin FROM TripMembers WHERE trip_id = ? AND user_id = ?",
-                       (trip_id, session['user_id']))
+        is_owner = group['owner_id'] == session['user_id']
+        cursor.execute("SELECT COALESCE(is_admin, 0) AS is_admin FROM GroupMembers WHERE group_id = ? AND user_id = ?",
+                       (group_id, session['user_id']))
         _m = cursor.fetchone()
         is_admin = bool(_m and _m['is_admin'])
         if not (is_owner or is_admin):
@@ -1953,11 +1989,11 @@ def update_trip(trip_id):
                     guest_name = str(p.get('name', '')).strip()
                     if guest_name:
                         cursor.execute(
-                            "INSERT OR IGNORE INTO TripMembers (trip_id, user_id, guest_name, budgets_json) VALUES (?, NULL, ?, ?)",
-                            (trip_id, guest_name, p_budgets)
+                            "INSERT OR IGNORE INTO GroupMembers (group_id, user_id, guest_name, budgets_json) VALUES (?, NULL, ?, ?)",
+                            (group_id, guest_name, p_budgets)
                         )
                         # Ensure budgets_json is updated if it already existed
-                        cursor.execute("UPDATE TripMembers SET budgets_json = ? WHERE trip_id = ? AND guest_name = ?", (p_budgets, trip_id, guest_name))
+                        cursor.execute("UPDATE GroupMembers SET budgets_json = ? WHERE group_id = ? AND guest_name = ?", (p_budgets, group_id, guest_name))
                 elif ptype == 'registered':
                     contact = str(p.get('contact', '')).strip()
                     if not contact:
@@ -1967,45 +2003,45 @@ def update_trip(trip_id):
                     if not user:
                         continue  # Skip unregistered — don't block
                     cursor.execute(
-                        "INSERT OR IGNORE INTO TripMembers (trip_id, user_id, budgets_json) VALUES (?, ?, ?)",
-                        (trip_id, user['id'], p_budgets)
+                        "INSERT OR IGNORE INTO GroupMembers (group_id, user_id, budgets_json) VALUES (?, ?, ?)",
+                        (group_id, user['id'], p_budgets)
                     )
-                    cursor.execute("UPDATE TripMembers SET budgets_json = ? WHERE trip_id = ? AND user_id = ?", (p_budgets, trip_id, user['id']))
+                    cursor.execute("UPDATE GroupMembers SET budgets_json = ? WHERE group_id = ? AND user_id = ?", (p_budgets, group_id, user['id']))
                     
-                    cursor.execute("SELECT 1 FROM trip_invitations WHERE trip_id = ? AND invitee_phone_or_email = ?", (trip_id, contact))
+                    cursor.execute("SELECT 1 FROM group_invitations WHERE group_id = ? AND invitee_phone_or_email = ?", (group_id, contact))
                     if not cursor.fetchone():
                         cursor.execute(
-                            "INSERT INTO trip_invitations (trip_id, inviter_id, invitee_phone_or_email, status) VALUES (?, ?, ?, 'APPROVED')",
-                            (trip_id, session['user_id'], contact)
+                            "INSERT INTO group_invitations (group_id, inviter_id, invitee_phone_or_email, status) VALUES (?, ?, ?, 'APPROVED')",
+                            (group_id, session['user_id'], contact)
                         )
 
         if updates:
-            params.append(trip_id)
-            cursor.execute(f"UPDATE Trips SET {', '.join(updates)} WHERE id = ?", params)
+            params.append(group_id)
+            cursor.execute(f"UPDATE Groups SET {', '.join(updates)} WHERE id = ?", params)
             
         conn.commit()
-        logger.info(f"Trip updated/invites sent: id={trip_id} by user {session['user_id']}")
+        logger.info(f"Group updated/invites sent: id={group_id} by user {session['user_id']}")
         return jsonify({"success": True})
     except sqlite3.Error as e:
-        logger.error(f"Update trip error: {e}")
+        logger.error(f"Update group error: {e}")
         return jsonify({"error": "שגיאה בעדכון הטיול."}), 500
     finally:
         conn.close()
 
 
-@app.route('/api/trip_members/<int:trip_id>', methods=['GET'])
+@app.route('/api/group_members/<int:group_id>', methods=['GET'])
 @login_required
-@require_trip_access
-def get_trip_members(trip_id):
+@require_group_access
+def get_group_members(group_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     # Registered users (include avatar_url, phone, email, budgets_json)
     cursor.execute("""
         SELECT u.id, u.name, u.phone, u.email, u.avatar_url, COALESCE(tm.is_admin, 0) as is_admin, tm.budgets_json
         FROM Users u
-        JOIN TripMembers tm ON u.id = tm.user_id
-        WHERE tm.trip_id = ? AND tm.user_id IS NOT NULL
-    """, (trip_id,))
+        JOIN GroupMembers tm ON u.id = tm.user_id
+        WHERE tm.group_id = ? AND tm.user_id IS NOT NULL
+    """, (group_id,))
     registered = [{
         'id': m['id'], 'name': m['name'], 'type': 'user',
         'contact': m['email'] or m['phone'] or '',
@@ -2016,9 +2052,9 @@ def get_trip_members(trip_id):
 
     # Guest (virtual) members
     cursor.execute("""
-        SELECT guest_name, budgets_json FROM TripMembers
-        WHERE trip_id = ? AND user_id IS NULL AND guest_name IS NOT NULL
-    """, (trip_id,))
+        SELECT guest_name, budgets_json FROM GroupMembers
+        WHERE group_id = ? AND user_id IS NULL AND guest_name IS NOT NULL
+    """, (group_id,))
     guests = [{
         'id': f'guest_{i}', 'name': g['guest_name'], 'type': 'guest', 'contact': g['guest_name'],
         'avatar_url': None,
@@ -2026,14 +2062,14 @@ def get_trip_members(trip_id):
     } for i, g in enumerate(cursor.fetchall())]
 
     # Pending invitations
-    cursor.execute("SELECT invitee_phone_or_email FROM trip_invitations WHERE trip_id = ? AND status = 'PENDING'", (trip_id,))
+    cursor.execute("SELECT invitee_phone_or_email FROM group_invitations WHERE group_id = ? AND status = 'PENDING'", (group_id,))
     pending = [{
         'id': f'pending_{i}', 'name': p['invitee_phone_or_email'], 'contact': p['invitee_phone_or_email'],
         'type': 'pending', 'avatar_url': None, 'is_admin': False, 'budgets_json': {}
     } for i, p in enumerate(cursor.fetchall())]
 
     # Local participants (Legacy support)
-    cursor.execute("SELECT local_participants FROM Trips WHERE id = ?", (trip_id,))
+    cursor.execute("SELECT local_participants FROM Groups WHERE id = ?", (group_id,))
     row = cursor.fetchone()
     conn.close()
     local = []
@@ -2042,124 +2078,124 @@ def get_trip_members(trip_id):
             names = json.loads(row['local_participants'])
             local = [{'id': f'local_{i}', 'name': n, 'type': 'local', 'avatar_url': None} for i, n in enumerate(names)]
         except (json.JSONDecodeError, TypeError):
-            logger.warning(f"Invalid local_participants JSON for trip {trip_id}")
+            logger.warning(f"Invalid local_participants JSON for group {group_id}")
     return jsonify(registered + guests + pending + local)
 
 
 # =====================
-#   TRIP SETTINGS & ADMIN
+#   GROUP SETTINGS & ADMIN
 # =====================
 
-@app.route('/api/trips/<int:trip_id>/settings', methods=['GET'])
+@app.route('/api/groups/<int:group_id>/settings', methods=['GET'])
 @login_required
-@require_trip_access
-def get_trip_settings(trip_id):
+@require_group_access
+def get_group_settings(group_id):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT COALESCE(is_public_expenses, 0) as is_public_expenses, COALESCE(allow_member_delete, 1) as allow_member_delete FROM Trips WHERE id = ?", (trip_id,))
-    trip = cursor.fetchone()
-    cursor.execute("SELECT COALESCE(is_admin, 0) as is_admin FROM TripMembers WHERE trip_id = ? AND user_id = ?",
-                   (trip_id, session['user_id']))
+    cursor.execute("SELECT COALESCE(is_public_expenses, 0) as is_public_expenses, COALESCE(allow_member_delete, 1) as allow_member_delete FROM Groups WHERE id = ?", (group_id,))
+    group = cursor.fetchone()
+    cursor.execute("SELECT COALESCE(is_admin, 0) as is_admin FROM GroupMembers WHERE group_id = ? AND user_id = ?",
+                   (group_id, session['user_id']))
     member = cursor.fetchone()
     conn.close()
     return jsonify({
-        'is_public_expenses': bool(trip['is_public_expenses']) if trip else False,
-        'allow_member_delete': bool(trip['allow_member_delete']) if trip else True,
+        'is_public_expenses': bool(group['is_public_expenses']) if group else False,
+        'allow_member_delete': bool(group['allow_member_delete']) if group else True,
         'is_admin': bool(member['is_admin']) if member else False
     })
 
 
-@app.route('/api/trips/<int:trip_id>/settings', methods=['PUT'])
+@app.route('/api/groups/<int:group_id>/settings', methods=['PUT'])
 @login_required
-@require_trip_access
-def update_trip_settings(trip_id):
+@require_group_access
+def update_group_settings(group_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     # Check admin
-    cursor.execute("SELECT COALESCE(is_admin, 0) as is_admin FROM TripMembers WHERE trip_id = ? AND user_id = ?",
-                   (trip_id, session['user_id']))
+    cursor.execute("SELECT COALESCE(is_admin, 0) as is_admin FROM GroupMembers WHERE group_id = ? AND user_id = ?",
+                   (group_id, session['user_id']))
     member = cursor.fetchone()
     if not member or not member['is_admin']:
         conn.close()
-        return jsonify({"error": "Only admins can change trip settings."}), 403
+        return jsonify({"error": "Only admins can change group settings."}), 403
 
     data = request.json or {}
     if 'is_public_expenses' in data:
         val = 1 if data['is_public_expenses'] else 0
-        cursor.execute("UPDATE Trips SET is_public_expenses = ? WHERE id = ?", (val, trip_id))
+        cursor.execute("UPDATE Groups SET is_public_expenses = ? WHERE id = ?", (val, group_id))
     if 'allow_member_delete' in data:
         val = 1 if data['allow_member_delete'] else 0
-        cursor.execute("UPDATE Trips SET allow_member_delete = ? WHERE id = ?", (val, trip_id))
+        cursor.execute("UPDATE Groups SET allow_member_delete = ? WHERE id = ?", (val, group_id))
     conn.commit()
     conn.close()
     return jsonify({"success": True})
 
-@app.route('/api/trips/<int:trip_id>/leave', methods=['POST'])
+@app.route('/api/groups/<int:group_id>/leave', methods=['POST'])
 @login_required
-@require_trip_access
-def leave_trip(trip_id):
-    """Leave a trip (becomes read-only). If owner leaves, assign new owner."""
+@require_group_access
+def leave_group(group_id):
+    """Leave a group (becomes read-only). If owner leaves, assign new owner."""
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
         user_id = session['user_id']
-        cursor.execute("UPDATE TripMembers SET is_left = 1 WHERE trip_id = ? AND user_id = ?", (trip_id, user_id))
+        cursor.execute("UPDATE GroupMembers SET is_left = 1 WHERE group_id = ? AND user_id = ?", (group_id, user_id))
         
         # Check if user was the owner
-        cursor.execute("SELECT owner_id FROM Trips WHERE id = ?", (trip_id,))
-        trip = cursor.fetchone()
-        if trip and trip['owner_id'] == user_id:
+        cursor.execute("SELECT owner_id FROM Groups WHERE id = ?", (group_id,))
+        group = cursor.fetchone()
+        if group and group['owner_id'] == user_id:
             # Reassign owner
             cursor.execute("""
-                SELECT user_id FROM TripMembers 
-                WHERE trip_id = ? AND user_id != ? AND user_id IS NOT NULL AND is_left = 0
+                SELECT user_id FROM GroupMembers 
+                WHERE group_id = ? AND user_id != ? AND user_id IS NOT NULL AND is_left = 0
                 ORDER BY id ASC LIMIT 1
-            """, (trip_id, user_id))
+            """, (group_id, user_id))
             next_owner = cursor.fetchone()
             if next_owner:
                 new_owner_id = next_owner['user_id']
-                cursor.execute("UPDATE Trips SET owner_id = ? WHERE id = ?", (new_owner_id, trip_id))
-                cursor.execute("UPDATE TripMembers SET is_admin = 1 WHERE trip_id = ? AND user_id = ?", (trip_id, new_owner_id))
-                logger.info(f"Trip {trip_id} owner reassigned to {new_owner_id} because {user_id} left.")
+                cursor.execute("UPDATE Groups SET owner_id = ? WHERE id = ?", (new_owner_id, group_id))
+                cursor.execute("UPDATE GroupMembers SET is_admin = 1 WHERE group_id = ? AND user_id = ?", (group_id, new_owner_id))
+                logger.info(f"Group {group_id} owner reassigned to {new_owner_id} because {user_id} left.")
         conn.commit()
         return jsonify({"success": True})
     except sqlite3.Error as e:
-        logger.error(f"Error leaving trip: {e}")
+        logger.error(f"Error leaving group: {e}")
         return jsonify({"error": "שגיאה בעזיבת הקבוצה."}), 500
     finally:
         conn.close()
 
-@app.route('/api/trips/<int:trip_id>/hide', methods=['POST'])
+@app.route('/api/groups/<int:group_id>/hide', methods=['POST'])
 @login_required
-@require_trip_access
-def hide_trip(trip_id):
-    """Hide a trip from the dashboard."""
+@require_group_access
+def hide_group(group_id):
+    """Hide a group from the dashboard."""
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute("UPDATE TripMembers SET is_hidden = 1 WHERE trip_id = ? AND user_id = ?", (trip_id, session['user_id']))
+        cursor.execute("UPDATE GroupMembers SET is_hidden = 1 WHERE group_id = ? AND user_id = ?", (group_id, session['user_id']))
         conn.commit()
         return jsonify({"success": True})
     except sqlite3.Error as e:
-        logger.error(f"Error hiding trip: {e}")
+        logger.error(f"Error hiding group: {e}")
         return jsonify({"error": "שגיאה במחיקת הקבוצה מהרשימה."}), 500
     finally:
         conn.close()
 
 
-@app.route('/api/trips/<int:trip_id>/upload-avatar', methods=['POST'])
+@app.route('/api/groups/<int:group_id>/upload-avatar', methods=['POST'])
 @login_required
-@require_trip_access
-def upload_trip_avatar(trip_id):
+@require_group_access
+def upload_group_avatar(group_id):
     conn = get_db_connection()
     cursor = conn.cursor()
-    # Only admins can change trip picture
-    cursor.execute("SELECT COALESCE(is_admin, 0) as is_admin FROM TripMembers WHERE trip_id = ? AND user_id = ?",
-                   (trip_id, session['user_id']))
+    # Only admins can change group picture
+    cursor.execute("SELECT COALESCE(is_admin, 0) as is_admin FROM GroupMembers WHERE group_id = ? AND user_id = ?",
+                   (group_id, session['user_id']))
     member = cursor.fetchone()
     if not member or not member['is_admin']:
         conn.close()
-        return jsonify({"error": "Only admins can change trip picture."}), 403
+        return jsonify({"error": "Only admins can change group picture."}), 403
 
     if 'avatar' not in request.files:
         conn.close()
@@ -2176,18 +2212,18 @@ def upload_trip_avatar(trip_id):
             return jsonify({"error": "Invalid file type"}), 400
             
         import secrets
-        filename = f"trip_{trip_id}_{secrets.token_hex(4)}.{ext}"
+        filename = f"group_{group_id}_{secrets.token_hex(4)}.{ext}"
         filepath = os.path.join(UPLOAD_FOLDER, filename)
         file.save(filepath)
         
         avatar_url = f"/static/avatars/{filename}"
         
         try:
-            cursor.execute("UPDATE Trips SET image_url = ? WHERE id = ?", (avatar_url, trip_id))
+            cursor.execute("UPDATE Groups SET image_url = ? WHERE id = ?", (avatar_url, group_id))
             conn.commit()
             return jsonify({"success": True, "avatar_url": avatar_url})
         except sqlite3.Error as e:
-            logger.error(f"Trip Avatar upload error: {e}")
+            logger.error(f"Group Avatar upload error: {e}")
             return jsonify({"error": "Database error"}), 500
         finally:
             conn.close()
@@ -2195,40 +2231,40 @@ def upload_trip_avatar(trip_id):
     return jsonify({"error": "Unknown error"}), 400
 
 
-@app.route('/api/trips/<int:trip_id>/members/<int:member_id>/promote', methods=['PUT'])
+@app.route('/api/groups/<int:group_id>/members/<int:member_id>/promote', methods=['PUT'])
 @login_required
-@require_trip_access
-def promote_member(trip_id, member_id):
+@require_group_access
+def promote_member(group_id, member_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     # Check caller is admin
-    cursor.execute("SELECT COALESCE(is_admin, 0) as is_admin FROM TripMembers WHERE trip_id = ? AND user_id = ?",
-                   (trip_id, session['user_id']))
+    cursor.execute("SELECT COALESCE(is_admin, 0) as is_admin FROM GroupMembers WHERE group_id = ? AND user_id = ?",
+                   (group_id, session['user_id']))
     caller = cursor.fetchone()
     if not caller or not caller['is_admin']:
         conn.close()
         return jsonify({"error": "Only admins can promote members."}), 403
 
-    cursor.execute("UPDATE TripMembers SET is_admin = 1 WHERE trip_id = ? AND user_id = ?",
-                   (trip_id, member_id))
+    cursor.execute("UPDATE GroupMembers SET is_admin = 1 WHERE group_id = ? AND user_id = ?",
+                   (group_id, member_id))
     if cursor.rowcount == 0:
         conn.close()
         return jsonify({"error": "Member not found."}), 404
     conn.commit()
     conn.close()
-    logger.info(f"User {session['user_id']} promoted {member_id} to admin in trip {trip_id}")
+    logger.info(f"User {session['user_id']} promoted {member_id} to admin in group {group_id}")
     return jsonify({"success": True})
 
 
-@app.route('/api/trips/<int:trip_id>/demote/<int:member_id>', methods=['POST'])
+@app.route('/api/groups/<int:group_id>/demote/<int:member_id>', methods=['POST'])
 @login_required
-@require_trip_access
-def demote_member(trip_id, member_id):
+@require_group_access
+def demote_member(group_id, member_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     # Check caller is admin
-    cursor.execute("SELECT COALESCE(is_admin, 0) as is_admin FROM TripMembers WHERE trip_id = ? AND user_id = ?",
-                   (trip_id, session['user_id']))
+    cursor.execute("SELECT COALESCE(is_admin, 0) as is_admin FROM GroupMembers WHERE group_id = ? AND user_id = ?",
+                   (group_id, session['user_id']))
     caller = cursor.fetchone()
     if not caller or not caller['is_admin']:
         conn.close()
@@ -2236,41 +2272,41 @@ def demote_member(trip_id, member_id):
 
     # Cannot demote yourself if you are the last admin
     if member_id == session['user_id']:
-        cursor.execute("SELECT COUNT(*) as cnt FROM TripMembers WHERE trip_id = ? AND COALESCE(is_admin, 0) = 1",
-                       (trip_id,))
+        cursor.execute("SELECT COUNT(*) as cnt FROM GroupMembers WHERE group_id = ? AND COALESCE(is_admin, 0) = 1",
+                       (group_id,))
         admin_count = cursor.fetchone()['cnt']
         if admin_count <= 1:
             conn.close()
             return jsonify({"error": "Cannot demote — you are the last admin."}), 400
 
-    cursor.execute("UPDATE TripMembers SET is_admin = 0 WHERE trip_id = ? AND user_id = ?",
-                   (trip_id, member_id))
+    cursor.execute("UPDATE GroupMembers SET is_admin = 0 WHERE group_id = ? AND user_id = ?",
+                   (group_id, member_id))
     if cursor.rowcount == 0:
         conn.close()
         return jsonify({"error": "Member not found."}), 404
     conn.commit()
     conn.close()
-    logger.info(f"User {session['user_id']} demoted {member_id} from admin in trip {trip_id}")
+    logger.info(f"User {session['user_id']} demoted {member_id} from admin in group {group_id}")
     return jsonify({"success": True})
 
 
-@app.route('/api/trips/<int:trip_id>/members/<contact>', methods=['DELETE'])
+@app.route('/api/groups/<int:group_id>/members/<contact>', methods=['DELETE'])
 @login_required
-@require_trip_access
-def remove_member(trip_id, contact):
+@require_group_access
+def remove_member(group_id, contact):
     conn = get_db_connection()
     cursor = conn.cursor()
     # Check caller is admin
-    cursor.execute("SELECT COALESCE(is_admin, 0) as is_admin, user_id FROM TripMembers WHERE trip_id = ? AND user_id = ?",
-                   (trip_id, session['user_id']))
+    cursor.execute("SELECT COALESCE(is_admin, 0) as is_admin, user_id FROM GroupMembers WHERE group_id = ? AND user_id = ?",
+                   (group_id, session['user_id']))
     caller = cursor.fetchone()
     if not caller or not caller['is_admin']:
         conn.close()
         return jsonify({"error": "Only admins can remove members."}), 403
 
     # Check if removing the owner
-    cursor.execute("SELECT owner_id FROM Trips WHERE id = ?", (trip_id,))
-    trip = cursor.fetchone()
+    cursor.execute("SELECT owner_id FROM Groups WHERE id = ?", (group_id,))
+    group = cursor.fetchone()
     
     # Resolve contact to user_id if it's a registered user
     cursor.execute("SELECT id FROM Users WHERE phone = ? OR email = ?", (contact, contact))
@@ -2278,19 +2314,19 @@ def remove_member(trip_id, contact):
     
     if user:
         member_id = user['id']
-        if trip and trip['owner_id'] == member_id:
+        if group and group['owner_id'] == member_id:
             conn.close()
             return jsonify({"error": "Cannot remove the creator of the group."}), 403
         
-        cursor.execute("DELETE FROM TripMembers WHERE trip_id = ? AND user_id = ?", (trip_id, member_id))
+        cursor.execute("DELETE FROM GroupMembers WHERE group_id = ? AND user_id = ?", (group_id, member_id))
         deleted_count = cursor.rowcount
-        cursor.execute("DELETE FROM trip_invitations WHERE trip_id = ? AND invitee_phone_or_email = ?", (trip_id, contact))
+        cursor.execute("DELETE FROM group_invitations WHERE group_id = ? AND invitee_phone_or_email = ?", (group_id, contact))
         deleted_count += cursor.rowcount
     else:
         # Might be a guest name or a pending invite for unregistered contact
-        cursor.execute("DELETE FROM TripMembers WHERE trip_id = ? AND user_id IS NULL AND guest_name = ?", (trip_id, contact))
+        cursor.execute("DELETE FROM GroupMembers WHERE group_id = ? AND user_id IS NULL AND guest_name = ?", (group_id, contact))
         deleted_count = cursor.rowcount
-        cursor.execute("DELETE FROM trip_invitations WHERE trip_id = ? AND invitee_phone_or_email = ?", (trip_id, contact))
+        cursor.execute("DELETE FROM group_invitations WHERE group_id = ? AND invitee_phone_or_email = ?", (group_id, contact))
         deleted_count += cursor.rowcount
 
     if deleted_count == 0:
@@ -2299,82 +2335,82 @@ def remove_member(trip_id, contact):
         
     conn.commit()
     conn.close()
-    logger.info(f"User {session['user_id']} removed {contact} from trip {trip_id}")
+    logger.info(f"User {session['user_id']} removed {contact} from group {group_id}")
     return jsonify({"success": True})
 
 
-@app.route('/api/trips/<int:trip_id>/invite-link', methods=['POST'])
+@app.route('/api/groups/<int:group_id>/invite-link', methods=['POST'])
 @login_required
-@require_trip_access
-def generate_invite_link(trip_id):
-    """Generate (or regenerate) a unique invite token for the trip."""
+@require_group_access
+def generate_invite_link(group_id):
+    """Generate (or regenerate) a unique invite token for the group."""
     import uuid
     conn = get_db_connection()
     cursor = conn.cursor()
     # Only admins can generate invite links
-    cursor.execute("SELECT COALESCE(is_admin, 0) as is_admin FROM TripMembers WHERE trip_id = ? AND user_id = ?",
-                   (trip_id, session['user_id']))
+    cursor.execute("SELECT COALESCE(is_admin, 0) as is_admin FROM GroupMembers WHERE group_id = ? AND user_id = ?",
+                   (group_id, session['user_id']))
     caller = cursor.fetchone()
     if not caller or not caller['is_admin']:
         conn.close()
         return jsonify({"error": "Only admins can generate invite links."}), 403
 
     token = uuid.uuid4().hex[:12]
-    cursor.execute("UPDATE Trips SET invite_token = ? WHERE id = ?", (token, trip_id))
+    cursor.execute("UPDATE Groups SET invite_token = ? WHERE id = ?", (token, group_id))
     conn.commit()
     conn.close()
-    logger.info(f"User {session['user_id']} generated invite link for trip {trip_id}")
+    logger.info(f"User {session['user_id']} generated invite link for group {group_id}")
     return jsonify({"success": True, "invite_token": token})
 
 
-@app.route('/api/trips/<int:trip_id>/invite-link', methods=['GET'])
+@app.route('/api/groups/<int:group_id>/invite-link', methods=['GET'])
 @login_required
-@require_trip_access
-def get_invite_link(trip_id):
-    """Get the current invite token for the trip."""
+@require_group_access
+def get_invite_link(group_id):
+    """Get the current invite token for the group."""
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT invite_token FROM Trips WHERE id = ?", (trip_id,))
-    trip = cursor.fetchone()
+    cursor.execute("SELECT invite_token FROM Groups WHERE id = ?", (group_id,))
+    group = cursor.fetchone()
     conn.close()
-    token = trip['invite_token'] if trip and trip['invite_token'] else None
+    token = group['invite_token'] if group and group['invite_token'] else None
     return jsonify({"invite_token": token})
 
 
 @app.route('/api/join/<token>', methods=['POST'])
 @login_required
 def join_via_invite(token):
-    """Join a trip via invite link token."""
+    """Join a group via invite link token."""
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, destination FROM Trips WHERE invite_token = ?", (token,))
-    trip = cursor.fetchone()
-    if not trip:
+    cursor.execute("SELECT id, destination FROM Groups WHERE invite_token = ?", (token,))
+    group = cursor.fetchone()
+    if not group:
         conn.close()
         return jsonify({"error": "Invalid or expired invite link."}), 404
 
-    trip_id = trip['id']
+    group_id = group['id']
     # Check if already a member
-    cursor.execute("SELECT 1 FROM TripMembers WHERE trip_id = ? AND user_id = ?",
-                   (trip_id, session['user_id']))
+    cursor.execute("SELECT 1 FROM GroupMembers WHERE group_id = ? AND user_id = ?",
+                   (group_id, session['user_id']))
     if cursor.fetchone():
         conn.close()
-        return jsonify({"success": True, "trip_id": trip_id, "message": "Already a member."})
+        return jsonify({"success": True, "group_id": group_id, "message": "Already a member."})
 
-    cursor.execute("INSERT INTO TripMembers (trip_id, user_id, is_admin) VALUES (?, ?, 0)",
-                   (trip_id, session['user_id']))
+    cursor.execute("INSERT INTO GroupMembers (group_id, user_id, is_admin) VALUES (?, ?, 0)",
+                   (group_id, session['user_id']))
     
-    # Flip status from Pending to Member in trip_invitations
+    # Flip status from Pending to Member in group_invitations
     cursor.execute("""
-        UPDATE trip_invitations 
+        UPDATE group_invitations 
         SET status = 'APPROVED' 
-        WHERE trip_id = ? AND invitee_phone_or_email IN (SELECT phone FROM Users WHERE id = ? UNION SELECT email FROM Users WHERE id = ?)
-    """, (trip_id, session['user_id'], session['user_id']))
+        WHERE group_id = ? AND invitee_phone_or_email IN (SELECT phone FROM Users WHERE id = ? UNION SELECT email FROM Users WHERE id = ?)
+    """, (group_id, session['user_id'], session['user_id']))
 
     conn.commit()
     conn.close()
-    logger.info(f"User {session['user_id']} joined trip {trip_id} via invite link")
-    return jsonify({"success": True, "trip_id": trip_id})
+    logger.info(f"User {session['user_id']} joined group {group_id} via invite link")
+    return jsonify({"success": True, "group_id": group_id})
 
 
 @app.route('/join/<token>')
@@ -2383,68 +2419,6 @@ def join_invite_page(token):
     if 'user_id' not in session:
         return redirect(f'/?invite={token}')
     return redirect(f'/app?invite={token}')
-
-
-@app.route('/api/trips/<int:trip_id>/leave', methods=['POST'])
-@login_required
-@require_trip_access
-def leave_group(trip_id):
-    """Remove the current user from a group. Handle admin succession and group deletion."""
-    uid = session['user_id']
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    try:
-        # Check if user is a member
-        cursor.execute("SELECT id, COALESCE(is_admin, 0) as is_admin FROM TripMembers WHERE trip_id = ? AND user_id = ?",
-                       (trip_id, uid))
-        member = cursor.fetchone()
-        if not member:
-            conn.close()
-            return jsonify({"error": "You are not a member of this group."}), 404
-
-        was_admin = bool(member['is_admin'])
-
-        # Remove the user
-        cursor.execute("DELETE FROM TripMembers WHERE trip_id = ? AND user_id = ?", (trip_id, uid))
-
-        # Check remaining members
-        cursor.execute("SELECT id, user_id FROM TripMembers WHERE trip_id = ? AND user_id IS NOT NULL ORDER BY id ASC", (trip_id,))
-        remaining = cursor.fetchall()
-
-        if len(remaining) == 0:
-            # Last member left — delete the entire group cascade
-            cursor.execute("DELETE FROM ExpenseSplits WHERE expense_id IN (SELECT id FROM Expenses WHERE trip_id = ?)", (trip_id,))
-            cursor.execute("DELETE FROM Expenses WHERE trip_id = ?", (trip_id,))
-            cursor.execute("DELETE FROM Settlements WHERE trip_id = ?", (trip_id,))
-            cursor.execute("DELETE FROM ActivityLog WHERE trip_id = ?", (trip_id,))
-            cursor.execute("DELETE FROM trip_invitations WHERE trip_id = ?", (trip_id,))
-            cursor.execute("DELETE FROM TripMembers WHERE trip_id = ?", (trip_id,))  # guests too
-            cursor.execute("DELETE FROM Trips WHERE id = ?", (trip_id,))
-            conn.commit()
-            logger.info(f"User {uid} left trip {trip_id} — last member, group deleted.")
-            return jsonify({"success": True, "deleted": True})
-
-        # If leaver was admin, promote the oldest remaining member
-        if was_admin:
-            # Check if there's already another admin
-            cursor.execute("SELECT 1 FROM TripMembers WHERE trip_id = ? AND user_id IS NOT NULL AND is_admin = 1", (trip_id,))
-            if not cursor.fetchone():
-                # No other admin — promote oldest
-                new_admin_id = remaining[0]['user_id']
-                cursor.execute("UPDATE TripMembers SET is_admin = 1 WHERE trip_id = ? AND user_id = ?",
-                               (trip_id, new_admin_id))
-                logger.info(f"Auto-promoted user {new_admin_id} to admin in trip {trip_id}")
-
-        conn.commit()
-        logger.info(f"User {uid} left trip {trip_id}.")
-        return jsonify({"success": True, "deleted": False})
-
-    except sqlite3.Error as e:
-        logger.error(f"Leave group error: {e}")
-        return jsonify({"error": "Failed to leave group."}), 500
-    finally:
-        conn.close()
 
 
 # =====================
@@ -2464,9 +2438,9 @@ def get_invitations():
 
     # Fetch pending invitations matching email or phone
     cursor.execute("""
-        SELECT i.id, i.trip_id, t.destination as trip_name, u.name as inviter_name
-        FROM trip_invitations i
-        JOIN Trips t ON i.trip_id = t.id
+        SELECT i.id, i.group_id, t.destination as group_name, u.name as inviter_name
+        FROM group_invitations i
+        JOIN Groups t ON i.group_id = t.id
         JOIN Users u ON i.inviter_id = u.id
         WHERE i.status = 'PENDING' AND (i.invitee_phone_or_email = ? OR i.invitee_phone_or_email = ?)
     """, (user['email'], user['phone']))
@@ -2490,8 +2464,8 @@ def respond_invitation(invitation_id):
         user = cursor.fetchone()
 
         cursor.execute("""
-            SELECT id, trip_id, invitee_phone_or_email, status
-            FROM trip_invitations
+            SELECT id, group_id, invitee_phone_or_email, status
+            FROM group_invitations
             WHERE id = ?
         """, (invitation_id,))
         invitation = cursor.fetchone()
@@ -2507,12 +2481,12 @@ def respond_invitation(invitation_id):
             return jsonify({"error": "Invitation already processed."}), 400
 
         new_status = 'APPROVED' if action == 'approve' else 'REJECTED'
-        cursor.execute("UPDATE trip_invitations SET status = ? WHERE id = ?", (new_status, invitation_id))
+        cursor.execute("UPDATE group_invitations SET status = ? WHERE id = ?", (new_status, invitation_id))
 
         if action == 'approve':
             cursor.execute(
-                "INSERT OR IGNORE INTO TripMembers (trip_id, user_id) VALUES (?, ?)",
-                (invitation['trip_id'], session['user_id'])
+                "INSERT OR IGNORE INTO GroupMembers (group_id, user_id) VALUES (?, ?)",
+                (invitation['group_id'], session['user_id'])
             )
             
         conn.commit()
@@ -2525,10 +2499,10 @@ def respond_invitation(invitation_id):
         conn.close()
 
 
-@app.route('/api/trips/<int:trip_id>/invite-email', methods=['POST'])
+@app.route('/api/groups/<int:group_id>/invite-email', methods=['POST'])
 @login_required
-@require_trip_access
-def invite_by_email(trip_id):
+@require_group_access
+def invite_by_email(group_id):
     """Send an email invitation to join a group."""
     data = request.json or {}
     invite_name = (data.get('name') or '').strip()
@@ -2540,23 +2514,23 @@ def invite_by_email(trip_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        # Get trip info
-        cursor.execute("SELECT destination, invite_token FROM Trips WHERE id = ?", (trip_id,))
-        trip = cursor.fetchone()
-        if not trip:
+        # Get group info
+        cursor.execute("SELECT destination, invite_token FROM Groups WHERE id = ?", (group_id,))
+        group = cursor.fetchone()
+        if not group:
             return jsonify({"error": "Group not found."}), 404
 
         # Ensure invite token exists
-        invite_token = trip['invite_token']
+        invite_token = group['invite_token']
         if not invite_token:
             import uuid
             invite_token = uuid.uuid4().hex[:12]
-            cursor.execute("UPDATE Trips SET invite_token = ? WHERE id = ?", (invite_token, trip_id))
+            cursor.execute("UPDATE Groups SET invite_token = ? WHERE id = ?", (invite_token, group_id))
 
         # Record the invitation
         cursor.execute(
-            "INSERT INTO trip_invitations (trip_id, inviter_id, invitee_phone_or_email, status) VALUES (?, ?, ?, 'PENDING')",
-            (trip_id, session['user_id'], invite_email)
+            "INSERT INTO group_invitations (group_id, inviter_id, invitee_phone_or_email, status) VALUES (?, ?, ?, 'PENDING')",
+            (group_id, session['user_id'], invite_email)
         )
         conn.commit()
 
@@ -2581,7 +2555,7 @@ def invite_by_email(trip_id):
                 msg = MIMEMultipart()
                 msg['From'] = f"MasterSplitter <{smtp_username}>"
                 msg['To'] = invite_email
-                msg['Subject'] = f"MasterSplitter — {inviter_name} invited you to {trip['destination']}"
+                msg['Subject'] = f"MasterSplitter — {inviter_name} invited you to {group['destination']}"
 
                 body = f"""
                 <html>
@@ -2589,7 +2563,7 @@ def invite_by_email(trip_id):
                     <div style="max-width: 420px; margin: 0 auto; background: #12122a; border-radius: 20px; padding: 32px; border: 1px solid rgba(255,255,255,0.08);">
                       <h2 style="color: #a855f7; text-align: center;">You're Invited! 🎉</h2>
                       <p style="text-align: center; color: #94a3b8;">Hi {invite_name},</p>
-                      <p style="text-align: center; color: #94a3b8;"><strong style="color: #facc15;">{inviter_name}</strong> has invited you to join the group <strong style="color: #facc15;">{trip['destination']}</strong> on MasterSplitter.</p>
+                      <p style="text-align: center; color: #94a3b8;"><strong style="color: #facc15;">{inviter_name}</strong> has invited you to join the group <strong style="color: #facc15;">{group['destination']}</strong> on MasterSplitter.</p>
                       <p style="text-align: center; margin-top: 24px;"><a href="{join_link}" style="background: #a855f7; color: white; text-decoration: none; padding: 12px 32px; border-radius: 12px; font-weight: bold; display: inline-block;">Join Group</a></p>
                       <p style="text-align: center; color: #64748b; font-size: 0.85rem; margin-top: 20px;">Or copy this link: {join_link}</p>
                     </div>
@@ -2603,7 +2577,7 @@ def invite_by_email(trip_id):
                 server.login(smtp_username, smtp_password)
                 server.send_message(msg)
                 server.quit()
-                logger.info(f"Email invite sent to {invite_email} for trip {trip_id}")
+                logger.info(f"Email invite sent to {invite_email} for group {group_id}")
             except Exception as e:
                 logger.error(f"Failed to send invite email to {invite_email}: {e}")
                 return jsonify({"success": True, "warning": "Invitation recorded but email could not be sent."})
@@ -2622,18 +2596,18 @@ def invite_by_email(trip_id):
 #   EXPENSE APIS
 # =====================
 
-@app.route('/api/expenses/<int:trip_id>', methods=['GET'])
+@app.route('/api/expenses/<int:group_id>', methods=['GET'])
 @login_required
-@require_trip_access
-def get_expenses(trip_id):
+@require_group_access
+def get_expenses(group_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     uid = session.get('user_id')
 
-    # Check if trip has public expenses
-    cursor.execute("SELECT COALESCE(is_public_expenses, 0) as is_public FROM Trips WHERE id = ?", (trip_id,))
-    trip_row = cursor.fetchone()
-    is_public = trip_row['is_public'] if trip_row else 0
+    # Check if group has public expenses
+    cursor.execute("SELECT COALESCE(is_public_expenses, 0) as is_public FROM Groups WHERE id = ?", (group_id,))
+    group_row = cursor.fetchone()
+    is_public = group_row['is_public'] if group_row else 0
 
     cursor.execute("""
         SELECT e.id, u.name as payer, u.avatar_url as payer_avatar, e.user_id,
@@ -2641,9 +2615,9 @@ def get_expenses(trip_id):
                e.category, e.is_personal, e.created_at
         FROM Expenses e
         JOIN Users u ON e.user_id = u.id
-        WHERE e.trip_id = ?
+        WHERE e.group_id = ?
         ORDER BY e.id DESC
-    """, (trip_id,))
+    """, (group_id,))
     expenses = cursor.fetchall()
 
     # Build splits lookup for all expenses in one query
@@ -2671,7 +2645,7 @@ def get_expenses(trip_id):
 
     # --- Per-expense "settled" status ---
     # An expense is settled once EVERY debtor in it is net-square with the payer,
-    # i.e. the settle-up row for that pair has disappeared. We work in the trip
+    # i.e. the settle-up row for that pair has disappeared. We work in the group
     # BASE currency (splits and settlement.amount are both stored there), so no
     # exchange rates are needed, and we net the two directions of each pair plus
     # settlements — exactly mirroring what the balances screen shows.
@@ -2686,8 +2660,8 @@ def get_expenses(trip_id):
 
     paid_pair = defaultdict(float)      # (payer, payee) -> settlements paid, base
     cursor.execute(
-        "SELECT payer_id, payee_id, COALESCE(amount, 0) AS amt FROM Settlements WHERE trip_id = ?",
-        (trip_id,))
+        "SELECT payer_id, payee_id, COALESCE(amount, 0) AS amt FROM Settlements WHERE group_id = ?",
+        (group_id,))
     for r in cursor.fetchall():
         paid_pair[(r['payer_id'], r['payee_id'])] += float(r['amt'])
 
@@ -2726,7 +2700,7 @@ def get_expenses(trip_id):
         d = dict(row)
         d['splits'] = splits_map.get(d['id'], [])
         # The expense's "true" value is original_amount in its own currency
-        # (or amount when it was entered directly in the trip base).
+        # (or amount when it was entered directly in the group base).
         true_amt = d['original_amount'] if d['original_amount'] is not None else d['amount']
         d['amount_in_profile'] = to_profile(true_amt, d.get('currency') or 'ILS')
         d['profile_currency'] = profile_cur
@@ -2734,7 +2708,7 @@ def get_expenses(trip_id):
         return d
 
     if is_public:
-        # Public trip — everyone sees everything
+        # Public group — everyone sees everything
         conn.close()
         return jsonify([enrich(e) for e in expenses])
 
@@ -2756,19 +2730,19 @@ def get_expenses(trip_id):
 @login_required
 def add_expense():
     data = request.json or {}
-    trip_id = data.get('trip_id')
+    group_id = data.get('group_id')
 
-    if not trip_id:
+    if not group_id:
         return jsonify({"error": "נתונים חסרים."}), 400
 
-    # Verify trip access
+    # Verify group access
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT 1 FROM TripMembers WHERE trip_id = ? AND user_id = ?
+        SELECT 1 FROM GroupMembers WHERE group_id = ? AND user_id = ?
         UNION
-        SELECT 1 FROM Trips WHERE id = ? AND owner_id = ?
-    """, (trip_id, session['user_id'], trip_id, session['user_id']))
+        SELECT 1 FROM Groups WHERE id = ? AND owner_id = ?
+    """, (group_id, session['user_id'], group_id, session['user_id']))
     if not cursor.fetchone():
         conn.close()
         return jsonify({"error": "Forbidden"}), 403
@@ -2794,31 +2768,31 @@ def add_expense():
     if not (2 <= len(currency) <= 10):
         currency = 'ILS'
 
-    # Look up Trip's base currency for conversion target.
+    # Look up Group's base currency for conversion target.
     # The base currency is stored inside the budgets_json column (e.g. {"currency": "ALL"}),
     # NOT in budget_type (which is just 'none'/'fixed'/...). Parsing budget_type was a bug
     # that forced every conversion target to ILS.
-    cursor.execute("SELECT budgets_json FROM Trips WHERE id = ?", (trip_id,))
-    trip_row = cursor.fetchone()
-    trip_base_currency = 'ILS'
-    if trip_row and trip_row['budgets_json']:
+    cursor.execute("SELECT budgets_json FROM Groups WHERE id = ?", (group_id,))
+    group_row = cursor.fetchone()
+    group_base_currency = 'ILS'
+    if group_row and group_row['budgets_json']:
         try:
-            budgets = json.loads(trip_row['budgets_json'])
+            budgets = json.loads(group_row['budgets_json'])
             if isinstance(budgets, dict) and budgets.get('currency'):
-                trip_base_currency = budgets.get('currency')
+                group_base_currency = budgets.get('currency')
         except (ValueError, TypeError):
             pass
 
-    # Currency conversion: convert to Trip's base currency if foreign
+    # Currency conversion: convert to Group's base currency if foreign
     original_amount = None
-    if currency != trip_base_currency:
-        rate = get_exchange_rate(currency, trip_base_currency)
+    if currency != group_base_currency:
+        rate = get_exchange_rate(currency, group_base_currency)
         if rate:
             original_amount = amount
             amount = round(original_amount * rate, 2)
         else:
             # Could not get rate — store as-is with a warning
-            logger.warning(f"Could not get exchange rate for {currency}->{trip_base_currency}, storing raw amount")
+            logger.warning(f"Could not get exchange rate for {currency}->{group_base_currency}, storing raw amount")
             original_amount = amount
 
     # Personal expense flag
@@ -2835,9 +2809,9 @@ def add_expense():
 
     try:
         cursor.execute("""
-            INSERT INTO Expenses (trip_id, user_id, amount, original_amount, currency, description, category, is_personal, created_at)
+            INSERT INTO Expenses (group_id, user_id, amount, original_amount, currency, description, category, is_personal, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (trip_id, payer_id, amount, original_amount, currency, description, category, is_personal,
+        """, (group_id, payer_id, amount, original_amount, currency, description, category, is_personal,
               datetime.now(timezone.utc).isoformat()))
         expense_id = cursor.lastrowid
 
@@ -2882,8 +2856,8 @@ def add_expense():
                     (expense_id, session['user_id'], amount)
                 )
             else:
-                # Auto-generate equal splits for all trip members
-                cursor.execute("SELECT user_id FROM TripMembers WHERE trip_id = ? AND user_id IS NOT NULL", (trip_id,))
+                # Auto-generate equal splits for all group members
+                cursor.execute("SELECT user_id FROM GroupMembers WHERE group_id = ? AND user_id IS NOT NULL", (group_id,))
                 members = cursor.fetchall()
                 if members:
                     per_person = amount / len(members)
@@ -2894,9 +2868,9 @@ def add_expense():
                         )
 
         conn.commit()
-        logger.info(f"Expense added: {currency} {amount} for trip {trip_id} by user {session['user_id']}")
-        log_activity(trip_id, session['user_id'], 'expense_added', f"{description} — {currency} {amount}")
-        notify_trip_members(trip_id, 'expense_added', f"New expense: {description} ({amount} {currency})", exclude_user_id=session['user_id'])
+        logger.info(f"Expense added: {currency} {amount} for group {group_id} by user {session['user_id']}")
+        log_activity(group_id, session['user_id'], 'expense_added', f"{description} — {currency} {amount}")
+        notify_group_members(group_id, 'expense_added', f"New expense: {description} ({amount} {currency})", exclude_user_id=session['user_id'])
         return jsonify({"success": True})
     except sqlite3.Error as e:
         logger.error(f"Add expense error: {e}")
@@ -2925,7 +2899,7 @@ def edit_expense(expense_id):
         params = []
         
         if 'amount' in data or 'currency' in data:
-            cursor.execute("SELECT amount, original_amount, currency, trip_id FROM Expenses WHERE id = ?", (expense_id,))
+            cursor.execute("SELECT amount, original_amount, currency, group_id FROM Expenses WHERE id = ?", (expense_id,))
             old_exp = cursor.fetchone()
             
             new_amount = data.get('amount')
@@ -2939,21 +2913,21 @@ def edit_expense(expense_id):
             if new_currency not in ALLOWED_CURRENCIES:
                 new_currency = old_exp['currency']
 
-            # Get Trip's base currency
-            cursor.execute("SELECT budget_type FROM Trips WHERE id = ?", (old_exp['trip_id'],))
-            trip_row = cursor.fetchone()
-            trip_base_currency = 'ILS'
-            if trip_row and trip_row['budget_type'] and trip_row['budget_type'] != 'none':
+            # Get Group's base currency
+            cursor.execute("SELECT budget_type FROM Groups WHERE id = ?", (old_exp['group_id'],))
+            group_row = cursor.fetchone()
+            group_base_currency = 'ILS'
+            if group_row and group_row['budget_type'] and group_row['budget_type'] != 'none':
                 try:
                     import json
-                    trip_base_currency = json.loads(trip_row['budget_type']).get('currency', 'ILS')
+                    group_base_currency = json.loads(group_row['budget_type']).get('currency', 'ILS')
                 except:
                     pass
             
             original_amount = None
             final_amount = new_amount
-            if new_currency != trip_base_currency:
-                rate = get_exchange_rate(new_currency, trip_base_currency)
+            if new_currency != group_base_currency:
+                rate = get_exchange_rate(new_currency, group_base_currency)
                 if rate:
                     original_amount = new_amount
                     final_amount = round(original_amount * rate, 2)
@@ -3033,11 +3007,11 @@ def edit_expense(expense_id):
             conn.commit()
             logger.info(f"Expense {expense_id} updated by user {session['user_id']}")
             # Log activity
-            cursor.execute("SELECT trip_id, description FROM Expenses WHERE id = ?", (expense_id,))
+            cursor.execute("SELECT group_id, description FROM Expenses WHERE id = ?", (expense_id,))
             exp_row = cursor.fetchone()
             if exp_row:
-                log_activity(exp_row['trip_id'], session['user_id'], 'expense_edited', exp_row['description'])
-                notify_trip_members(exp_row['trip_id'], 'expense_edited', f"Expense updated: {exp_row['description']}", exclude_user_id=session['user_id'])
+                log_activity(exp_row['group_id'], session['user_id'], 'expense_edited', exp_row['description'])
+                notify_group_members(exp_row['group_id'], 'expense_edited', f"Expense updated: {exp_row['description']}", exclude_user_id=session['user_id'])
             
         return jsonify({"success": True})
     except sqlite3.Error as e:
@@ -3050,15 +3024,15 @@ def edit_expense(expense_id):
 @app.route('/api/expenses/<int:expense_id>', methods=['DELETE'])
 @login_required
 def delete_expense(expense_id):
-    """Delete an expense. Only the trip owner or the user who created it can delete."""
+    """Delete an expense. Only the group owner or the user who created it can delete."""
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
         # Get the expense and verify ownership
         cursor.execute("""
-            SELECT e.id, e.trip_id, e.user_id, e.amount, e.description, t.owner_id
+            SELECT e.id, e.group_id, e.user_id, e.amount, e.description, t.owner_id
             FROM Expenses e
-            JOIN Trips t ON e.trip_id = t.id
+            JOIN Groups t ON e.group_id = t.id
             WHERE e.id = ?
         """, (expense_id,))
         expense = cursor.fetchone()
@@ -3067,20 +3041,20 @@ def delete_expense(expense_id):
             return jsonify({"error": "הוצאה לא נמצאה."}), 404
 
         # Check allow_member_delete setting
-        cursor.execute("SELECT COALESCE(allow_member_delete, 1) as allow_member_delete FROM Trips WHERE id = ?", (expense['trip_id'],))
-        trip_settings = cursor.fetchone()
+        cursor.execute("SELECT COALESCE(allow_member_delete, 1) as allow_member_delete FROM Groups WHERE id = ?", (expense['group_id'],))
+        group_settings = cursor.fetchone()
 
         # Check if user is admin
-        cursor.execute("SELECT COALESCE(is_admin, 0) as is_admin FROM TripMembers WHERE trip_id = ? AND user_id = ?",
-                       (expense['trip_id'], session['user_id']))
+        cursor.execute("SELECT COALESCE(is_admin, 0) as is_admin FROM GroupMembers WHERE group_id = ? AND user_id = ?",
+                       (expense['group_id'], session['user_id']))
         member_row = cursor.fetchone()
         is_admin = bool(member_row['is_admin']) if member_row else False
 
         # If allow_member_delete is disabled and user is not admin, block deletion
-        if trip_settings and not trip_settings['allow_member_delete'] and not is_admin:
+        if group_settings and not group_settings['allow_member_delete'] and not is_admin:
             return jsonify({"error": "רק מנהל יכול למחוק הוצאות."}), 403
 
-        # Allow deletion by expense creator, trip owner, or admin
+        # Allow deletion by expense creator, group owner, or admin
         if expense['user_id'] != session['user_id'] and expense['owner_id'] != session['user_id'] and not is_admin:
             return jsonify({"error": "אין הרשאה למחוק הוצאה זו."}), 403
 
@@ -3089,8 +3063,8 @@ def delete_expense(expense_id):
         cursor.execute("DELETE FROM Expenses WHERE id = ?", (expense_id,))
         conn.commit()
         logger.info(f"Expense deleted: id={expense_id} (₪{expense['amount']}, '{expense['description']}') by user {session['user_id']}")
-        log_activity(expense['trip_id'], session['user_id'], 'expense_deleted', expense['description'])
-        notify_trip_members(expense['trip_id'], 'expense_deleted', f"Expense deleted: {expense['description']}", exclude_user_id=session['user_id'])
+        log_activity(expense['group_id'], session['user_id'], 'expense_deleted', expense['description'])
+        notify_group_members(expense['group_id'], 'expense_deleted', f"Expense deleted: {expense['description']}", exclude_user_id=session['user_id'])
         return jsonify({"success": True})
     except sqlite3.Error as e:
         logger.error(f"Delete expense error: {e}")
@@ -3103,24 +3077,24 @@ def delete_expense(expense_id):
 #   BALANCE API
 # =====================
 
-@app.route('/api/balances/<int:trip_id>', methods=['GET'])
+@app.route('/api/balances/<int:group_id>', methods=['GET'])
 @login_required
-@require_trip_access
-def get_balances(trip_id):
+@require_group_access
+def get_balances(group_id):
     conn = get_db_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
         SELECT u.id, u.name FROM Users u
-        JOIN TripMembers tm ON u.id = tm.user_id
-        WHERE tm.trip_id = ?
-    """, (trip_id,))
+        JOIN GroupMembers tm ON u.id = tm.user_id
+        WHERE tm.group_id = ?
+    """, (group_id,))
     users = cursor.fetchall()
 
     # How much each user PAID (as the payer)
     cursor.execute(
-        "SELECT user_id, SUM(amount) as total FROM Expenses WHERE trip_id = ? GROUP BY user_id",
-        (trip_id,)
+        "SELECT user_id, SUM(amount) as total FROM Expenses WHERE group_id = ? GROUP BY user_id",
+        (group_id,)
     )
     paid_data = {row['user_id']: row['total'] for row in cursor.fetchall()}
 
@@ -3129,28 +3103,28 @@ def get_balances(trip_id):
         SELECT es.user_id, SUM(es.amount) as total_owed
         FROM ExpenseSplits es
         JOIN Expenses e ON es.expense_id = e.id
-        WHERE e.trip_id = ?
+        WHERE e.group_id = ?
         GROUP BY es.user_id
-    """, (trip_id,))
+    """, (group_id,))
     owed_data = {row['user_id']: row['total_owed'] for row in cursor.fetchall()}
 
     # Settlements: amounts already settled
     cursor.execute("""
         SELECT payer_id, SUM(amount) as total FROM Settlements
-        WHERE trip_id = ? GROUP BY payer_id
-    """, (trip_id,))
+        WHERE group_id = ? GROUP BY payer_id
+    """, (group_id,))
     settled_out = {row['payer_id']: row['total'] for row in cursor.fetchall()}
 
     cursor.execute("""
         SELECT payee_id, SUM(amount) as total FROM Settlements
-        WHERE trip_id = ? GROUP BY payee_id
-    """, (trip_id,))
+        WHERE group_id = ? GROUP BY payee_id
+    """, (group_id,))
     settled_in = {row['payee_id']: row['total'] for row in cursor.fetchall()}
 
     # Per-user balances are converted to the REQUESTING user's display currency.
-    # (total/average stay in the trip base currency — they feed the budget card,
-    #  whose budget is defined in the trip base.)
-    base_cur = trip_base_currency(cursor, trip_id)
+    # (total/average stay in the group base currency — they feed the budget card,
+    #  whose budget is defined in the group base.)
+    base_cur = group_base_currency(cursor, group_id)
     disp_cur = user_display_currency(cursor, session['user_id'])
     disp_rate = safe_rate(base_cur, disp_cur)
 
@@ -3243,18 +3217,18 @@ def submit_feedback():
     
     return jsonify({'success': True})
 
-@app.route('/api/trips/<int:trip_id>/optimized-balances', methods=['GET'])
+@app.route('/api/groups/<int:group_id>/optimized-balances', methods=['GET'])
 @login_required
-@require_trip_access
-def get_optimized_balances(trip_id):
+@require_group_access
+def get_optimized_balances(group_id):
     conn = get_db_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
         SELECT u.id, u.name FROM Users u
-        JOIN TripMembers tm ON u.id = tm.user_id
-        WHERE tm.trip_id = ?
-    """, (trip_id,))
+        JOIN GroupMembers tm ON u.id = tm.user_id
+        WHERE tm.group_id = ?
+    """, (group_id,))
     users = cursor.fetchall()
     user_name = {u['id']: u['name'] for u in users}
 
@@ -3270,15 +3244,15 @@ def get_optimized_balances(trip_id):
     cursor.execute("""
         SELECT e.id, e.user_id AS payer_id, e.amount, e.original_amount,
                COALESCE(e.currency, 'ILS') AS currency
-        FROM Expenses e WHERE e.trip_id = ?
-    """, (trip_id,))
+        FROM Expenses e WHERE e.group_id = ?
+    """, (group_id,))
     exp_by_id = {r['id']: r for r in cursor.fetchall()}
 
     cursor.execute("""
         SELECT es.expense_id, es.user_id, es.amount
         FROM ExpenseSplits es JOIN Expenses e ON es.expense_id = e.id
-        WHERE e.trip_id = ?
-    """, (trip_id,))
+        WHERE e.group_id = ?
+    """, (group_id,))
     split_rows = cursor.fetchall()
 
     # pair_cur[(debtor, creditor)][currency] = amount debtor owes creditor in that currency
@@ -3303,8 +3277,8 @@ def get_optimized_balances(trip_id):
     cursor.execute("""
         SELECT payer_id, payee_id, COALESCE(currency, 'ILS') AS currency,
                COALESCE(original_amount, amount) AS amt
-        FROM Settlements WHERE trip_id = ?
-    """, (trip_id,))
+        FROM Settlements WHERE group_id = ?
+    """, (group_id,))
     for st in cursor.fetchall():
         pair_cur[(st['payer_id'], st['payee_id'])][st['currency']] -= float(st['amt'])
 
@@ -3397,7 +3371,7 @@ def ai_parse_expense():
 
     data = request.json or {}
     text = str(data.get('text', '')).strip()
-    members = data.get('trip_members', [])
+    members = data.get('group_members', [])
 
     if not text:
         return jsonify({"error": "Missing text input."}), 400
@@ -3408,7 +3382,7 @@ def ai_parse_expense():
 
     system_instruction = (
         "You are a smart expense parser. The user will give you a sentence about an expense, "
-        "and a list of valid trip members. You must extract the details and return ONLY a valid JSON object "
+        "and a list of valid group members. You must extract the details and return ONLY a valid JSON object "
         "(no markdown, no backticks, no explanation).\n\n"
         "JSON format:\n"
         "{\n"
@@ -3421,7 +3395,7 @@ def ai_parse_expense():
         "leave the 'splits' array empty."
     )
 
-    user_prompt = f"Trip members: [{members_str}]\n\nExpense description: {text}"
+    user_prompt = f"Group members: [{members_str}]\n\nExpense description: {text}"
 
     payload = {
         "system_instruction": {
@@ -3701,13 +3675,13 @@ def scan_receipt():
 def create_settlement():
     """Record a debt settlement between two users."""
     data = request.json or {}
-    trip_id = data.get('trip_id')
+    group_id = data.get('group_id')
     payer_id = data.get('payer_id')
     payee_id = data.get('payee_id')
     amount_raw = data.get('amount')
     currency = data.get('currency', 'ILS')
 
-    if not trip_id or not payer_id or not payee_id or not amount_raw:
+    if not group_id or not payer_id or not payee_id or not amount_raw:
         return jsonify({"error": "Missing required fields."}), 400
 
     amount, err = validate_amount(amount_raw)
@@ -3715,9 +3689,9 @@ def create_settlement():
         return jsonify({"error": err}), 400
 
     # original_amount = the amount in the settlement's own currency.
-    # converted_amount = the same value expressed in the TRIP's base currency, so it
-    # nets correctly against expenses/splits (which are also stored in the trip base).
-    # Conversion happens below, once we have a cursor to look up the trip base currency.
+    # converted_amount = the same value expressed in the GROUP's base currency, so it
+    # nets correctly against expenses/splits (which are also stored in the group base).
+    # Conversion happens below, once we have a cursor to look up the group base currency.
     original_amount = amount
     converted_amount = amount
 
@@ -3736,19 +3710,19 @@ def create_settlement():
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        # Verify caller has trip access
+        # Verify caller has group access
         cursor.execute("""
-            SELECT 1 FROM TripMembers WHERE trip_id = ? AND user_id = ?
+            SELECT 1 FROM GroupMembers WHERE group_id = ? AND user_id = ?
             UNION
-            SELECT 1 FROM Trips WHERE id = ? AND owner_id = ?
-        """, (trip_id, session['user_id'], trip_id, session['user_id']))
+            SELECT 1 FROM Groups WHERE id = ? AND owner_id = ?
+        """, (group_id, session['user_id'], group_id, session['user_id']))
         if not cursor.fetchone():
             return jsonify({"error": "Forbidden"}), 403
 
-        # Convert the settlement into the trip's base currency so it nets against
-        # expenses/splits (which are stored in the trip base). Was previously
-        # hard-coded to ILS, which corrupted balances on non-ILS trips.
-        base_cur = trip_base_currency(cursor, trip_id)
+        # Convert the settlement into the group's base currency so it nets against
+        # expenses/splits (which are stored in the group base). Was previously
+        # hard-coded to ILS, which corrupted balances on non-ILS groups.
+        base_cur = group_base_currency(cursor, group_id)
         if currency != base_cur:
             rate = get_exchange_rate(currency, base_cur)
             if not rate:
@@ -3757,29 +3731,29 @@ def create_settlement():
             converted_amount = round(amount * rate, 2)
 
         # --- Validation: the payer must actually owe money, and the settlement
-        #     must not exceed their outstanding debt (in the trip base currency).
+        #     must not exceed their outstanding debt (in the group base currency).
         #     This prevents creating "phantom" balances by settling debts that
         #     don't exist or by over-settling. (Root cause of the BALANCES bug.) ---
-        TOL = max(1.0, converted_amount * 0.01)  # base-currency tolerance for rounding/rate round-trips
+        TOL = max(1.0, converted_amount * 0.01)  # base-currency tolerance for rounding/rate round-groups
 
         def _converted_balance(target_uid):
             row = cursor.execute(
-                "SELECT COALESCE(SUM(amount), 0) AS t FROM Expenses WHERE trip_id = ? AND user_id = ?",
-                (trip_id, target_uid)).fetchone()
+                "SELECT COALESCE(SUM(amount), 0) AS t FROM Expenses WHERE group_id = ? AND user_id = ?",
+                (group_id, target_uid)).fetchone()
             paid = row['t'] or 0.0
             row = cursor.execute("""
                 SELECT COALESCE(SUM(es.amount), 0) AS t
                 FROM ExpenseSplits es JOIN Expenses e ON es.expense_id = e.id
-                WHERE e.trip_id = ? AND es.user_id = ?
-            """, (trip_id, target_uid)).fetchone()
+                WHERE e.group_id = ? AND es.user_id = ?
+            """, (group_id, target_uid)).fetchone()
             owed = row['t'] or 0.0
             row = cursor.execute(
-                "SELECT COALESCE(SUM(amount), 0) AS t FROM Settlements WHERE trip_id = ? AND payer_id = ?",
-                (trip_id, target_uid)).fetchone()
+                "SELECT COALESCE(SUM(amount), 0) AS t FROM Settlements WHERE group_id = ? AND payer_id = ?",
+                (group_id, target_uid)).fetchone()
             s_out = row['t'] or 0.0
             row = cursor.execute(
-                "SELECT COALESCE(SUM(amount), 0) AS t FROM Settlements WHERE trip_id = ? AND payee_id = ?",
-                (trip_id, target_uid)).fetchone()
+                "SELECT COALESCE(SUM(amount), 0) AS t FROM Settlements WHERE group_id = ? AND payee_id = ?",
+                (group_id, target_uid)).fetchone()
             s_in = row['t'] or 0.0
             return (paid + s_out) - (owed + s_in)
 
@@ -3792,9 +3766,9 @@ def create_settlement():
             return jsonify({"error": "סכום הסליקה גדול מהחוב הפתוח."}), 400
 
         cursor.execute("""
-            INSERT INTO Settlements (trip_id, payer_id, payee_id, amount, original_amount, currency, created_at)
+            INSERT INTO Settlements (group_id, payer_id, payee_id, amount, original_amount, currency, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (trip_id, payer_id, payee_id, converted_amount, original_amount, currency, datetime.now(timezone.utc).isoformat()))
+        """, (group_id, payer_id, payee_id, converted_amount, original_amount, currency, datetime.now(timezone.utc).isoformat()))
         conn.commit()
 
         # Get payee name for activity log
@@ -3802,9 +3776,9 @@ def create_settlement():
         payee = cursor.fetchone()
         payee_name = payee['name'] if payee else f"User {payee_id}"
 
-        logger.info(f"Settlement: user {payer_id} settled {amount} with user {payee_id} in trip {trip_id}")
-        log_activity(trip_id, payer_id, 'settlement', f"₪{amount:.0f} -> {payee_name}")
-        notify_trip_members(trip_id, 'settlement', f"Settlement: ₪{amount:.0f} paid to {payee_name}", exclude_user_id=session['user_id'])
+        logger.info(f"Settlement: user {payer_id} settled {amount} with user {payee_id} in group {group_id}")
+        log_activity(group_id, payer_id, 'settlement', f"₪{amount:.0f} -> {payee_name}")
+        notify_group_members(group_id, 'settlement', f"Settlement: ₪{amount:.0f} paid to {payee_name}", exclude_user_id=session['user_id'])
         return jsonify({"success": True})
     except sqlite3.Error as e:
         logger.error(f"Settlement error: {e}")
@@ -3813,11 +3787,11 @@ def create_settlement():
         conn.close()
 
 
-@app.route('/api/settlements/<int:trip_id>', methods=['GET'])
+@app.route('/api/settlements/<int:group_id>', methods=['GET'])
 @login_required
-@require_trip_access
-def get_settlements(trip_id):
-    """Get all settlements for a trip."""
+@require_group_access
+def get_settlements(group_id):
+    """Get all settlements for a group."""
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
@@ -3826,9 +3800,9 @@ def get_settlements(trip_id):
         FROM Settlements s
         JOIN Users p ON s.payer_id = p.id
         JOIN Users r ON s.payee_id = r.id
-        WHERE s.trip_id = ?
+        WHERE s.group_id = ?
         ORDER BY s.id DESC
-    """, (trip_id,))
+    """, (group_id,))
     settlements = [dict(row) for row in cursor.fetchall()]
     conn.close()
     return jsonify(settlements)
@@ -3837,33 +3811,33 @@ def get_settlements(trip_id):
 @app.route('/api/settlements/<int:settlement_id>', methods=['DELETE'])
 @login_required
 def delete_settlement(settlement_id):
-    """Undo a single settlement. Allowed for the payer, the payee, or a trip admin/owner."""
+    """Undo a single settlement. Allowed for the payer, the payee, or a group admin/owner."""
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
         row = cursor.execute(
-            "SELECT trip_id, payer_id, payee_id FROM Settlements WHERE id = ?",
+            "SELECT group_id, payer_id, payee_id FROM Settlements WHERE id = ?",
             (settlement_id,)).fetchone()
         if not row:
             return jsonify({"error": "Settlement not found."}), 404
 
-        trip_id = row['trip_id']
+        group_id = row['group_id']
         uid = session['user_id']
 
-        # Permission: payer, payee, trip owner, or trip admin
+        # Permission: payer, payee, group owner, or group admin
         is_party = uid in (row['payer_id'], row['payee_id'])
         access = cursor.execute("""
-            SELECT 1 FROM Trips WHERE id = ? AND owner_id = ?
+            SELECT 1 FROM Groups WHERE id = ? AND owner_id = ?
             UNION
-            SELECT 1 FROM TripMembers WHERE trip_id = ? AND user_id = ? AND COALESCE(is_admin, 0) = 1
-        """, (trip_id, uid, trip_id, uid)).fetchone()
+            SELECT 1 FROM GroupMembers WHERE group_id = ? AND user_id = ? AND COALESCE(is_admin, 0) = 1
+        """, (group_id, uid, group_id, uid)).fetchone()
         if not is_party and not access:
             return jsonify({"error": "Forbidden"}), 403
 
         cursor.execute("DELETE FROM Settlements WHERE id = ?", (settlement_id,))
         conn.commit()
-        logger.info(f"Settlement {settlement_id} deleted by user {uid} (trip {trip_id})")
-        log_activity(trip_id, uid, 'settlement_undo', f"settlement #{settlement_id} removed")
+        logger.info(f"Settlement {settlement_id} deleted by user {uid} (group {group_id})")
+        log_activity(group_id, uid, 'settlement_undo', f"settlement #{settlement_id} removed")
         return jsonify({"success": True})
     except sqlite3.Error as e:
         logger.error(f"Delete settlement error: {e}")
@@ -3872,30 +3846,30 @@ def delete_settlement(settlement_id):
         conn.close()
 
 
-@app.route('/api/trips/<int:trip_id>/settlements/reset', methods=['POST'])
+@app.route('/api/groups/<int:group_id>/settlements/reset', methods=['POST'])
 @login_required
-@require_trip_access
-def reset_settlements(trip_id):
-    """Delete ALL settlements for a trip. Restricted to the trip owner/admin.
+@require_group_access
+def reset_settlements(group_id):
+    """Delete ALL settlements for a group. Restricted to the group owner/admin.
     Useful for clearing stuck/phantom balances accumulated from bad settle data."""
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
         uid = session['user_id']
         access = cursor.execute("""
-            SELECT 1 FROM Trips WHERE id = ? AND owner_id = ?
+            SELECT 1 FROM Groups WHERE id = ? AND owner_id = ?
             UNION
-            SELECT 1 FROM TripMembers WHERE trip_id = ? AND user_id = ? AND COALESCE(is_admin, 0) = 1
-        """, (trip_id, uid, trip_id, uid)).fetchone()
+            SELECT 1 FROM GroupMembers WHERE group_id = ? AND user_id = ? AND COALESCE(is_admin, 0) = 1
+        """, (group_id, uid, group_id, uid)).fetchone()
         if not access:
             return jsonify({"error": "Only the group admin can reset settlements."}), 403
 
         before = cursor.execute(
-            "SELECT COUNT(*) AS c FROM Settlements WHERE trip_id = ?", (trip_id,)).fetchone()['c']
-        cursor.execute("DELETE FROM Settlements WHERE trip_id = ?", (trip_id,))
+            "SELECT COUNT(*) AS c FROM Settlements WHERE group_id = ?", (group_id,)).fetchone()['c']
+        cursor.execute("DELETE FROM Settlements WHERE group_id = ?", (group_id,))
         conn.commit()
-        logger.info(f"Settlements reset for trip {trip_id} by user {uid} — {before} rows deleted.")
-        log_activity(trip_id, uid, 'settlements_reset', f"{before} settlements cleared")
+        logger.info(f"Settlements reset for group {group_id} by user {uid} — {before} rows deleted.")
+        log_activity(group_id, uid, 'settlements_reset', f"{before} settlements cleared")
         return jsonify({"success": True, "deleted": before})
     except sqlite3.Error as e:
         logger.error(f"Reset settlements error: {e}")
@@ -3908,21 +3882,21 @@ def reset_settlements(trip_id):
 #   ACTIVITY FEED API
 # =====================
 
-@app.route('/api/activity/<int:trip_id>', methods=['GET'])
+@app.route('/api/activity/<int:group_id>', methods=['GET'])
 @login_required
-@require_trip_access
-def get_activity(trip_id):
-    """Get the activity feed for a trip (last 50 entries)."""
+@require_group_access
+def get_activity(group_id):
+    """Get the activity feed for a group (last 50 entries)."""
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
         SELECT a.id, a.action, a.detail, a.created_at, u.name as user_name
         FROM ActivityLog a
         JOIN Users u ON a.user_id = u.id
-        WHERE a.trip_id = ?
+        WHERE a.group_id = ?
         ORDER BY a.id DESC
         LIMIT 50
-    """, (trip_id,))
+    """, (group_id,))
     entries = [dict(row) for row in cursor.fetchall()]
     conn.close()
     return jsonify(entries)

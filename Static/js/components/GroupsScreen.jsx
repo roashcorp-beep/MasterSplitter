@@ -14,7 +14,7 @@ const IconUserMinus = ({size=18, ...props}) => <svg {...props} width={size} heig
 const IconTrash = ({size=18, ...props}) => <svg {...props} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>;
 
 const GroupsScreen = () => {
-    const [trips, setTrips] = useState([]);
+    const [groups, setGroups] = useState([]);
     const [lang, setLang] = useState(localStorage.getItem("lang") || "he");
     const [localCurrencies, setLocalCurrencies] = useState(window.globalCurrencies || []);
 
@@ -27,9 +27,9 @@ const GroupsScreen = () => {
 
     // Edit Modal State
     const [isEditOpen, setIsEditOpen] = useState(false);
-    const [editTripId, setEditTripId] = useState(null);
+    const [editGroupId, setEditGroupId] = useState(null);
     const [editShowBudget, setEditShowBudget] = useState(false);
-    const [editTripDetails, setEditTripDetails] = useState(null);
+    const [editGroupDetails, setEditGroupDetails] = useState(null);
     const [budgetPopup, setBudgetPopup] = useState(null);
 
     useEffect(() => {
@@ -42,51 +42,51 @@ const GroupsScreen = () => {
         window.addEventListener("storage", i18nSync);
         window.addEventListener("languageChanged", handleLangChanged);
 
-        window.reactUpdateTrips = (newTrips) => setTrips([...newTrips]);
+        window.reactUpdateGroups = (newGroups) => setGroups([...newGroups]);
         window.reactOpenCreateModal = () => {
             setCreateTab("whatsapp");
             setIsCreateOpen(true);
         };
         window.reactCloseCreateModal = () => setIsCreateOpen(false);
                 window.reactOpenEditModal = (id) => {
-            const trip = window.allTrips ? window.allTrips.find(t => t.id === id) : trips.find(t => t.id === id);
-            if (trip) {
-                let participants = trip.participants || [];
-                const updatedTrip = { ...trip, participants };
+            const group = window.allGroups ? window.allGroups.find(t => t.id === id) : groups.find(t => t.id === id);
+            if (group) {
+                let participants = group.participants || [];
+                const updatedGroup = { ...group, participants };
                 
-                if (!updatedTrip.user_budgets) updatedTrip.user_budgets = {};
+                if (!updatedGroup.user_budgets) updatedGroup.user_budgets = {};
                 participants.forEach(p => {
                     if (p.budgets_json) {
-                        updatedTrip.user_budgets[p.contact] = { ...p.budgets_json };
+                        updatedGroup.user_budgets[p.contact] = { ...p.budgets_json };
                     }
-                    if (typeof updatedTrip.user_budgets[p.contact] !== 'object') {
-                        updatedTrip.user_budgets[p.contact] = {
-                            daily: updatedTrip.user_budgets[p.contact] || '',
+                    if (typeof updatedGroup.user_budgets[p.contact] !== 'object') {
+                        updatedGroup.user_budgets[p.contact] = {
+                            daily: updatedGroup.user_budgets[p.contact] || '',
                             monthly: '',
                             yearly: ''
                         };
                     }
                 });
 
-                setEditTripId(id);
-                setEditTripDetails(updatedTrip);
+                setEditGroupId(id);
+                setEditGroupDetails(updatedGroup);
                 setEditTab("whatsapp");
                 setIsEditOpen(true);
             } else {
-                console.error("Trip not found for ID:", id);
+                console.error("Group not found for ID:", id);
             }
         };
-        window.reactSetEditTripDetails = (details) => {
-            setEditTripDetails(details);
+        window.reactSetEditGroupDetails = (details) => {
+            setEditGroupDetails(details);
         };
         window.reactCloseEditModal = () => setIsEditOpen(false);
-        window.reactAddParticipantToEditTrip = (p) => { setEditTripDetails(prev => { if (!prev) return prev; return { ...prev, participants: [...(prev.participants || []), p] }; }); };
+        window.reactAddParticipantToEditGroup = (p) => { setEditGroupDetails(prev => { if (!prev) return prev; return { ...prev, participants: [...(prev.participants || []), p] }; }); };
 
         window.addEventListener("storage", i18nSync);
         const onCurrenciesLoaded = () => setLocalCurrencies([...(window.globalCurrencies || [])]);
         window.addEventListener("currenciesLoaded", onCurrenciesLoaded);
         
-        if (window.allTrips) setTrips([...window.allTrips]);
+        if (window.allGroups) setGroups([...window.allGroups]);
 
         return () => {
             window.removeEventListener("storage", i18nSync);
@@ -109,27 +109,27 @@ const GroupsScreen = () => {
         return null;
     };
 
-    const handleTripClick = (id) => {
-        if (typeof window.openTrip === "function") {
-            window.openTrip(id);
+    const handleGroupClick = (id) => {
+        if (typeof window.openGroup === "function") {
+            window.openGroup(id);
         }
     };
 
-    const handleUploadTripImage = async (tripId, file) => {
+    const handleUploadGroupImage = async (groupId, file) => {
         if (!file) return;
         const formData = new FormData();
         formData.append("avatar", file);
         try {
-            const res = await fetch(`/api/trips/${tripId}/upload-avatar`, {
+            const res = await fetch(`/api/groups/${groupId}/upload-avatar`, {
                 method: "POST",
                 body: formData
             });
             const data = await res.json();
             if (res.ok && data.success) {
                 if (window.showToast) window.showToast(i18n("toast_image_updated") || "Image updated successfully", "success");
-                setEditTripDetails(prev => ({ ...prev, image_url: data.avatar_url }));
+                setEditGroupDetails(prev => ({ ...prev, image_url: data.avatar_url }));
                 // update global list as well
-                setTrips(prev => prev.map(t => t.id === tripId ? { ...t, image_url: data.avatar_url } : t));
+                setGroups(prev => prev.map(t => t.id === groupId ? { ...t, image_url: data.avatar_url } : t));
                 if (window.loadLobby) window.loadLobby();
             } else {
                 if (window.showToast) window.showToast(data.error || (i18n("error_upload_image") || "Error uploading image"), "error");
@@ -152,14 +152,14 @@ const GroupsScreen = () => {
     const renderGroupsLobby = () => (
         <div className="relative z-10 w-full max-w-4xl mx-auto p-4 pt-4">
             <div className="lobby-header">
-                <h2 data-i18n="lobby_my_trips">{i18n("lobby_my_trips") || "הקבוצות שלי"}</h2>
+                <h2 data-i18n="lobby_my_groups">{i18n("lobby_my_groups") || "הקבוצות שלי"}</h2>
                 <button className="primary-btn sm" onClick={() => setIsCreateOpen(true)} data-i18n="lobby_btn_create">
                     {i18n("lobby_btn_create") || "+ יצירת קבוצה"}
                 </button>
             </div>
             
-            <div id="trips-list" className="trips-grid">
-                {trips.length === 0 ? (
+            <div id="groups-list" className="groups-grid">
+                {groups.length === 0 ? (
                     <div className="empty-state">
                         <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.5" style={{ marginBottom: 12 }}>
                             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
@@ -168,41 +168,41 @@ const GroupsScreen = () => {
                         <p>{i18n("lobby_no_groups") || "אין קבוצות עדיין"}</p>
                     </div>
                 ) : (
-                    trips.map((trip, i) => {
-                        const initial = trip && trip.name ? String(trip.name).charAt(0).toUpperCase() : '?';
-                        const isAdmin = trip.is_admin !== undefined ? trip.is_admin : trip.is_owner;
+                    groups.map((group, i) => {
+                        const initial = group && group.name ? String(group.name).charAt(0).toUpperCase() : '?';
+                        const isAdmin = group.is_admin !== undefined ? group.is_admin : group.is_owner;
                         let cardCurrency = "";
                         let highestBudget = null;
                         let highestBudgetLabel = "";
-                        if (trip.budgets_json) {
-                            const cCode = trip.budgets_json.currency || 'ILS';
+                        if (group.budgets_json) {
+                            const cCode = group.budgets_json.currency || 'ILS';
                             const cObj = localCurrencies?.find(c => c.code === cCode);
                             cardCurrency = cObj?.symbol ? cObj.symbol : (cCode === 'USD' ? '$' : cCode === 'EUR' ? '€' : cCode === 'GBP' ? '£' : '₪');
-                            if (trip.budgets_json.yearly) {
-                                highestBudget = trip.budgets_json.yearly;
+                            if (group.budgets_json.yearly) {
+                                highestBudget = group.budgets_json.yearly;
                                 highestBudgetLabel = i18n("yearly") || "שנתי";
-                            } else if (trip.budgets_json.monthly) {
-                                highestBudget = trip.budgets_json.monthly;
+                            } else if (group.budgets_json.monthly) {
+                                highestBudget = group.budgets_json.monthly;
                                 highestBudgetLabel = i18n("monthly") || "חודשי";
-                            } else if (trip.budgets_json.daily) {
-                                highestBudget = trip.budgets_json.daily;
+                            } else if (group.budgets_json.daily) {
+                                highestBudget = group.budgets_json.daily;
                                 highestBudgetLabel = i18n("daily") || "יומי";
                             }
                         }
-                        if (highestBudget !== null && trip.is_budget_per_user) {
-                            const memberCount = trip.participants?.length || 1;
+                        if (highestBudget !== null && group.is_budget_per_user) {
+                            const memberCount = group.participants?.length || 1;
                             highestBudget = highestBudget * memberCount;
                         }
-                        const memberCount = trip.participants?.length || 0;
+                        const memberCount = group.participants?.length || 0;
                         
                         return (
-                            <div key={trip.id} className="trip-card-v2" onClick={() => handleTripClick(trip.id)}>
-                                <div className="trip-card-avatar overflow-hidden" style={{ background: avatarColors[i % avatarColors.length] }}>
-                                    {trip.image_url ? <img src={trip.image_url} className="w-full h-full object-cover" /> : initial}
+                            <div key={group.id} className="group-card-v2" onClick={() => handleGroupClick(group.id)}>
+                                <div className="group-card-avatar overflow-hidden" style={{ background: avatarColors[i % avatarColors.length] }}>
+                                    {group.image_url ? <img src={group.image_url} className="w-full h-full object-cover" /> : initial}
                                 </div>
-                                <div className="trip-card-v2-body">
-                                    <div className="trip-card-v2-name">{trip.name}</div>
-                                    <div className="trip-card-v2-meta">
+                                <div className="group-card-v2-body">
+                                    <div className="group-card-v2-name">{group.name}</div>
+                                    <div className="group-card-v2-meta">
                                         <span className="meta-item">
                                             <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                                             {memberCount} {i18n("members") || "משתתפים"}
@@ -214,17 +214,17 @@ const GroupsScreen = () => {
                                         )}
                                     </div>
                                 </div>
-                                <div className="trip-card-v2-right">
+                                <div className="group-card-v2-right">
                                     {isAdmin && (
                                         <button 
-                                            onClick={(e) => { e.stopPropagation(); window.openEditTripModal(trip.id); }} 
-                                            className="trip-edit-btn"
+                                            onClick={(e) => { e.stopPropagation(); window.openEditGroupModal(group.id); }} 
+                                            className="group-edit-btn"
                                             title={i18n("edit_group") || "Edit Group"}
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
                                         </button>
                                     )}
-                                    <span className="trip-card-v2-arrow"></span>
+                                    <span className="group-card-v2-arrow"></span>
                                 </div>
                             </div>
                         );
@@ -237,10 +237,10 @@ const GroupsScreen = () => {
     const renderCreateModal = () => {
         if (!isCreateOpen) return null;
         return (
-            <div id="create-trip-modal" className="modal-overlay open">
+            <div id="create-group-modal" className="modal-overlay open">
                 <div className="modal-card">
                     <div className="modal-header">
-                        <h3>{i18n("create_trip_title") || "צור קבוצה חדשה"}</h3>
+                        <h3>{i18n("create_group_title") || "צור קבוצה חדשה"}</h3>
                         <button className="modal-close-x" onClick={() => setIsCreateOpen(false)}>
                             <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                         </button>
@@ -248,8 +248,8 @@ const GroupsScreen = () => {
 
                     <div className="modal-body-content space-y-4">
                     <div className="form-group">
-                        <label>{i18n("create_trip_name") || "שם הקבוצה"}</label>
-                        <input type="text" id="create-trip-name" placeholder={i18n("create_trip_name_ph") || "למשל: דירה, חופשה, משרד..."} />
+                        <label>{i18n("create_group_name") || "שם הקבוצה"}</label>
+                        <input type="text" id="create-group-name" placeholder={i18n("create_group_name_ph") || "למשל: דירה, חופשה, משרד..."} />
                     </div>
 
                     <div className="form-group">
@@ -309,7 +309,7 @@ const GroupsScreen = () => {
                     </div>
                     <div className="modal-actions">
                         <button className="secondary-btn" onClick={() => setIsCreateOpen(false)}>{i18n("btn_cancel") || "ביטול"}</button>
-                        <button className="primary-btn" onClick={() => window.createTrip()}>{i18n("create_trip_btn") || "צור קבוצה"}</button>
+                        <button className="primary-btn" onClick={() => window.createGroup()}>{i18n("create_group_btn") || "צור קבוצה"}</button>
                     </div>
                 </div>
             </div>
@@ -318,17 +318,17 @@ const GroupsScreen = () => {
 
     
             const renderEditModal = () => {
-        if (!isEditOpen || !editTripDetails) return null;
-        const trip = editTripDetails;
-        const t = typeof i18n === 'function' ? { group_name: i18n('create_trip_name') } : {};
+        if (!isEditOpen || !editGroupDetails) return null;
+        const group = editGroupDetails;
+        const t = typeof i18n === 'function' ? { group_name: i18n('create_group_name') } : {};
         const isRTL = document.dir === 'rtl';
         const onClose = () => setIsEditOpen(false);
 
         const currentPhone = window.currentUser?.phone || window.currentUser?.email;
-        const isAdmin = trip.is_admin || trip.is_owner || (trip.participants && trip.participants.some(p => (p.contact === currentPhone || p.id === window.currentUser?.id) && p.is_admin));
+        const isAdmin = group.is_admin || group.is_owner || (group.participants && group.participants.some(p => (p.contact === currentPhone || p.id === window.currentUser?.id) && p.is_admin));
 
         const updateGlobalBudget = (type, value) => {
-            setEditTripDetails(prev => {
+            setEditGroupDetails(prev => {
                 const currentBudgets = prev.budgets_json || {};
                 return {
                     ...prev,
@@ -338,11 +338,11 @@ const GroupsScreen = () => {
         };
 
         const togglePermission = (field) => {
-            setEditTripDetails(prev => ({ ...prev, [field]: prev[field] === false ? true : false }));
+            setEditGroupDetails(prev => ({ ...prev, [field]: prev[field] === false ? true : false }));
         };
 
         const updateBudget = (contact, type, value) => {
-            setEditTripDetails(prev => {
+            setEditGroupDetails(prev => {
                 const currentBudgets = prev.user_budgets || {};
                 const userBudget = typeof currentBudgets[contact] === 'object' ? { ...currentBudgets[contact] } : { daily: currentBudgets[contact] || '', monthly: '', yearly: '' };
                 userBudget[type] = value;
@@ -355,14 +355,14 @@ const GroupsScreen = () => {
 
         const removeUser = async (contact) => {
             if (window.confirm(i18n("confirm_delete_member") || "Are you sure you want to remove this member?")) {
-                window.removeTripMember(trip.id, contact);
+                window.removeGroupMember(group.id, contact);
             }
         };
 
-        const handleLeaveTrip = async () => {
+        const handleLeaveGroup = async () => {
             if (window.confirm(i18n("confirm_leave_group") || "Are you sure you want to leave this group? The group will become read-only.")) {
                 try {
-                    const res = await fetch(`/api/trips/${trip.id}/leave`, { method: 'POST', headers: { 'Authorization': `Bearer ${window.authToken}` } });
+                    const res = await fetch(`/api/groups/${group.id}/leave`, { method: 'POST', headers: { 'Authorization': `Bearer ${window.authToken}` } });
                     if (res.ok) {
                         window.location.reload();
                     } else {
@@ -375,10 +375,10 @@ const GroupsScreen = () => {
             }
         };
 
-        const handleHideTrip = async () => {
+        const handleHideGroup = async () => {
             if (window.confirm(i18n("confirm_hide_group") || "Are you sure you want to remove this group from your list?")) {
                 try {
-                    const res = await fetch(`/api/trips/${trip.id}/hide`, { method: 'POST', headers: { 'Authorization': `Bearer ${window.authToken}` } });
+                    const res = await fetch(`/api/groups/${group.id}/hide`, { method: 'POST', headers: { 'Authorization': `Bearer ${window.authToken}` } });
                     if (res.ok) {
                         window.location.reload();
                     } else {
@@ -391,11 +391,11 @@ const GroupsScreen = () => {
             }
         };
 
-        const participants = trip?.participants?.length > 0 ? trip.participants : [
+        const participants = group?.participants?.length > 0 ? group.participants : [
             { name: window.currentUser?.username || (window.currentUser?.email ? window.currentUser.email.split('@')[0] : 'Me'), role: 'admin' }
         ];
 
-        const cCode = trip.budgets_json?.currency || 'ILS';
+        const cCode = group.budgets_json?.currency || 'ILS';
         const cObj = localCurrencies?.find(c => c.code === cCode);
         const currencySymbol = cObj?.symbol ? cObj.symbol : (cCode === 'USD' ? '$' : cCode === 'EUR' ? '€' : cCode === 'GBP' ? '£' : '₪');
 
@@ -414,23 +414,23 @@ const GroupsScreen = () => {
                             accept="image/*" 
                             onChange={(e) => {
                                 if (e.target.files && e.target.files[0]) {
-                                    handleUploadTripImage(trip.id, e.target.files[0]);
+                                    handleUploadGroupImage(group.id, e.target.files[0]);
                                 }
                             }} 
                         />
                         <div className="relative group cursor-pointer mb-3" onClick={() => fileInputRef.current?.click()}>
-                            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-4xl shadow-lg border-4 border-white dark:border-gray-800 overflow-hidden" style={{ background: avatarColors[trip.id % avatarColors.length] }}>
-                                {trip?.image_url ? <img src={trip.image_url} className="w-full h-full object-cover" /> : (trip?.name ? String(trip.name).charAt(0).toUpperCase() : '?')}
+                            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-4xl shadow-lg border-4 border-white dark:border-gray-800 overflow-hidden" style={{ background: avatarColors[group.id % avatarColors.length] }}>
+                                {group?.image_url ? <img src={group.image_url} className="w-full h-full object-cover" /> : (group?.name ? String(group.name).charAt(0).toUpperCase() : '?')}
                             </div>
                             <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                <span className="text-white text-xs font-bold text-center leading-tight">{i18n("edit_trip_change") || "שנה"}<br/>{i18n("edit_trip_image") || "תמונה"}</span>
+                                <span className="text-white text-xs font-bold text-center leading-tight">{i18n("edit_group_change") || "שנה"}<br/>{i18n("edit_group_image") || "תמונה"}</span>
                             </div>
                         </div>
                         
                         <input 
                             type="text" 
-                            defaultValue={trip?.name || ''} 
-                            onChange={(e) => setEditTripDetails(prev => ({...prev, name: e.target.value}))}
+                            defaultValue={group?.name || ''} 
+                            onChange={(e) => setEditGroupDetails(prev => ({...prev, name: e.target.value}))}
                             className="text-2xl font-bold text-gray-900 dark:text-white bg-transparent text-center focus:outline-none focus:border-b-2 focus:border-indigo-500 w-3/4 transition-all"
                             placeholder={t?.group_name || 'שם הקבוצה'}
                         />
@@ -448,7 +448,7 @@ const GroupsScreen = () => {
                                     <span className="text-xs font-medium">{i18n("add_member") || "הוסף חבר"}</span>
                                 </button>
                             )}
-                            <button onClick={() => window.copyInviteLink(trip.id, trip.invite_token)} className="flex flex-col items-center gap-1.5 text-indigo-600 dark:text-indigo-400 hover:scale-105 transition-transform">
+                            <button onClick={() => window.copyInviteLink(group.id, group.invite_token)} className="flex flex-col items-center gap-1.5 text-indigo-600 dark:text-indigo-400 hover:scale-105 transition-transform">
                                 <div className="p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-full shadow-sm"><IconLink size={22} /></div>
                                 <span className="text-xs font-medium">{i18n("copy_link") || "העתק קישור"}</span>
                             </button>
@@ -486,12 +486,12 @@ const GroupsScreen = () => {
                                                 <div className="flex items-center gap-1.5">
                                                     <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/30 px-2.5 py-1 rounded-full">{i18n("role_admin") || "Admin"}</span>
                                                     {isAdmin && !p.is_owner && (
-                                                        <button onClick={() => { if(window.removeMemberAdmin) window.removeMemberAdmin(trip, p.contact); }} className="text-xs font-medium text-gray-600 bg-gray-100 hover:bg-red-100 hover:text-red-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-red-900/30 px-2.5 py-1.5 rounded-full transition-colors shadow-sm">{i18n("remove_admin") || "Remove Admin"}</button>
+                                                        <button onClick={() => { if(window.removeMemberAdmin) window.removeMemberAdmin(group, p.contact); }} className="text-xs font-medium text-gray-600 bg-gray-100 hover:bg-red-100 hover:text-red-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-red-900/30 px-2.5 py-1.5 rounded-full transition-colors shadow-sm">{i18n("remove_admin") || "Remove Admin"}</button>
                                                     )}
                                                 </div> :
                                                 isAdmin && !p.is_owner ? (
                                                     <div className="flex items-center gap-1.5">
-                                                        <button onClick={() => { if(window.makeMemberAdmin) window.makeMemberAdmin(trip, p.contact); }} className="text-xs font-medium text-indigo-600 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 px-2.5 py-1.5 rounded-full transition-colors shadow-sm">{i18n("make_admin") || "Admin"}</button>
+                                                        <button onClick={() => { if(window.makeMemberAdmin) window.makeMemberAdmin(group, p.contact); }} className="text-xs font-medium text-indigo-600 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 px-2.5 py-1.5 rounded-full transition-colors shadow-sm">{i18n("make_admin") || "Admin"}</button>
                                                         <button onClick={() => removeUser(p.contact)} className="text-xs font-medium text-red-600 bg-red-100 hover:bg-red-200 dark:bg-red-900/20 px-2.5 py-1.5 rounded-full transition-colors shadow-sm">{i18n("btn_remove") || "Remove"}</button>
                                                     </div>
                                                 ) : null
@@ -505,18 +505,18 @@ const GroupsScreen = () => {
                         {/* Advanced Settings */}
                         {isAdmin && (
                             <div className="p-4 border-t border-gray-100 dark:border-gray-700">
-                                <button onClick={() => setEditTripDetails(prev => ({...prev, showAdvancedBudget: !prev.showAdvancedBudget}))} className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-2xl transition-colors border border-gray-100 dark:border-gray-700">
+                                <button onClick={() => setEditGroupDetails(prev => ({...prev, showAdvancedBudget: !prev.showAdvancedBudget}))} className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-2xl transition-colors border border-gray-100 dark:border-gray-700">
                                     <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200 font-medium">
                                         <IconSettings size={18} className="text-indigo-500" /> {i18n("admin_settings") || "הגדרות מנהל"}  
                                     </div>
-                                    <IconChevronDown size={16} className={`text-gray-500 transition-transform duration-300 ${trip.showAdvancedBudget ? 'rotate-180' : ''}`} />
+                                    <IconChevronDown size={16} className={`text-gray-500 transition-transform duration-300 ${group.showAdvancedBudget ? 'rotate-180' : ''}`} />
                                 </button>
 
-                                {trip.showAdvancedBudget && (
+                                {group.showAdvancedBudget && (
                                     <div className="mt-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700 animate-in fade-in slide-in-from-top-2">
                                         <div className="space-y-3 pt-3 border-t border-gray-200 dark:border-gray-700 mb-4">
                                             <div className="flex items-center justify-between bg-white dark:bg-gray-900 p-2 rounded-xl border border-gray-100 dark:border-gray-700">
-                                                <label className="text-[12px] font-bold text-gray-700 dark:text-gray-300 pl-1 w-1/3">{i18n("trip_currency") || "מטבע קבוצה"}</label>
+                                                <label className="text-[12px] font-bold text-gray-700 dark:text-gray-300 pl-1 w-1/3">{i18n("group_currency") || "מטבע קבוצה"}</label>
                                                 <button 
                                                     type="button"
                                                     onClick={() => {
@@ -526,7 +526,7 @@ const GroupsScreen = () => {
                                                     }}
                                                     className="w-2/3 bg-transparent border-none text-[12px] font-medium text-gray-900 dark:text-white focus:ring-0 outline-none dir-rtl text-left cursor-pointer"
                                                 >
-                                                    {trip.budgets_json?.currency || 'ILS'}
+                                                    {group.budgets_json?.currency || 'ILS'}
                                                 </button>
                                             </div>
                                             
@@ -538,8 +538,8 @@ const GroupsScreen = () => {
                                                 {['daily', 'monthly', 'yearly'].map((type, i) => (
                                                     <div key={'global-' + type} className="flex flex-col gap-1 w-full">
                                                         <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300 text-center">{type === 'daily' ? (i18n('budget_daily') || 'תקציב יומי') : type === 'monthly' ? (i18n('budget_monthly') || 'תקציב חודשי') : (i18n('budget_yearly') || 'תקציב שנתי')}</span>
-                                                        <button type="button" onClick={() => setBudgetPopup({ key: 'global', type, value: trip.budgets_json?.[type] || '', name: i18n('all_group') || 'כל הקבוצה' })} className="w-full text-center py-2.5 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 text-xs font-bold text-gray-900 dark:text-white shadow-sm hover:border-indigo-300 transition-colors">
-                                                            {trip.budgets_json?.[type] ? `${trip.budgets_json?.[type]} ${currencySymbol}` : (i18n('enter_amount') || 'הזן סכום')}
+                                                        <button type="button" onClick={() => setBudgetPopup({ key: 'global', type, value: group.budgets_json?.[type] || '', name: i18n('all_group') || 'כל הקבוצה' })} className="w-full text-center py-2.5 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 text-xs font-bold text-gray-900 dark:text-white shadow-sm hover:border-indigo-300 transition-colors">
+                                                            {group.budgets_json?.[type] ? `${group.budgets_json?.[type]} ${currencySymbol}` : (i18n('enter_amount') || 'הזן סכום')}
                                                         </button>
                                                     </div>
                                                 ))}
@@ -549,19 +549,19 @@ const GroupsScreen = () => {
                                         <div className="flex items-center justify-between mb-4">
                                             <label className="text-sm font-bold text-gray-700 dark:text-gray-300">{i18n("personal_budget_per_user") || "תקציב אישי לכל משתתף"}</label>
                                             <div 
-                                                className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ease-in-out ${trip.is_budget_per_user ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                                                className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ease-in-out ${group.is_budget_per_user ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-gray-600'}`}
                                                 onClick={() => togglePermission('is_budget_per_user')}
                                             >
-                                                <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${trip.is_budget_per_user ? (isRTL ? 'translate-x-0' : 'translate-x-5') : (isRTL ? '-translate-x-5' : 'translate-x-0')}`}></div>
+                                                <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${group.is_budget_per_user ? (isRTL ? 'translate-x-0' : 'translate-x-5') : (isRTL ? '-translate-x-5' : 'translate-x-0')}`}></div>
                                             </div>
                                         </div>
                                         
-                                        {trip.is_budget_per_user && (
+                                        {group.is_budget_per_user && (
                                             <div className="space-y-3 pt-3 border-t border-gray-200 dark:border-gray-700 mb-4">
                                                 {participants.map((participant, idx) => {
                                                     const p = typeof participant === 'string' ? { name: participant, contact: participant } : participant;
                                                     const key = p.contact || p.email || p.phone || p.name;
-                                                    const uBudget = trip.user_budgets?.[key] || { daily: '', monthly: '', yearly: '' };
+                                                    const uBudget = group.user_budgets?.[key] || { daily: '', monthly: '', yearly: '' };
                                                     const pName = p.name || p.username || p.email || p.phone || '?';
                                                     return (
                                                         <div key={idx} className="mb-4">
@@ -586,19 +586,19 @@ const GroupsScreen = () => {
                                             <div className="flex items-center justify-between">
                                                 <label className="text-sm text-gray-700 dark:text-gray-300">{i18n("public_expenses") || "הצג הוצאות לכולם"}</label>
                                                 <div 
-                                                    className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ease-in-out ${trip.is_public_expenses !== false ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                                                    className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ease-in-out ${group.is_public_expenses !== false ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-gray-600'}`}
                                                     onClick={() => togglePermission('is_public_expenses')}
                                                 >
-                                                    <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${trip.is_public_expenses !== false ? (isRTL ? 'translate-x-0' : 'translate-x-5') : (isRTL ? '-translate-x-5' : 'translate-x-0')}`}></div>
+                                                    <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${group.is_public_expenses !== false ? (isRTL ? 'translate-x-0' : 'translate-x-5') : (isRTL ? '-translate-x-5' : 'translate-x-0')}`}></div>
                                                 </div>
                                             </div>
                                             <div className="flex items-center justify-between">
                                                 <label className="text-sm text-gray-700 dark:text-gray-300">{i18n("allow_member_delete_lbl") || "אפשר למשתתפים למחוק הוצאות"}</label>
                                                 <div 
-                                                    className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ease-in-out ${trip.allow_member_delete !== false ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                                                    className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ease-in-out ${group.allow_member_delete !== false ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-gray-600'}`}
                                                     onClick={() => togglePermission('allow_member_delete')}
                                                 >
-                                                    <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${trip.allow_member_delete !== false ? (isRTL ? 'translate-x-0' : 'translate-x-5') : (isRTL ? '-translate-x-5' : 'translate-x-0')}`}></div>
+                                                    <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${group.allow_member_delete !== false ? (isRTL ? 'translate-x-0' : 'translate-x-5') : (isRTL ? '-translate-x-5' : 'translate-x-0')}`}></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -609,18 +609,18 @@ const GroupsScreen = () => {
 
                         {/* Action Buttons inside scroll area */}
                         <div className="mt-8 mb-4 space-y-3 px-2">
-                            {!trip.is_readonly && (
-                                <button onClick={() => window.saveEditTripFromReact(trip)} className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-[0_0_15px_rgba(99,102,241,0.4)] transition-all flex items-center justify-center gap-2 active:scale-95">
+                            {!group.is_readonly && (
+                                <button onClick={() => window.saveEditGroupFromReact(group)} className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-[0_0_15px_rgba(99,102,241,0.4)] transition-all flex items-center justify-center gap-2 active:scale-95">
                                     <IconCheck size={18} /> {i18n("save_changes") || "שמור שינויים"}
                                 </button>
                             )}
-                            {!trip.is_readonly && (
-                                <button onClick={handleLeaveTrip} className="w-full py-3 bg-orange-100/80 hover:bg-orange-200 dark:bg-orange-900/30 dark:hover:bg-orange-800/50 text-orange-700 dark:text-orange-400 font-bold rounded-xl transition-all flex items-center justify-center gap-2 active:scale-95 border border-orange-200/50 dark:border-orange-800/30">
-                                    <IconUserMinus size={18} /> {i18n("leave_trip") || "עזוב קבוצה"}
+                            {!group.is_readonly && (
+                                <button onClick={handleLeaveGroup} className="w-full py-3 bg-orange-100/80 hover:bg-orange-200 dark:bg-orange-900/30 dark:hover:bg-orange-800/50 text-orange-700 dark:text-orange-400 font-bold rounded-xl transition-all flex items-center justify-center gap-2 active:scale-95 border border-orange-200/50 dark:border-orange-800/30">
+                                    <IconUserMinus size={18} /> {i18n("leave_group") || "עזוב קבוצה"}
                                 </button>
                             )}
-                            <button onClick={handleHideTrip} className="w-full py-3 bg-red-100/80 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-800/50 text-red-700 dark:text-red-400 font-bold rounded-xl transition-all flex items-center justify-center gap-2 active:scale-95 border border-red-200/50 dark:border-red-800/30">
-                                <IconTrash size={18} /> {i18n("hide_trip") || "מחק קבוצה מהרשימה"}
+                            <button onClick={handleHideGroup} className="w-full py-3 bg-red-100/80 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-800/50 text-red-700 dark:text-red-400 font-bold rounded-xl transition-all flex items-center justify-center gap-2 active:scale-95 border border-red-200/50 dark:border-red-800/30">
+                                <IconTrash size={18} /> {i18n("hide_group") || "מחק קבוצה מהרשימה"}
                             </button>
                         </div>
                     </div>

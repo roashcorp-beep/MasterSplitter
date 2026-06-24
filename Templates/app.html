@@ -17,7 +17,7 @@
         
         const hashMatch = window.location.hash.match(/#join=([^&]+)/);
         if (hashMatch) {
-            localStorage.setItem('pending_join_trip_id', hashMatch[1]);
+            localStorage.setItem('pending_join_group_id', hashMatch[1]);
         }
     </script>
     <!-- Tailwind CSS -->
@@ -113,15 +113,15 @@
 
             <!-- HOME DASHBOARD SCREEN -->
             <div id="screen-home" class="screen">
-                <div class="trip-banner card">
-                    <div class="trip-banner-content">
-                        <div class="trip-info" onclick="openGroupInfo()" style="cursor:pointer;">
-                            <span class="trip-icon">
+                <div class="group-banner card">
+                    <div class="group-banner-content">
+                        <div class="group-info" onclick="openGroupInfo()" style="cursor:pointer;">
+                            <span class="group-icon">
                                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                             </span>
-                            <div class="trip-details">
-                                <span class="trip-select-label" id="trip-name-label">...</span>
-                                <span class="trip-dates" id="trip-participants-label" data-i18n="loading">טוען...</span>
+                            <div class="group-details">
+                                <span class="group-select-label" id="group-name-label">...</span>
+                                <span class="group-dates" id="group-participants-label" data-i18n="loading">טוען...</span>
                             </div>
                         </div>
                         <div style="display: flex; align-items: center; gap: 10px;">
@@ -129,7 +129,7 @@
                                 style="background: rgba(255,255,255,0.15); border: none; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: white; transition: background 0.2s;">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
                             </button>
-                            <div class="trip-participants" id="trip-avatars"></div>
+                            <div class="group-participants" id="group-avatars"></div>
                         </div>
                     </div>
                 </div>
@@ -275,7 +275,7 @@
                     </div>
                     <button class="primary-btn full-width" id="btn-suggest-offset" style="margin-bottom: 16px; background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3);" onclick="suggestLimboOffset()" data-i18n="suggest_offset">✨ הצע קיזוז (Settle Up)</button>
                     <div id="balances-list"></div>
-                    <button id="btn-reset-settlements" style="display:none; margin: 18px auto 0; background: transparent; color: var(--text-muted); border: 1px solid rgba(255,255,255,0.12); padding: 6px 14px; border-radius: 8px; cursor: pointer; font-size: 0.78rem;" onclick="resetTripSettlements()" data-i18n="reset_settlements">↺ אפס את כל הקיזוזים בקבוצה</button>
+                    <button id="btn-reset-settlements" style="display:none; margin: 18px auto 0; background: transparent; color: var(--text-muted); border: 1px solid rgba(255,255,255,0.12); padding: 6px 14px; border-radius: 8px; cursor: pointer; font-size: 0.78rem;" onclick="resetGroupSettlements()" data-i18n="reset_settlements">↺ אפס את כל הקיזוזים בקבוצה</button>
                 </div>
             </div>
 
@@ -412,8 +412,8 @@
         </button>
     </div>
 
-    <script src="{{ url_for('static', filename='js/translations.js') }}?v=3.98"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=4.11"></script>
+    <script src="{{ url_for('static', filename='js/translations.js') }}?v=3.99"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=4.12"></script>
     <script>
         function checkCookieConsent() {
             if (!localStorage.getItem('cookieConsent')) {
@@ -452,9 +452,9 @@
         <div class="menu-items">
             <button class="menu-item" onclick="showLobby(); closeHamburgerMenu();">
                 <svg class="menu-icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                <span data-i18n="menu_my_trips">הקבוצות שלי</span>
+                <span data-i18n="menu_my_groups">הקבוצות שלי</span>
             </button>
-            <button class="menu-item" id="menu-group-details-btn" style="display:none;" onclick="openEditTripModalAsync(currentTripId); closeHamburgerMenu();">
+            <button class="menu-item" id="menu-group-details-btn" style="display:none;" onclick="openEditGroupModalAsync(currentGroupId); closeHamburgerMenu();">
                 <svg class="menu-icon" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
                 <span data-i18n="menu_group_details">פרטי הקבוצה</span>
             </button>
@@ -570,7 +570,7 @@
     </div>
 
     <!-- React Component Inclusion -->
-    <script type="text/babel" src="{{ url_for('static', filename='js/components/GroupsScreen.jsx') }}?v=3.9">
+    <script type="text/babel" src="{{ url_for('static', filename='js/components/GroupsScreen.jsx') }}?v=4.0">
 /** @jsx React.createElement */
 /** @jsxFrag React.Fragment */
 </script>

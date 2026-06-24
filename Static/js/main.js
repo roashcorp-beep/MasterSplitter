@@ -501,7 +501,9 @@ async function openGroup(groupId) {
         }
     }
     showView('dashboard');
-    switchTab('home');
+    // Land on the expenses list, not the home dashboard. The dashboard is being
+    // redesigned separately; auto-opening it caused a brief flash on every group entry.
+    switchTab('expenses');
     await fetchGroupMembers();
     await fetchGroupSettings();
     fetchExpenses();
@@ -4159,7 +4161,7 @@ window.addEventListener('popstate', function(e) {
         if (e.state && e.state.tabName) {
             switchTab(e.state.tabName, true);
         } else {
-            switchTab('home', true);
+            switchTab('expenses', true);
         }
     }
 });

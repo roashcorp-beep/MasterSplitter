@@ -2666,13 +2666,25 @@ def get_expenses(group_id):
         paid_pair[(r['payer_id'], r['payee_id'])] += float(r['amt'])
 
     def debtor_clear(d, p):
-        # Net amount d still owes p. We allow a tolerance that scales with the debt
-        # so that FX-conversion rounding across several legs (each rounded to 2dp)
-        # can't keep an effectively-cleared expense un-badged.
-        gross = owed_pair[(d, p)]
-        net = (gross - owed_pair[(p, d)]) - (paid_pair[(d, p)] - paid_pair[(p, d)])
+        gross   = owed_pair[(d, p)]
+        counter = owed_pair[(p, d)]
+        direct  = paid_pair[(d, p)]   # d paid p (debtor settling)
+        reverse = paid_pair[(p, d)]   # p paid d (creditor settling their reverse debt)
         tol = max(1.0, gross * 0.01)
-        return net <= tol
+
+        if direct > 0 or reverse > 0:
+            # At least one settlement payment exists — apply full netting:
+            # cross-expense offset + settlements.
+            # Example: d owes p 100 (exp1), p owes d 120 (exp2), p settles 20 →
+            #   net = (100-120) - (0-20) = 0  → settled ✓
+            net = (gross - counter) - (direct - reverse)
+            return net <= tol
+        else:
+            # No settlement payments yet. Don't let cross-expense netting alone
+            # mark an expense as settled — that caused freshly-created expenses
+            # to immediately jump to the settled section before any money changed
+            # hands (Bug: A owes B 100, B owes A 120 → A's new expense settled).
+            return gross <= tol  # True only for near-zero-amount expenses
 
     settled_map = {}
     for e in expenses:
@@ -3316,8 +3328,8 @@ def get_optimized_balances(group_id):
         for deb, cred, val in net_directed(directed):
             lst.append({"from_id": deb, "from": user_name.get(deb),
                         "to_id": cred, "to": user_name.get(cred), "amount": val})
-            user_currency_balances[deb][cur] = round(user_currency_balances.get(deb, {}).get(cur, 0.0) - val, 2)
-            user_currency_balances[cred][cur] = round(user_currency_balances.get(cred, {}).get(cur, 0.0) + val, 2)
+            user_currency_balances.setdefault(deb, {})[cur] = round(user_currency_balances.get(deb, {}).get(cur, 0.0) - val, 2)
+            user_currency_balances.setdefault(cred, {})[cur] = round(user_currency_balances.get(cred, {}).get(cur, 0.0) + val, 2)
         if lst:
             currency_settlements[cur] = lst
 

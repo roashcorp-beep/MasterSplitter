@@ -1862,17 +1862,24 @@ def get_trip(trip_id):
 @login_required
 @require_trip_access
 def update_trip(trip_id):
-    """Update trip details. Only the trip owner can edit."""
+    """Update trip details. The trip owner or any group admin can edit."""
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        # Verify ownership
+        # Verify the caller is the owner OR a group admin (the edit modal is shown
+        # to admins, so admins must be able to save — not just the owner).
         cursor.execute("SELECT owner_id FROM Trips WHERE id = ?", (trip_id,))
         trip = cursor.fetchone()
         if not trip:
             return jsonify({"error": "טיול לא נמצא."}), 404
-        if trip['owner_id'] != session['user_id']:
-            return jsonify({"error": "רק יוצר הטיול יכול לערוך אותו."}), 403
+        is_owner = trip['owner_id'] == session['user_id']
+        cursor.execute("SELECT COALESCE(is_admin, 0) AS is_admin FROM TripMembers WHERE trip_id = ? AND user_id = ?",
+                       (trip_id, session['user_id']))
+        _m = cursor.fetchone()
+        is_admin = bool(_m and _m['is_admin'])
+        if not (is_owner or is_admin):
+            conn.close()
+            return jsonify({"error": "רק מנהל הקבוצה יכול לערוך אותה."}), 403
 
         data = request.json or {}
         updates = []
@@ -1904,6 +1911,15 @@ def update_trip(trip_id):
         if 'is_budget_per_user' in data:
             updates.append("is_budget_per_user = ?")
             params.append(1 if data['is_budget_per_user'] else 0)
+
+        # Group permission toggles (previously dropped here, so the admin UI had no effect).
+        if 'is_public_expenses' in data:
+            updates.append("is_public_expenses = ?")
+            params.append(1 if data['is_public_expenses'] else 0)
+
+        if 'allow_member_delete' in data:
+            updates.append("allow_member_delete = ?")
+            params.append(1 if data['allow_member_delete'] else 0)
 
         if 'budgets_json' in data:
             updates.append("budgets_json = ?")
@@ -2676,9 +2692,13 @@ def get_expenses(trip_id):
         paid_pair[(r['payer_id'], r['payee_id'])] += float(r['amt'])
 
     def debtor_clear(d, p):
-        # Net amount d still owes p (>0.01 means still outstanding).
-        net = (owed_pair[(d, p)] - owed_pair[(p, d)]) - (paid_pair[(d, p)] - paid_pair[(p, d)])
-        return net <= 0.01
+        # Net amount d still owes p. We allow a tolerance that scales with the debt
+        # so that FX-conversion rounding across several legs (each rounded to 2dp)
+        # can't keep an effectively-cleared expense un-badged.
+        gross = owed_pair[(d, p)]
+        net = (gross - owed_pair[(p, d)]) - (paid_pair[(d, p)] - paid_pair[(p, d)])
+        tol = max(1.0, gross * 0.01)
+        return net <= tol
 
     settled_map = {}
     for e in expenses:

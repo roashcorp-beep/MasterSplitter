@@ -507,11 +507,13 @@ async function openTrip(tripId) {
     fetchExpenses();
     fetchBalances();
 
-    // Show Activity & Stats hamburger items when inside a group
+    // Show Activity, Stats & Group-Details hamburger items when inside a group
     const actBtn = document.getElementById('menu-activity-btn');
     const stBtn = document.getElementById('menu-stats-btn');
+    const gdBtn = document.getElementById('menu-group-details-btn');
     if (actBtn) actBtn.style.display = '';
     if (stBtn) stBtn.style.display = '';
+    if (gdBtn) gdBtn.style.display = '';
 }
 
 function goToLobby() {
@@ -523,8 +525,10 @@ function showLobby() {
     // Hide group-specific hamburger items
     const actBtn = document.getElementById('menu-activity-btn');
     const stBtn = document.getElementById('menu-stats-btn');
+    const gdBtn = document.getElementById('menu-group-details-btn');
     if (actBtn) actBtn.style.display = 'none';
     if (stBtn) stBtn.style.display = 'none';
+    if (gdBtn) gdBtn.style.display = 'none';
     loadLobby();
 }
 
@@ -664,15 +668,16 @@ function createParticipantRowHTML(n, idx, mode) {
     const displayName = escapeHTML(n.name || n.resolvedName || n.contact || n);
     const initial = (displayName || '?').charAt(0).toUpperCase();
     
-    let statusText = 'חבר';
+    const _t = (k, fb) => (typeof i18n === 'function' ? (i18n(k) || fb) : fb);
+    let statusText = _t('status_member', 'חבר');
     let statusColor = '#10b981'; // green
-    
+
     if (n.type === 'guest') {
-        statusText = 'אורח';
+        statusText = _t('status_guest', 'אורח');
         statusColor = '#3b82f6'; // blue
     } else if (n.type === 'pending' || n.type === 'unregistered' || n.inviteMethod) {
         if (!n.id) {
-            statusText = 'ממתין להצטרפות';
+            statusText = _t('status_pending_join', 'ממתין להצטרפות');
             statusColor = '#9ca3af'; // gray
         }
     }
@@ -1753,7 +1758,9 @@ async function fetchExpenses() {
                             ? `<img class="split-detail-avatar" src="${escapeHTML(s.avatar_url)}" referrerpolicy="no-referrer">`
                             : `<div class="split-detail-avatar split-detail-initial">${escapeHTML(s.name.charAt(0))}</div>`;
                             
-                        const labelText = isPayer ? 'החלק שלו/ה:' : 'חייב/ת:';
+                        const labelText = (typeof i18n === 'function')
+                            ? (isPayer ? (i18n('split_own_share') || 'החלק שלו/ה:') : (i18n('split_owes') || 'חייב/ת:'))
+                            : (isPayer ? 'החלק שלו/ה:' : 'חייב/ת:');
 
                         return `<div class="split-detail-row">
                             ${sAvatar}
@@ -1773,11 +1780,13 @@ async function fetchExpenses() {
                 // Solo/personal expenses never get the badge.
                 const isSettled = (exp.type !== 'settlement') && exp.settled === true;
                 const settledBorder = isSettled ? 'border: 2px solid var(--success-color);' : 'border: 1px solid var(--glass-border);';
-                const settledBadge = isSettled ? `<div style="position:absolute; top: -10px; right: 15px; background: var(--success-color); color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">✓ ${typeof i18n === 'function' ? i18n('settled') || 'מאוזן' : 'מאוזן'}</div>` : '';
+                // Inline chip (normal flow) so it can never be clipped by an ancestor's
+                // overflow — the old absolute top:-10px badge could render off-card.
+                const settledTxt = typeof i18n === 'function' ? (i18n('balance_settled') || 'מאוזן') : 'מאוזן';
+                const settledBadge = isSettled ? `<span style="display:inline-block; margin-top:6px; background: var(--success-color); color:#fff; font-size:0.7rem; padding:2px 10px; border-radius:10px; font-weight:bold;">✓ ${settledTxt}</span>` : '';
 
                 html += `
                 <div class="list-item${personalClass} expense-expandable" id="expense-${exp.id}" onclick="toggleExpenseSplits(${exp.id}, event)" style="display: flex; flex-direction: column; align-items: stretch; gap: 0; background: var(--surface-card); border-radius: 16px; padding: 16px 18px; margin-bottom: 12px; ${settledBorder} position: relative; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);">
-                    ${settledBadge}
                     <div class="list-item-main" style="display: flex; flex-wrap: nowrap; justify-content: space-between; align-items: stretch; width: 100%; gap: 10px;">
                         <div class="item-left" style="min-width: 0; flex: 1;">
                             ${payerAvatar}
@@ -1785,6 +1794,7 @@ async function fetchExpenses() {
                                 <h4 style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${safeDesc} ${personalBadge}</h4>
                                 <p style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${safePayer} \u2022 ${translateCategory(exp.category || 'כללי')}</p>
                                 ${participantsHTML}
+                                ${settledBadge}
                             </div>
                         </div>
                         <div class="item-right" style="flex-shrink: 0; align-self: stretch; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; padding-top: 4px;">
@@ -2400,10 +2410,12 @@ function renderBalancesList() {
     });
 
     if (activeBalances.length === 0) {
+        const allSettledTitle = (typeof i18n === 'function') ? (i18n('balances_all_settled_title') || 'הכל מאוזן!') : 'הכל מאוזן!';
+        const allSettledSub = (typeof i18n === 'function') ? (i18n('balances_all_settled_sub') || 'אין חובות פתוחים בקבוצה.') : 'אין חובות פתוחים בקבוצה.';
         list.innerHTML = `<div style="text-align:center; padding: 40px 20px; color: var(--text-muted);">
             <div style="font-size: 3rem; margin-bottom: 10px;">🎉</div>
-            <div style="font-size: 1.1rem; font-weight: 500;">הכל מאוזן!</div>
-            <div style="font-size: 0.9rem; margin-top: 5px;">אין חובות פתוחים בקבוצה.</div>
+            <div style="font-size: 1.1rem; font-weight: 500;">${allSettledTitle}</div>
+            <div style="font-size: 0.9rem; margin-top: 5px;">${allSettledSub}</div>
         </div>`;
         return;
     }
@@ -2439,7 +2451,7 @@ function renderBalancesList() {
                     const cbCls = cb > 0.01 ? 'amount-pos' : cb < -0.01 ? 'amount-neg' : '';
                     return `<span class="${cbCls}">${cbSym}${formatMoney(Math.abs(cb))}</span>`;
                 }).join(' <span style="color:var(--text-muted);font-weight:normal;">|</span> ');
-                badgeTxt = 'מאזן מפוצל';
+                badgeTxt = (typeof i18n === 'function') ? (i18n('balance_split') || 'מאזן מפוצל') : 'מאזן מפוצל';
                 badgeCls = 'neutral';
             }
 

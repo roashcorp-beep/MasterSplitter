@@ -227,6 +227,8 @@ const translations = {
 
         // Settle Up
         "settle_up": "סלק חוב",
+        "settle_partial": "החזר חלקי",
+        "settle_full_hint": "אישור סילוק החוב המלא",
         "settle_confirm": "לסלק חוב?",
         "toast_settled": "החוב סולק!",
         "settle_amount_label": "סכום לתשלום",
@@ -600,6 +602,8 @@ const translations = {
 
         // Settle Up
         "settle_up": "Settle Up",
+        "settle_partial": "Partial",
+        "settle_full_hint": "Confirm settling the full debt",
         "settle_confirm": "Settle this debt?",
         "toast_settled": "Debt settled!",
         "settle_amount_label": "Amount to pay",

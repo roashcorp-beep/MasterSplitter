@@ -3076,6 +3076,39 @@ body.light-theme .debt-amount {
     transform: scale(0.96);
 }
 
+/* Full + partial settle buttons sit side by side */
+.settle-actions {
+    display: inline-flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+/* "החזר חלקי" — outline variant of the green settle button */
+.settle-btn-partial {
+    background: transparent;
+    color: var(--accent-green);
+    border: 1px solid var(--accent-green);
+    box-shadow: none;
+}
+.settle-btn-partial:hover {
+    background: rgba(6, 214, 160, 0.12);
+    box-shadow: none;
+    filter: none;
+}
+
+/* Compact variant used on the expense card */
+.settle-mini {
+    padding: 4px 9px;
+    font-size: 0.72rem;
+    border-radius: 8px;
+    box-shadow: none;
+}
+.settle-mini:hover {
+    transform: none;
+    box-shadow: none;
+}
+
 .activity-bell-btn:hover {
     background: rgba(255, 255, 255, 0.3) !important;
     transform: scale(1.05);

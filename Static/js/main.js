@@ -1704,8 +1704,7 @@ async function fetchExpenses() {
                     if (exp.original_amount && exp.amount && Math.abs(parseFloat(exp.original_amount) - parseFloat(exp.amount)) > 0.01) {
                         shareOrig = shareOrig * (parseFloat(exp.original_amount) / parseFloat(exp.amount));
                     }
-                    const settleLabel = typeof i18n === 'function' ? i18n('settle_up') : 'סלק';
-                    settleExpBtn = `<button class="settle-expense-btn" onclick="event.stopPropagation(); openSettleExpenseModal(${exp.id}, ${window.currentUser.id}, ${exp.user_id}, ${shareOrig.toFixed(2)}, '${expCurrency}')" title="${settleLabel}">💸</button>`;
+                    settleExpBtn = settleButtonsHtml(window.currentUser.id, exp.user_id, parseFloat(shareOrig.toFixed(2)), expCurrency, exp.id, true);
                 }
 
                 const personalBadge = isPersonal ? `<span class="personal-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>` : '';
@@ -2659,8 +2658,7 @@ function renderBalancesList() {
 
                     let settleBtn = '';
                     if (isDebtor || isCreditor) {
-                        const txtSettleUp = typeof i18n === 'function' ? i18n('settle_up') : 'סלק חוב 💸';
-                        settleBtn = `<button class="settle-btn" onclick="event.stopPropagation(); triggerSettleUp(${s.from_id}, ${s.to_id}, ${s.amount}, '${s.currency}')">${txtSettleUp}</button>`;
+                        settleBtn = settleButtonsHtml(s.from_id, s.to_id, s.amount, s.currency, null, false);
                     }
 
                     return `<div class="debt-line">
@@ -2688,9 +2686,8 @@ function renderBalancesList() {
 
                     let settleBtn = '';
                     if (isDebtor || isCreditor) {
-                        const txtSettleUp = typeof i18n === 'function' ? i18n('settle_up') : 'סלק חוב 💸';
                         // Converted view settles in the viewer's profile currency
-                        settleBtn = `<button class="settle-btn" onclick="event.stopPropagation(); triggerSettleUp(${s.from_id}, ${s.to_id}, ${s.amount}, '${profileCur}')">${txtSettleUp}</button>`;
+                        settleBtn = settleButtonsHtml(s.from_id, s.to_id, s.amount, profileCur, null, false);
                     }
 
                     return `<div class="debt-line">
@@ -2806,27 +2803,44 @@ let _pendingSettle = null;
  * Open the settle modal for a pair-level settlement (from the balance/summaries screen).
  * desc: optional human-readable label (e.g. "אבי → נופר")
  */
-function triggerSettleUp(payerId, payeeId, amount, currency = 'ILS', desc = '') {
-    _openSettleModal({ payerId, payeeId, amount, currency, expenseId: null }, desc);
-}
-
-/**
- * Open the settle modal for a specific expense card.
- * shareAmount: the debtor's share in the expense's original currency.
- */
-function openSettleExpenseModal(expenseId, payerId, payeeId, shareAmount, currency) {
+// Description line shown inside the settle modal (only for per-expense settles).
+function _settleDesc(amount, currency, expenseId) {
+    if (expenseId == null) return '';
     const sym = getCurrencySymbol(currency);
-    const desc = (typeof i18n === 'function' ? i18n('settle_expense_desc') : 'סלק הוצאה זו') +
-        ` (${sym}${formatNumber(shareAmount)})`;
-    _openSettleModal({ payerId, payeeId, amount: shareAmount, currency, expenseId }, desc);
+    const lbl = typeof i18n === 'function' ? (i18n('settle_expense_desc') || 'סלק הוצאה זו') : 'סלק הוצאה זו';
+    return `${lbl} (${sym}${formatNumber(amount)})`;
 }
 
-function _openSettleModal(settle, desc) {
+// "סלק חוב" — opens the modal in CONFIRM mode (full amount, read-only, just confirm).
+function triggerSettleUp(payerId, payeeId, amount, currency = 'ILS', expenseId = null) {
+    _openSettleModal({ payerId, payeeId, amount, currency, expenseId }, _settleDesc(amount, currency, expenseId), 'full');
+}
+
+// "החזר חלקי" — opens the modal in PARTIAL mode (editable amount up to the debt).
+function triggerSettlePartial(payerId, payeeId, amount, currency = 'ILS', expenseId = null) {
+    _openSettleModal({ payerId, payeeId, amount, currency, expenseId }, _settleDesc(amount, currency, expenseId), 'partial');
+}
+
+// Build the pair of settle buttons (full + partial). `mini` = compact variant for
+// the expense card. Same visual design in both places.
+function settleButtonsHtml(payerId, payeeId, amount, currency, expenseId, mini) {
+    const full = typeof i18n === 'function' ? (i18n('settle_up') || 'סלק חוב') : 'סלק חוב';
+    const partial = typeof i18n === 'function' ? (i18n('settle_partial') || 'החזר חלקי') : 'החזר חלקי';
+    const eid = (expenseId == null) ? 'null' : expenseId;
+    const m = mini ? ' settle-mini' : '';
+    return `<span class="settle-actions">`
+        + `<button class="settle-btn${m}" onclick="event.stopPropagation(); triggerSettleUp(${payerId}, ${payeeId}, ${amount}, '${currency}', ${eid})">${full}</button>`
+        + `<button class="settle-btn settle-btn-partial${m}" onclick="event.stopPropagation(); triggerSettlePartial(${payerId}, ${payeeId}, ${amount}, '${currency}', ${eid})">${partial}</button>`
+        + `</span>`;
+}
+
+function _openSettleModal(settle, desc, mode = 'partial') {
     _pendingSettle = settle;
     const { amount, currency } = settle;
     const sym = getCurrencySymbol(currency);
     const overlay = document.getElementById('settle-modal-overlay');
     if (!overlay) return;
+    const isFull = (mode === 'full');
 
     const titleEl = document.getElementById('settle-modal-title');
     const descEl  = document.getElementById('settle-modal-desc');
@@ -2834,19 +2848,27 @@ function _openSettleModal(settle, desc) {
     const inp     = document.getElementById('settle-amount-input');
     const hint    = document.getElementById('settle-amount-hint');
 
-    if (titleEl) titleEl.textContent = (typeof i18n === 'function' ? i18n('settle_up') : 'סלק חוב') + ' 💸';
+    const fullLbl = typeof i18n === 'function' ? (i18n('settle_up') || 'סלק חוב') : 'סלק חוב';
+    const partialLbl = typeof i18n === 'function' ? (i18n('settle_partial') || 'החזר חלקי') : 'החזר חלקי';
+    if (titleEl) titleEl.textContent = isFull ? `💸 ${fullLbl}` : `✏️ ${partialLbl}`;
     if (descEl)  descEl.textContent  = desc || '';
     if (symEl)   symEl.textContent   = sym;
     if (inp) {
         inp.value = parseFloat(amount).toFixed(2);
         inp.max   = parseFloat(amount).toFixed(2);
+        inp.readOnly = isFull;                 // full mode: confirm only, no editing
+        inp.style.opacity = isFull ? '0.75' : '1';
     }
     if (hint) {
-        const maxTxt = typeof i18n === 'function' ? i18n('settle_max_hint') : 'מקסימום';
-        hint.textContent = `${maxTxt}: ${sym}${formatNumber(amount)}`;
+        if (isFull) {
+            hint.textContent = typeof i18n === 'function' ? (i18n('settle_full_hint') || 'אישור סילוק החוב המלא') : 'אישור סילוק החוב המלא';
+        } else {
+            const maxTxt = typeof i18n === 'function' ? i18n('settle_max_hint') : 'מקסימום';
+            hint.textContent = `${maxTxt}: ${sym}${formatNumber(amount)}`;
+        }
     }
     overlay.style.display = 'flex';
-    if (inp) setTimeout(() => inp.focus(), 50);
+    if (inp && !isFull) setTimeout(() => { inp.focus(); inp.select(); }, 50);
 }
 
 function closeSettleModal() {

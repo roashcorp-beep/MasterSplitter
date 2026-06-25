@@ -7,7 +7,7 @@
     <title>MasterSplitter</title>
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800;900&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=4.02">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=4.03">
     <script>
         if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.documentElement.classList.add('dark');
@@ -464,8 +464,8 @@
         </button>
     </div>
 
-    <script src="{{ url_for('static', filename='js/translations.js') }}?v=4.04"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=4.17"></script>
+    <script src="{{ url_for('static', filename='js/translations.js') }}?v=4.05"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=4.18"></script>
     <script>
         function checkCookieConsent() {
             if (!localStorage.getItem('cookieConsent')) {
@@ -660,7 +660,7 @@
     <!-- Limbo Offset Modal -->
     <!-- Settle Up Modal (partial + full settlements, works for pair-level and per-expense) -->
     <div id="settle-modal-overlay" class="modal-overlay" style="display:none; z-index:9998;" onclick="if(event.target===this)closeSettleModal()">
-        <div class="modal-content" style="max-width:400px;">
+        <div class="modal-card" style="max-width:360px;">
             <div class="modal-header">
                 <h3 id="settle-modal-title">💸 סלק חוב</h3>
                 <button class="modal-close-x" onclick="closeSettleModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>

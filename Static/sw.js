@@ -1,5 +1,5 @@
 // MasterSplitter Service Worker — Network-First with Cache Fallback
-const CACHE_NAME = 'master-splitter-v4.21';
+const CACHE_NAME = 'master-splitter-v4.22';
 
 const PRE_CACHE_URLS = [
     '/',
@@ -79,5 +79,44 @@ self.addEventListener('fetch', (event) => {
                     });
                 });
             })
+    );
+});
+
+// Push: show a phone notification when the server sends a Web Push.
+self.addEventListener('push', (event) => {
+    let data = {};
+    try {
+        data = event.data ? event.data.json() : {};
+    } catch (e) {
+        data = { body: event.data ? event.data.text() : '' };
+    }
+    const title = data.title || 'MasterSplitter';
+    const options = {
+        body: data.body || '',
+        icon: '/static/icons/icon-192x192.png',
+        badge: '/static/icons/icon-192x192.png',
+        dir: 'rtl',
+        lang: 'he',
+        vibrate: [80, 40, 80],
+        data: { url: data.url || '/app' },
+    };
+    event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Notification click: focus an open app tab or open one.
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    const targetUrl = (event.notification.data && event.notification.data.url) || '/app';
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+            for (const client of clientList) {
+                if (client.url.includes(targetUrl) && 'focus' in client) {
+                    return client.focus();
+                }
+            }
+            if (clients.openWindow) {
+                return clients.openWindow(targetUrl);
+            }
+        })
     );
 });

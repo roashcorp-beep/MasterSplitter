@@ -1251,7 +1251,7 @@ function switchTab(tabName, skipHistory = false) {
     }
     if (tabName === 'home' || tabName === 'balances') fetchBalances();
     if (tabName === 'home') fetchExpenses();   // home needs expenses for stats + latest card
-    if (tabName === 'dashboard') fetchBalances();
+    if (tabName === 'dashboard') { fetchBalances(); fetchExpenses(); }
     if (tabName === 'expenses') fetchExpenses();
     if (tabName === 'add') {
         renderParticipants();
@@ -1877,6 +1877,7 @@ async function fetchExpenses() {
         window.currentExpenses = expenses; // Store globally for edit modal
         renderCategoryChart(expenses);
         renderHomeStats(expenses);
+        if (typeof renderDashboard === 'function') renderDashboard();
     } catch (e) { console.error('Fetch expenses error:', e); }
 }
 
@@ -2555,6 +2556,7 @@ async function fetchBalances() {
 
         renderBalancesList();
         renderHomePersonal();
+        if (typeof renderDashboard === 'function') renderDashboard();
 
         // Show the "reset settlements" recovery control to group admins only
         const resetBtn = document.getElementById('btn-reset-settlements');
@@ -3181,6 +3183,168 @@ function renderCategoryChart(expenses) {
     });
 
     chartContainer.innerHTML = html;
+}
+
+// ============================================
+//   DASHBOARD SCREEN
+// ============================================
+const DASH_CAT_COLORS = {
+    'אוכל': 'var(--accent-yellow)', 'לינה': 'var(--primary)', 'תחבורה': 'var(--accent-cyan)',
+    'אטרקציות': 'var(--error)', 'כללי': 'var(--success)'
+};
+
+function setDashView(v) {
+    window.dashView = v;
+    const mine = document.getElementById('dash-view-mine');
+    const group = document.getElementById('dash-view-group');
+    if (mine) mine.classList.toggle('active', v === 'mine');
+    if (group) group.classList.toggle('active', v === 'group');
+    renderDashboard();
+}
+
+function _dashT(key, fallback) {
+    return (typeof i18n === 'function' ? (i18n(key) || fallback) : fallback);
+}
+
+function _dashBarRow(label, icon, value, maxValue, sym, color, signed) {
+    const pct = maxValue > 0 ? Math.max(3, Math.round(Math.abs(value) / maxValue * 100)) : 0;
+    const valTxt = (signed && value < 0 ? '-' : '') + sym + formatNumber(Math.round(Math.abs(value)));
+    return `<div class="dash-bar-row">
+        <div class="dash-bar-head">
+            <span class="dash-bar-label">${icon ? icon + ' ' : ''}${escapeHTML(label)}</span>
+            <span class="dash-bar-val" style="color:${color};">${valTxt}</span>
+        </div>
+        <div class="dash-bar-track"><div class="dash-bar-fill" style="width:${pct}%; background:${color};"></div></div>
+    </div>`;
+}
+
+function _dashStatCard(label, value, sub, accent) {
+    return `<div class="dash-stat">
+        <span class="dash-stat-label">${label}</span>
+        <strong class="dash-stat-value" style="${accent ? 'color:' + accent + ';' : ''}">${value}</strong>
+        ${sub ? `<span class="dash-stat-sub">${sub}</span>` : ''}
+    </div>`;
+}
+
+function renderDashboard() {
+    const screen = document.getElementById('screen-dashboard');
+    if (!screen) return;
+    if (!window.dashView) window.dashView = 'mine';
+    const isMine = window.dashView !== 'group';
+
+    const expenses = (window.currentExpenses || []).filter(e => e.type !== 'settlement');
+    const bal = window.cachedBalancesData;
+    const opt = window.cachedOptimizedData;
+    const me = window.currentUser ? window.currentUser.id : null;
+    const profileCur = (window.currentUser && window.currentUser.default_currency) || (opt && opt.currency) || 'ILS';
+    const sym = getCurrencySymbol(profileCur);
+
+    const expTot = (e) => (e.amount_in_profile != null ? parseFloat(e.amount_in_profile) : parseFloat(e.amount)) || 0;
+    const myShare = (e) => {
+        const s = (e.splits || []).find(x => String(x.user_id) === String(me));
+        if (!s) return 0;
+        const base = parseFloat(e.amount) || 0;
+        return base > 0 ? (parseFloat(s.amount) / base) * expTot(e) : parseFloat(s.amount);
+    };
+
+    // ---- STATS ----
+    const statsEl = document.getElementById('dash-stats');
+    if (statsEl) {
+        if (isMine) {
+            let myShareSum = 0, myPaidSum = 0;
+            expenses.forEach(e => {
+                myShareSum += myShare(e);
+                if (String(e.user_id) === String(me)) myPaidSum += expTot(e);
+            });
+            let myBalance = 0;
+            if (bal && bal.balances) {
+                const b = bal.balances.find(x => String(x.user_id) === String(me));
+                if (b) myBalance = parseFloat(b.balance) || 0;
+            }
+            const balAccent = myBalance > 0.5 ? '#22c55e' : (myBalance < -0.5 ? '#ef4444' : 'var(--text-main)');
+            const balSub = myBalance > 0.5 ? _dashT('home_owed_to_me', 'מקבל') : (myBalance < -0.5 ? _dashT('home_i_owe', 'חייב') : '');
+            statsEl.innerHTML =
+                _dashStatCard(_dashT('home_my_expenses', 'ההוצאות שלי'), `${sym}${formatNumber(Math.round(myShareSum))}`, `${expenses.length} ${_dashT('home_expenses_count', 'הוצאות')}`) +
+                _dashStatCard(_dashT('dash_i_paid', 'שילמתי'), `${sym}${formatNumber(Math.round(myPaidSum))}`, '') +
+                _dashStatCard(_dashT('dash_my_balance', 'המאזן שלי'), `${myBalance < 0 ? '-' : ''}${sym}${formatNumber(Math.round(Math.abs(myBalance)))}`, balSub, balAccent);
+        } else {
+            const groupExp = expenses.filter(e => !e.is_personal);
+            const total = groupExp.reduce((a, e) => a + expTot(e), 0);
+            const memberCount = (bal && bal.balances) ? bal.balances.length : (groupMembers ? groupMembers.length : 0);
+            statsEl.innerHTML =
+                _dashStatCard(_dashT('dash_total_spent', 'סה"כ הוצאות'), `${sym}${formatNumber(Math.round(total))}`, '') +
+                _dashStatCard(_dashT('dash_expense_count', 'מספר הוצאות'), String(groupExp.length), '') +
+                _dashStatCard(_dashT('dash_members', 'חברים'), String(memberCount), '');
+        }
+    }
+
+    // ---- CATEGORIES ----
+    const catEl = document.getElementById('dash-categories');
+    if (catEl) {
+        const catTotals = {};
+        expenses.forEach(e => {
+            const val = isMine ? myShare(e) : (e.is_personal ? 0 : expTot(e));
+            if (val > 0) {
+                const cat = e.category || 'כללי';
+                catTotals[cat] = (catTotals[cat] || 0) + val;
+            }
+        });
+        const cats = Object.keys(catTotals).sort((a, b) => catTotals[b] - catTotals[a]);
+        const maxCat = cats.length ? catTotals[cats[0]] : 0;
+        if (!cats.length) {
+            catEl.innerHTML = `<div class="dash-empty">${_dashT('balances_no_data', 'אין נתונים')}</div>`;
+        } else {
+            catEl.innerHTML = cats.map(cat =>
+                _dashBarRow(translateCategory(cat), getCategoryIcon(cat), catTotals[cat], maxCat, sym, DASH_CAT_COLORS[cat] || 'var(--primary)', false)
+            ).join('');
+        }
+    }
+
+    // ---- MEMBER BALANCES (group only) ----
+    const memSection = document.getElementById('dash-members-section');
+    const memEl = document.getElementById('dash-members');
+    if (memSection && memEl) {
+        if (isMine) {
+            memSection.style.display = 'none';
+        } else {
+            memSection.style.display = '';
+            const rows = (bal && bal.balances) ? bal.balances.slice() : [];
+            const maxBal = rows.reduce((m, b) => Math.max(m, Math.abs(parseFloat(b.balance) || 0)), 0);
+            const active = rows.filter(b => Math.abs(parseFloat(b.balance) || 0) > 0.5)
+                .sort((a, b) => Math.abs(parseFloat(b.balance)) - Math.abs(parseFloat(a.balance)));
+            if (!active.length) {
+                memEl.innerHTML = `<div class="dash-empty">${_dashT('balances_all_settled_title', 'הכל מאוזן!')} 🎉</div>`;
+            } else {
+                memEl.innerHTML = active.map(b => {
+                    const v = parseFloat(b.balance) || 0;
+                    const color = v > 0 ? '#22c55e' : '#ef4444';
+                    return _dashBarRow(b.name, '', v, maxBal, sym, color, true);
+                }).join('');
+            }
+        }
+    }
+
+    // ---- DEBTS (who owes whom) ----
+    const debtEl = document.getElementById('dash-debts');
+    if (debtEl) {
+        let setts = (opt && opt.optimized_settlements) ? opt.optimized_settlements.slice() : [];
+        if (isMine) setts = setts.filter(s => s.from_id === me || s.to_id === me);
+        if (!setts.length) {
+            debtEl.innerHTML = `<div class="dash-empty">${_dashT('balances_all_settled_title', 'הכל מאוזן!')} 🎉</div>`;
+        } else {
+            debtEl.innerHTML = setts.map(s => {
+                const iAmDebtor = s.from_id === me;
+                const iAmCreditor = s.to_id === me;
+                const hl = (iAmDebtor || iAmCreditor) ? ' dash-debt-me' : '';
+                return `<div class="dash-debt-row${hl}">
+                    <span class="dash-debt-from">${escapeHTML(s.from)}</span>
+                    <span class="dash-debt-arrow">←</span>
+                    <span class="dash-debt-to">${escapeHTML(s.to)}</span>
+                    <span class="dash-debt-amt">${sym}${formatNumber(s.amount)}</span>
+                </div>`;
+            }).join('');
+        }
+    }
 }
 
 // ============================================
@@ -3903,12 +4067,79 @@ if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js', { scope: '/' })
             .then((registration) => {
                 console.log('[PWA] Service Worker registered successfully. Scope:', registration.scope);
+                // If the user already granted notifications, keep the server subscription fresh.
+                if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+                    subscribeToPush(false);
+                }
             })
             .catch((error) => {
                 console.error('[PWA] Service Worker registration failed:', error);
             });
     });
 }
+
+// =====================
+//  WEB PUSH (phone notifications)
+// =====================
+function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const raw = atob(base64);
+    const arr = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+    return arr;
+}
+
+/**
+ * Subscribe this device to Web Push and store the subscription on the server.
+ * interactive=true: prompt for permission and alert on problems (use from a click).
+ * interactive=false: silent best-effort refresh (use on load).
+ * Returns true on success.
+ */
+async function subscribeToPush(interactive = false) {
+    try {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window) || typeof Notification === 'undefined') {
+            if (interactive) alert('הדפדפן הזה לא תומך בהתראות פוש. נסה/י דרך האפליקציה המותקנת (PWA).');
+            return false;
+        }
+        const cfgRes = await fetch('/api/push/vapid-public-key');
+        const cfg = await cfgRes.json();
+        if (!cfg.enabled || !cfg.key) {
+            if (interactive) alert('התראות אינן מוגדרות בשרת כרגע.');
+            return false;
+        }
+        let perm = Notification.permission;
+        if (perm === 'default' && interactive) {
+            perm = await Notification.requestPermission();
+        }
+        if (perm !== 'granted') {
+            if (interactive) alert('כדי לקבל התראות יש לאשר את הרשאת ההתראות בדפדפן.');
+            return false;
+        }
+        const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+        await navigator.serviceWorker.ready;
+        let sub = await reg.pushManager.getSubscription();
+        if (!sub) {
+            sub = await reg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(cfg.key),
+            });
+        }
+        const res = await fetch('/api/push/subscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ subscription: sub }),
+        });
+        if (!res.ok) { if (interactive) alert('שמירת ההתראות בשרת נכשלה.'); return false; }
+        if (interactive && typeof showToast === 'function') showToast('התראות הופעלו במכשיר זה ✅');
+        return true;
+    } catch (e) {
+        console.error('subscribeToPush error:', e);
+        if (interactive) alert('שגיאה בהפעלת התראות: ' + (e && e.message ? e.message : e));
+        return false;
+    }
+}
+window.subscribeToPush = subscribeToPush;
 
 // =====================
 //  PWA INSTALL PROMPT

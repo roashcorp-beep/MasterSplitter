@@ -7,7 +7,7 @@
     <title>MasterSplitter</title>
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800;900&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=4.03">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=4.04">
     <script>
         if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.documentElement.classList.add('dark');
@@ -221,9 +221,31 @@
                         </div>
                     </div>
 
-                    <div class="card" style="margin-top:16px; text-align:center; color:var(--text-muted); padding:24px;">
-                        <div style="font-size:2rem; margin-bottom:8px;">🚧</div>
-                        <div data-i18n="dashboard_coming_soon">דשבורד מורחב יגיע בקרוב</div>
+                    <!-- View toggle: mine / group -->
+                    <div class="dash-toggle">
+                        <button id="dash-view-mine" class="dash-toggle-btn active" onclick="setDashView('mine')" data-i18n="dash_view_mine">שלי</button>
+                        <button id="dash-view-group" class="dash-toggle-btn" onclick="setDashView('group')" data-i18n="dash_view_group">קבוצתי</button>
+                    </div>
+
+                    <!-- Stat cards -->
+                    <div class="dash-stats" id="dash-stats"></div>
+
+                    <!-- Categories -->
+                    <div class="card dash-section">
+                        <h4 class="dash-section-title">🗂️ <span data-i18n="dash_by_category">הוצאות לפי קטגוריה</span></h4>
+                        <div id="dash-categories"><div class="loading-state" data-i18n="loading">טוען...</div></div>
+                    </div>
+
+                    <!-- Member balances (group view only) -->
+                    <div class="card dash-section" id="dash-members-section">
+                        <h4 class="dash-section-title">👥 <span data-i18n="dash_member_balances">מאזן לפי חבר</span></h4>
+                        <div id="dash-members"></div>
+                    </div>
+
+                    <!-- Debts -->
+                    <div class="card dash-section">
+                        <h4 class="dash-section-title">💸 <span data-i18n="dash_debts">מי חייב למי</span></h4>
+                        <div id="dash-debts"></div>
                     </div>
                 </div>
             </div>
@@ -464,8 +486,8 @@
         </button>
     </div>
 
-    <script src="{{ url_for('static', filename='js/translations.js') }}?v=4.05"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=4.18"></script>
+    <script src="{{ url_for('static', filename='js/translations.js') }}?v=4.06"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=4.19"></script>
     <script>
         function checkCookieConsent() {
             if (!localStorage.getItem('cookieConsent')) {

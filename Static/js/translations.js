@@ -121,6 +121,16 @@ const translations = {
         "home_i_owe": "חייב",
         "home_none": "—",
         "dashboard_coming_soon": "דשבורד מורחב יגיע בקרוב",
+        "dash_view_mine": "שלי",
+        "dash_view_group": "קבוצתי",
+        "dash_by_category": "הוצאות לפי קטגוריה",
+        "dash_member_balances": "מאזן לפי חבר",
+        "dash_debts": "מי חייב למי",
+        "dash_i_paid": "שילמתי",
+        "dash_my_balance": "המאזן שלי",
+        "dash_total_spent": "סה\"כ הוצאות",
+        "dash_expense_count": "מספר הוצאות",
+        "dash_members": "חברים",
 
         // Expenses
         "expenses_title": "כל ההוצאות",
@@ -496,6 +506,16 @@ const translations = {
         "home_i_owe": "I owe",
         "home_none": "—",
         "dashboard_coming_soon": "Full dashboard coming soon",
+        "dash_view_mine": "Mine",
+        "dash_view_group": "Group",
+        "dash_by_category": "Spending by category",
+        "dash_member_balances": "Balance by member",
+        "dash_debts": "Who owes whom",
+        "dash_i_paid": "I paid",
+        "dash_my_balance": "My balance",
+        "dash_total_spent": "Total spent",
+        "dash_expense_count": "Expenses",
+        "dash_members": "Members",
 
         // Expenses
         "expenses_title": "All Expenses",

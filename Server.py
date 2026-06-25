@@ -60,6 +60,65 @@ ALLOWED_CURRENCIES = [
 ]
 
 # ---------------------
+#   WEB PUSH (VAPID) CONFIG
+# ---------------------
+VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY', '')
+VAPID_PUBLIC_KEY = os.environ.get('VAPID_PUBLIC_KEY', '')
+VAPID_SUBJECT = os.environ.get('VAPID_SUBJECT', 'mailto:roashcorp@gmail.com')
+try:
+    from pywebpush import webpush, WebPushException
+    _PUSH_LIB = True
+except Exception:
+    _PUSH_LIB = False
+PUSH_ENABLED = bool(_PUSH_LIB and VAPID_PRIVATE_KEY and VAPID_PUBLIC_KEY)
+
+
+def _push_title(notif_type):
+    return {
+        'expense_added':   '\U0001F4B8 הוצאה חדשה',     # 💸 New expense
+        'expense_edited':  '✏️ הוצאה עודכנה',  # ✏️ Expense updated
+        'expense_deleted': '\U0001F5D1️ הוצאה נמחקה',     # 🗑️ Expense deleted
+        'settlement':      '✅ סילוק חוב',                  # ✅ Settlement
+    }.get(notif_type, 'MasterSplitter')
+
+
+def _push_to_members_bg(user_ids, notif_type, message):
+    """Send web-push to opted-in members in a background thread (own DB conn)."""
+    if not PUSH_ENABLED:
+        return
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        title = _push_title(notif_type)
+        for uid in user_ids:
+            pref = cursor.execute("SELECT notify_group_expense FROM Users WHERE id = ?", (uid,)).fetchone()
+            # Default ON when column missing/NULL; skip only when explicitly disabled.
+            if pref is not None and pref['notify_group_expense'] == 0:
+                continue
+            subs = cursor.execute(
+                "SELECT id, endpoint, p256dh, auth FROM PushSubscriptions WHERE user_id = ?", (uid,)).fetchall()
+            for s in subs:
+                sub_info = {'endpoint': s['endpoint'], 'keys': {'p256dh': s['p256dh'], 'auth': s['auth']}}
+                try:
+                    webpush(
+                        subscription_info=sub_info,
+                        data=json.dumps({'title': title, 'body': message, 'url': '/app'}),
+                        vapid_private_key=VAPID_PRIVATE_KEY,
+                        vapid_claims={'sub': VAPID_SUBJECT},
+                    )
+                except WebPushException as ex:
+                    status = getattr(getattr(ex, 'response', None), 'status_code', None)
+                    if status in (404, 410):  # gone — prune dead subscription
+                        cursor.execute("DELETE FROM PushSubscriptions WHERE id = ?", (s['id'],))
+                except Exception as ex:
+                    logger.error(f"web push send error: {ex}")
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.error(f"_push_to_members_bg error: {e}")
+
+
+# ---------------------
 #   GOOGLE OAUTH CONFIG
 # ---------------------
 GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '')
@@ -568,6 +627,23 @@ def init_db_updates():
     except sqlite3.Error as e:
         logger.error(f"ExpenseContributions table creation error: {e}")
 
+    # --- PushSubscriptions: Web Push (phone notifications) ---
+    try:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS PushSubscriptions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                endpoint TEXT NOT NULL UNIQUE,
+                p256dh TEXT NOT NULL,
+                auth TEXT NOT NULL,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(user_id) REFERENCES Users(id)
+            )
+        """)
+        conn.commit()
+    except sqlite3.Error as e:
+        logger.error(f"PushSubscriptions table creation error: {e}")
+
     # --- Add invite_token to Groups ---
     try:
         cursor.execute("PRAGMA table_info(Groups)")
@@ -700,16 +776,23 @@ def notify_group_members(group_id, notif_type, message, exclude_user_id=None):
         cursor = conn.cursor()
         cursor.execute("SELECT user_id FROM GroupMembers WHERE group_id = ? AND user_id IS NOT NULL", (group_id,))
         members = cursor.fetchall()
-        
+
+        recipients = []
         for m in members:
             uid = m['user_id']
             if exclude_user_id is None or uid != exclude_user_id:
+                recipients.append(uid)
                 cursor.execute(
                     "INSERT INTO Notifications (user_id, group_id, type, message, created_at) VALUES (?, ?, ?, ?, ?)",
                     (uid, group_id, notif_type, message, datetime.now(timezone.utc).isoformat())
                 )
         conn.commit()
         conn.close()
+
+        # Fire-and-forget phone push to opted-in members (doesn't block the request).
+        if PUSH_ENABLED and recipients:
+            import threading
+            threading.Thread(target=_push_to_members_bg, args=(recipients, notif_type, message), daemon=True).start()
     except Exception as e:
         logger.error(f"notify_group_members error: {e}")
 
@@ -750,6 +833,64 @@ def require_group_access(f):
             return jsonify({"error": "Forbidden"}), 403
         return f(*args, **kwargs)
     return decorated
+
+
+# ---------------------
+#   WEB PUSH API
+# ---------------------
+@app.route('/api/push/vapid-public-key', methods=['GET'])
+def push_vapid_public_key():
+    """Public VAPID key for the browser's pushManager.subscribe()."""
+    return jsonify({"key": VAPID_PUBLIC_KEY, "enabled": PUSH_ENABLED})
+
+
+@app.route('/api/push/subscribe', methods=['POST'])
+@login_required
+def push_subscribe():
+    """Store (or refresh) this device's push subscription for the logged-in user."""
+    data = request.json or {}
+    sub = data.get('subscription') or data
+    endpoint = sub.get('endpoint')
+    keys = sub.get('keys') or {}
+    p256dh = keys.get('p256dh')
+    auth = keys.get('auth')
+    if not endpoint or not p256dh or not auth:
+        return jsonify({"error": "invalid subscription"}), 400
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # One row per endpoint; re-subscribing updates the owner/keys.
+        cursor.execute("DELETE FROM PushSubscriptions WHERE endpoint = ?", (endpoint,))
+        cursor.execute(
+            "INSERT INTO PushSubscriptions (user_id, endpoint, p256dh, auth, created_at) VALUES (?, ?, ?, ?, ?)",
+            (session['user_id'], endpoint, p256dh, auth, datetime.now(timezone.utc).isoformat()))
+        conn.commit()
+        return jsonify({"success": True})
+    except sqlite3.Error as e:
+        logger.error(f"push_subscribe error: {e}")
+        return jsonify({"error": "failed to store subscription"}), 500
+    finally:
+        conn.close()
+
+
+@app.route('/api/push/unsubscribe', methods=['POST'])
+@login_required
+def push_unsubscribe():
+    """Remove this device's push subscription."""
+    data = request.json or {}
+    sub = data.get('subscription') or data
+    endpoint = sub.get('endpoint') or data.get('endpoint')
+    if not endpoint:
+        return jsonify({"error": "missing endpoint"}), 400
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM PushSubscriptions WHERE endpoint = ? AND user_id = ?",
+                       (endpoint, session['user_id']))
+        conn.commit()
+        return jsonify({"success": True})
+    finally:
+        conn.close()
 
 
 # ---------------------

@@ -2731,19 +2731,24 @@ def get_expenses(group_id):
     settled_map = {}
     for e in expenses:
         payer = e['user_id']
-        debtors = [s['user_id'] for s in splits_map.get(e['id'], []) if s['user_id'] != payer]
+        debtor_splits = [s for s in splits_map.get(e['id'], []) if s['user_id'] != payer]
         # Only multi-person expenses can be "settled".
-        if not bool(debtors):
+        if not debtor_splits:
             settled_map[e['id']] = False
             continue
-        # Expense is settled ONLY via a linked Settlement record (expense_id match).
-        # Pair-level settlements don't mark individual expenses as settled because
-        # pair debt grows as new expenses are added — that caused the divider to
-        # disappear whenever a new expense was added after a settle-up.
+        # An expense is settled when its linked Settlement records (expense_id match)
+        # cover the expense's actual DEBT = the sum of the non-payer shares. We compare
+        # against the debt, NOT the gross amount (which also includes the payer's own
+        # share, which is never owed). Linked rows are created both by the per-expense
+        # settle button AND by FIFO-allocating pair-level settle-ups from the summaries
+        # screen, so a summaries settle-up now moves the related expense below the line.
+        total_debt = sum(float(s['amount'] or 0) for s in debtor_splits)  # base currency
         linked_amt = linked_settled.get(e['id'], 0.0)
-        gross = float(e['amount']) or 0.0
-        tol_exp = max(1.0, gross * 0.01)
-        settled_map[e['id']] = linked_amt >= gross - tol_exp
+        tol_exp = max(0.5, total_debt * 0.01)
+        # Require the debt itself to exceed tolerance, so a tiny debt (<= ~0.5) is
+        # never auto-marked settled without a real linked settlement (otherwise a
+        # freshly-added small expense would jump below the divider with zero payments).
+        settled_map[e['id']] = total_debt > tol_exp and linked_amt >= total_debt - tol_exp
 
     # --- Display amount in the requesting user's profile currency (for the parens) ---
     profile_cur = user_display_currency(cursor, uid)
@@ -3159,10 +3164,12 @@ def delete_expense(expense_id):
         if expense['user_id'] != session['user_id'] and expense['owner_id'] != session['user_id'] and not is_admin:
             return jsonify({"error": "אין הרשאה למחוק הוצאה זו."}), 403
 
-        # Delete linked settlements first (settlements created specifically for this expense)
+        # Delete linked settlements first (settlements created specifically for this
+        # expense, including the per-expense rows that a summaries settle-up allocates).
         cursor.execute("DELETE FROM Settlements WHERE expense_id = ?", (expense_id,))
-        # Delete related splits
+        # Delete related splits and multi-payer contributions
         cursor.execute("DELETE FROM ExpenseSplits WHERE expense_id = ?", (expense_id,))
+        cursor.execute("DELETE FROM ExpenseContributions WHERE expense_id = ?", (expense_id,))
         cursor.execute("DELETE FROM Expenses WHERE id = ?", (expense_id,))
         conn.commit()
         logger.info(f"Expense deleted: id={expense_id} (₪{expense['amount']}, '{expense['description']}') by user {session['user_id']}")
@@ -3888,30 +3895,108 @@ def create_settlement():
             s_in = row['t'] or 0.0
             return (paid + s_out) - (owed + s_in)
 
-        payer_balance = _converted_balance(payer_id)
-        # A debtor has a negative balance. Their outstanding debt is -balance.
-        outstanding_debt = -payer_balance
+        created_at = datetime.now(timezone.utc).isoformat()
+        # Ratio to express a base-currency allocation back in the settlement's own
+        # currency, so split rows keep a correct original_amount for the balances view.
+        orig_ratio = (original_amount / converted_amount) if converted_amount else 1.0
+
+        # --- Build the list of (expense_id, base_amount) rows to insert. ---
+        alloc_rows = []  # [(expense_id_or_None, base_amount), ...]
         if expense_id is not None:
-            # For expense-linked settlements, validate against the expense amount
-            # (not the net pair balance, which could be lower due to mutual expenses).
-            exp_row = cursor.execute(
-                "SELECT amount FROM Expenses WHERE id = ? AND group_id = ?",
-                (expense_id, group_id)).fetchone()
-            if exp_row is None:
-                return jsonify({"error": "הוצאה לא נמצאה."}), 404
-            expense_ceiling = float(exp_row['amount'])
-            if converted_amount > expense_ceiling + TOL:
-                return jsonify({"error": "הסכום גדול מסכום ההוצאה."}), 400
+            # Per-expense settle button: validate against the DEBTOR's own outstanding
+            # share for this expense (not the gross amount), so we never link more than
+            # the debtor actually owes for it.
+            share_row = cursor.execute(
+                "SELECT COALESCE(SUM(amount), 0) AS s FROM ExpenseSplits WHERE expense_id = ? AND user_id = ?",
+                (expense_id, payer_id)).fetchone()
+            debtor_share = float(share_row['s'] or 0.0)
+            already_row = cursor.execute(
+                "SELECT COALESCE(SUM(amount), 0) AS s FROM Settlements "
+                "WHERE expense_id = ? AND payer_id = ? AND payee_id = ?",
+                (expense_id, payer_id, payee_id)).fetchone()
+            outstanding_share = debtor_share - float(already_row['s'] or 0.0)
+            if outstanding_share <= TOL:
+                return jsonify({"error": "אין לך חוב פתוח בהוצאה זו."}), 400
+            if converted_amount > outstanding_share + TOL:
+                return jsonify({"error": "הסכום גדול מהחוב שלך בהוצאה זו."}), 400
+            alloc_rows.append((expense_id, converted_amount))
         else:
-            if outstanding_debt <= TOL:
+            # Summaries-screen settle-up: allocate the payment FIFO across the payer's
+            # unsettled expenses where the payee is the payer of record (the debts that
+            # make up THIS PAIR's balance), oldest first, creating one linked row per
+            # expense. That lets the settle-up move the related expense below the line,
+            # and lets deleting that expense remove its share of the settlement.
+            targets = cursor.execute("""
+                SELECT e.id AS eid, COALESCE(SUM(es.amount), 0) AS debtor_split
+                FROM Expenses e
+                JOIN ExpenseSplits es ON es.expense_id = e.id AND es.user_id = ?
+                WHERE e.group_id = ? AND e.user_id = ? AND COALESCE(e.is_personal, 0) = 0
+                GROUP BY e.id
+                ORDER BY e.id ASC
+            """, (payer_id, group_id, payee_id)).fetchall()
+
+            # Outstanding per expense = the debtor's share minus what's already linked
+            # for this pair. The pair total is what the payer genuinely owes the payee.
+            pair_targets = []
+            pair_outstanding = 0.0
+            for r in targets:
+                debt = float(r['debtor_split'] or 0.0)
+                if debt <= 0.009:
+                    continue
+                already = cursor.execute(
+                    "SELECT COALESCE(SUM(amount), 0) AS s FROM Settlements "
+                    "WHERE expense_id = ? AND payer_id = ? AND payee_id = ?",
+                    (r['eid'], payer_id, payee_id)).fetchone()['s'] or 0.0
+                outstanding = debt - float(already)
+                if outstanding <= 0.009:
+                    continue
+                pair_targets.append((r['eid'], outstanding))
+                pair_outstanding += outstanding
+
+            # Validate against the PAIR debt — the same set the FIFO can consume — NOT
+            # the payer's whole-group net debt. Otherwise an over-settle would spill
+            # into an unlinked row that over-credits this payee and can't be deleted.
+            if pair_outstanding <= TOL:
                 return jsonify({"error": "אין חוב פתוח לסליקה."}), 400
-            if converted_amount > outstanding_debt + TOL:
+            if converted_amount > pair_outstanding + TOL:
                 return jsonify({"error": "סכום הסליקה גדול מהחוב הפתוח."}), 400
 
-        cursor.execute("""
-            INSERT INTO Settlements (group_id, payer_id, payee_id, amount, original_amount, currency, expense_id, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (group_id, payer_id, payee_id, converted_amount, original_amount, currency, expense_id, datetime.now(timezone.utc).isoformat()))
+            remaining = converted_amount
+            for eid, outstanding in pair_targets:
+                if remaining <= 0.009:
+                    break
+                alloc = min(remaining, outstanding)
+                alloc_rows.append((eid, alloc))
+                remaining -= alloc
+            # Any sub-cent remainder from the cap goes onto the last linked row, so we
+            # never create an unlinked (un-deletable) excess row.
+            if remaining > 0.009 and alloc_rows:
+                last_eid, last_amt = alloc_rows[-1]
+                alloc_rows[-1] = (last_eid, last_amt + remaining)
+
+        # --- Insert rows, assigning the rounding residual of BOTH amount and
+        #     original_amount to the last row, so the per-row values sum EXACTLY to the
+        #     entered totals (keeps get_balances and the per-currency view exact even
+        #     when one settle-up is split across several expenses). ---
+        target_base = round(converted_amount, 2)
+        target_original = round(original_amount, 2)
+        base_assigned = 0.0
+        orig_assigned = 0.0
+        n_rows = len(alloc_rows)
+        for i, (exp_id, base_amt) in enumerate(alloc_rows):
+            if i == n_rows - 1:
+                row_base = round(target_base - base_assigned, 2)
+                row_orig = round(target_original - orig_assigned, 2)
+            else:
+                row_base = round(base_amt, 2)
+                row_orig = round(base_amt * orig_ratio, 2)
+                base_assigned = round(base_assigned + row_base, 2)
+                orig_assigned = round(orig_assigned + row_orig, 2)
+            cursor.execute("""
+                INSERT INTO Settlements (group_id, payer_id, payee_id, amount, original_amount, currency, expense_id, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (group_id, payer_id, payee_id, row_base, row_orig, currency, exp_id, created_at))
+
         conn.commit()
 
         # Get payee name for activity log

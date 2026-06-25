@@ -1842,17 +1842,28 @@ async function fetchExpenses() {
             });
         }
 
-        // Append the settled section below a divider, if any expense is settled.
-        if (htmlSettled) {
+        // PERMANENT divider: always shown when there are expenses, so the layout is
+        // "open expenses above the line, settled (offset) expenses below it". A new
+        // expense lands above; the moment it's settled it drops below the same line.
+        if (expenses.length) {
             const sectionLbl = (typeof i18n === 'function')
                 ? (i18n('expenses_settled_section') || 'הוצאות מאוזנות')
                 : 'הוצאות מאוזנות';
-            html += `
+            const noneOpen = (typeof i18n === 'function')
+                ? (i18n('expenses_none_open') || 'אין הוצאות פתוחות') : 'אין הוצאות פתוחות';
+            const noneSettled = (typeof i18n === 'function')
+                ? (i18n('expenses_none_settled') || 'אין הוצאות מאוזנות עדיין') : 'אין הוצאות מאוזנות עדיין';
+            const emptyNote = (txt) => `<div style="text-align:center; color:var(--text-muted); font-size:0.82rem; padding:10px 0;">${txt}</div>`;
+
+            const aboveContent = html.trim() ? html : emptyNote(noneOpen);
+            const belowContent = htmlSettled.trim() ? htmlSettled : emptyNote(noneSettled);
+            const divider = `
                 <div class="settled-divider" style="display:flex; align-items:center; gap:12px; margin:22px 4px 14px; color:var(--text-muted); font-size:0.8rem; font-weight:600;">
                     <span style="flex:1; height:1px; background:var(--glass-border);"></span>
                     <span style="white-space:nowrap;">✓ ${sectionLbl}</span>
                     <span style="flex:1; height:1px; background:var(--glass-border);"></span>
-                </div>` + htmlSettled;
+                </div>`;
+            html = aboveContent + divider + belowContent;
         }
 
         const full = document.getElementById('expenses-list');

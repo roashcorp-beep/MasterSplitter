@@ -541,6 +541,33 @@ def init_db_updates():
     except sqlite3.Error as e:
         logger.error(f"Settlements currency migration error: {e}")
 
+    # --- Add expense_id (optional FK) to Settlements ---
+    try:
+        cursor.execute("PRAGMA table_info(Settlements)")
+        settle_cols2 = [c['name'] for c in cursor.fetchall()]
+        if 'expense_id' not in settle_cols2:
+            cursor.execute("ALTER TABLE Settlements ADD COLUMN expense_id INTEGER")
+            logger.info("Migration: added 'expense_id' column to Settlements")
+            conn.commit()
+    except sqlite3.Error as e:
+        logger.error(f"Settlements expense_id migration error: {e}")
+
+    # --- ExpenseContributions: multi-payer support ---
+    try:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS ExpenseContributions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                expense_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                amount REAL NOT NULL,
+                FOREIGN KEY(expense_id) REFERENCES Expenses(id) ON DELETE CASCADE,
+                FOREIGN KEY(user_id) REFERENCES Users(id)
+            )
+        """)
+        conn.commit()
+    except sqlite3.Error as e:
+        logger.error(f"ExpenseContributions table creation error: {e}")
+
     # --- Add invite_token to Groups ---
     try:
         cursor.execute("PRAGMA table_info(Groups)")
@@ -2643,6 +2670,17 @@ def get_expenses(group_id):
                 'amount': s['amount']
             })
 
+    # Build contributions lookup: {expense_id: {user_id: base_amount}}
+    contributions_by_exp = defaultdict(dict)
+    if expense_ids:
+        cursor.execute(f"""
+            SELECT expense_id, user_id, amount
+            FROM ExpenseContributions
+            WHERE expense_id IN ({placeholders})
+        """, expense_ids)
+        for c in cursor.fetchall():
+            contributions_by_exp[c['expense_id']][c['user_id']] = float(c['amount'])
+
     # --- Per-expense "settled" status ---
     # An expense is settled once EVERY debtor in it is net-square with the payer,
     # i.e. the settle-up row for that pair has disappeared. We work in the group
@@ -2659,11 +2697,15 @@ def get_expenses(group_id):
             owed_pair[(d, payer)] += float(s['amount'] or 0)
 
     paid_pair = defaultdict(float)      # (payer, payee) -> settlements paid, base
+    # Also track per-expense linked settlement totals
+    linked_settled = defaultdict(float)  # expense_id -> total_settled_in_base_cur
     cursor.execute(
-        "SELECT payer_id, payee_id, COALESCE(amount, 0) AS amt FROM Settlements WHERE group_id = ?",
+        "SELECT payer_id, payee_id, COALESCE(amount, 0) AS amt, expense_id FROM Settlements WHERE group_id = ?",
         (group_id,))
     for r in cursor.fetchall():
         paid_pair[(r['payer_id'], r['payee_id'])] += float(r['amt'])
+        if r['expense_id'] is not None:
+            linked_settled[r['expense_id']] += float(r['amt'])
 
     def debtor_clear(d, p):
         gross   = owed_pair[(d, p)]
@@ -2690,9 +2732,18 @@ def get_expenses(group_id):
     for e in expenses:
         payer = e['user_id']
         debtors = [s['user_id'] for s in splits_map.get(e['id'], []) if s['user_id'] != payer]
-        # Only multi-person expenses can be "settled" — a solo/personal expense
-        # never creates a debt row, so it carries no badge.
-        settled_map[e['id']] = bool(debtors) and all(debtor_clear(d, payer) for d in debtors)
+        # Only multi-person expenses can be "settled".
+        if not bool(debtors):
+            settled_map[e['id']] = False
+            continue
+        # Expense is settled ONLY via a linked Settlement record (expense_id match).
+        # Pair-level settlements don't mark individual expenses as settled because
+        # pair debt grows as new expenses are added — that caused the divider to
+        # disappear whenever a new expense was added after a settle-up.
+        linked_amt = linked_settled.get(e['id'], 0.0)
+        gross = float(e['amount']) or 0.0
+        tol_exp = max(1.0, gross * 0.01)
+        settled_map[e['id']] = linked_amt >= gross - tol_exp
 
     # --- Display amount in the requesting user's profile currency (for the parens) ---
     profile_cur = user_display_currency(cursor, uid)
@@ -2710,7 +2761,21 @@ def get_expenses(group_id):
 
     def enrich(row):
         d = dict(row)
-        d['splits'] = splits_map.get(d['id'], [])
+        # Enrich splits with contribution amounts (for display: who paid what)
+        raw_splits = splits_map.get(d['id'], [])
+        contrib_map = contributions_by_exp.get(d['id'], {})
+        base_amt = float(d['amount']) if d['amount'] else 0.0
+        orig_amt = float(d['original_amount']) if d['original_amount'] else base_amt
+        ratio = (orig_amt / base_amt) if base_amt else 1.0
+        enriched_splits = []
+        for s in raw_splits:
+            s_dict = dict(s)
+            # contribution is stored in base currency; convert back to original for display
+            contrib_base = contrib_map.get(s['user_id'], 0.0)
+            s_dict['contribution_orig'] = round(contrib_base * ratio, 2)
+            enriched_splits.append(s_dict)
+        d['splits'] = enriched_splits
+        d['has_contributions'] = bool(contrib_map)
         # The expense's "true" value is original_amount in its own currency
         # (or amount when it was entered directly in the group base).
         true_amt = d['original_amount'] if d['original_amount'] is not None else d['amount']
@@ -2878,6 +2943,30 @@ def add_expense():
                             "INSERT INTO ExpenseSplits (expense_id, user_id, amount) VALUES (?, ?, ?)",
                             (expense_id, m['user_id'], per_person)
                         )
+
+        # Handle multi-payer contributions (optional: how much each person actually paid)
+        contributions = data.get('contributions')  # [{user_id, amount}, ...]
+        if contributions and isinstance(contributions, list):
+            raw_amount = float(data.get('amount', 0))
+            valid_contribs = [c for c in contributions if float(c.get('amount', 0)) > 0]
+            if valid_contribs:
+                contrib_total = sum(float(c.get('amount', 0)) for c in valid_contribs)
+                if abs(contrib_total - raw_amount) > 0.02:
+                    conn.rollback()
+                    conn.close()
+                    return jsonify({"error": "סכומי התשלום חייבים להסתכם לסכום הכולל."}), 400
+                for c in valid_contribs:
+                    c_uid = int(c['user_id'])
+                    c_orig = float(c['amount'])
+                    # Convert to base currency if the expense was foreign
+                    if original_amount is not None and amount and original_amount:
+                        c_base = round(c_orig * (amount / original_amount), 4)
+                    else:
+                        c_base = c_orig
+                    cursor.execute(
+                        "INSERT INTO ExpenseContributions (expense_id, user_id, amount) VALUES (?, ?, ?)",
+                        (expense_id, c_uid, c_base)
+                    )
 
         conn.commit()
         logger.info(f"Expense added: {currency} {amount} for group {group_id} by user {session['user_id']}")
@@ -3070,7 +3159,9 @@ def delete_expense(expense_id):
         if expense['user_id'] != session['user_id'] and expense['owner_id'] != session['user_id'] and not is_admin:
             return jsonify({"error": "אין הרשאה למחוק הוצאה זו."}), 403
 
-        # Delete related splits first
+        # Delete linked settlements first (settlements created specifically for this expense)
+        cursor.execute("DELETE FROM Settlements WHERE expense_id = ?", (expense_id,))
+        # Delete related splits
         cursor.execute("DELETE FROM ExpenseSplits WHERE expense_id = ?", (expense_id,))
         cursor.execute("DELETE FROM Expenses WHERE id = ?", (expense_id,))
         conn.commit()
@@ -3293,6 +3384,29 @@ def get_optimized_balances(group_id):
     """, (group_id,))
     for st in cursor.fetchall():
         pair_cur[(st['payer_id'], st['payee_id'])][st['currency']] -= float(st['amt'])
+
+    # Contributions reduce what non-main-payers owe:
+    # If B contributed 100 to A's expense, B owes A 100 less.
+    cursor.execute("""
+        SELECT ec.user_id AS contributor, e.user_id AS main_payer,
+               COALESCE(e.currency, 'ILS') AS currency,
+               ec.amount AS base_amt, e.original_amount, e.amount AS base_total
+        FROM ExpenseContributions ec
+        JOIN Expenses e ON ec.expense_id = e.id
+        WHERE e.group_id = ?
+    """, (group_id,))
+    for c in cursor.fetchall():
+        contributor = c['contributor']
+        main_payer = c['main_payer']
+        if contributor == main_payer:
+            continue
+        cur = c['currency']
+        # Convert base-currency contribution back to original currency for pair_cur
+        base_total = float(c['base_total']) if c['base_total'] else 0.0
+        orig_total = float(c['original_amount']) if c['original_amount'] else base_total
+        ratio = (orig_total / base_total) if base_total else 1.0
+        contrib_orig = float(c['base_amt']) * ratio
+        pair_cur[(contributor, main_payer)][cur] -= contrib_orig
 
     def net_directed(directed):
         """directed: {(debtor,creditor): amount}. Net the two directions of each
@@ -3692,6 +3806,11 @@ def create_settlement():
     payee_id = data.get('payee_id')
     amount_raw = data.get('amount')
     currency = data.get('currency', 'ILS')
+    # Optional: link this settlement to a specific expense
+    try:
+        expense_id = int(data['expense_id']) if data.get('expense_id') is not None else None
+    except (ValueError, TypeError):
+        expense_id = None
 
     if not group_id or not payer_id or not payee_id or not amount_raw:
         return jsonify({"error": "Missing required fields."}), 400
@@ -3772,15 +3891,27 @@ def create_settlement():
         payer_balance = _converted_balance(payer_id)
         # A debtor has a negative balance. Their outstanding debt is -balance.
         outstanding_debt = -payer_balance
-        if outstanding_debt <= TOL:
-            return jsonify({"error": "אין חוב פתוח לסליקה."}), 400
-        if converted_amount > outstanding_debt + TOL:
-            return jsonify({"error": "סכום הסליקה גדול מהחוב הפתוח."}), 400
+        if expense_id is not None:
+            # For expense-linked settlements, validate against the expense amount
+            # (not the net pair balance, which could be lower due to mutual expenses).
+            exp_row = cursor.execute(
+                "SELECT amount FROM Expenses WHERE id = ? AND group_id = ?",
+                (expense_id, group_id)).fetchone()
+            if exp_row is None:
+                return jsonify({"error": "הוצאה לא נמצאה."}), 404
+            expense_ceiling = float(exp_row['amount'])
+            if converted_amount > expense_ceiling + TOL:
+                return jsonify({"error": "הסכום גדול מסכום ההוצאה."}), 400
+        else:
+            if outstanding_debt <= TOL:
+                return jsonify({"error": "אין חוב פתוח לסליקה."}), 400
+            if converted_amount > outstanding_debt + TOL:
+                return jsonify({"error": "סכום הסליקה גדול מהחוב הפתוח."}), 400
 
         cursor.execute("""
-            INSERT INTO Settlements (group_id, payer_id, payee_id, amount, original_amount, currency, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (group_id, payer_id, payee_id, converted_amount, original_amount, currency, datetime.now(timezone.utc).isoformat()))
+            INSERT INTO Settlements (group_id, payer_id, payee_id, amount, original_amount, currency, expense_id, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (group_id, payer_id, payee_id, converted_amount, original_amount, currency, expense_id, datetime.now(timezone.utc).isoformat()))
         conn.commit()
 
         # Get payee name for activity log

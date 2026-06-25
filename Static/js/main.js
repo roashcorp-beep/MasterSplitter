@@ -1250,6 +1250,8 @@ function switchTab(tabName, skipHistory = false) {
         if (tab) tab.classList.add('active');
     }
     if (tabName === 'home' || tabName === 'balances') fetchBalances();
+    if (tabName === 'home') fetchExpenses();   // home needs expenses for stats + latest card
+    if (tabName === 'dashboard') fetchBalances();
     if (tabName === 'expenses') fetchExpenses();
     if (tabName === 'add') {
         renderParticipants();
@@ -1384,6 +1386,9 @@ function togglePill(el) {
     el.classList.toggle('selected');
     if (document.getElementById('split-mode-toggle')?.checked) {
         renderCustomSplits();
+    }
+    if (document.getElementById('contribs-mode-toggle')?.checked) {
+        renderContribInputs();
     }
 }
 
@@ -1617,6 +1622,7 @@ async function fetchExpenses() {
 
         let html = '';
         let htmlSettled = '';  // settled expenses are grouped below a divider
+        let firstCard = '';    // the most-recent row, reused on the home screen
         if (!expenses.length) {
             html = `<div class="loading-state">${typeof i18n === 'function' ? i18n('expenses_no_data') : 'אין הוצאות בינתיים'}</div>`;
         } else {
@@ -1636,7 +1642,7 @@ async function fetchExpenses() {
                     const safePayee = escapeHTML(exp.payee_name);
                     const amtStr = `${getCurrencySymbol(exp.currency)}${formatNumber(exp.amount)}`;
                     const settledTxt = typeof i18n === 'function' ? i18n('balance_settled') : 'מאוזן (קיזוז)';
-                    html += `
+                    const settlementCard = `
                         <div class="expense-card settlement-card" style="border: 2px solid var(--success-color); background: rgba(46, 204, 113, 0.05);">
                             <div class="expense-content" style="text-align:center; padding: 10px;">
                                 <div style="color: var(--success-color); font-weight: bold; margin-bottom: 5px;">✅ ${settledTxt}</div>
@@ -1647,6 +1653,8 @@ async function fetchExpenses() {
                             </div>
                         </div>
                     `;
+                    html += settlementCard;
+                    if (!firstCard) firstCard = settlementCard;
                     return;
                 }
 
@@ -1684,6 +1692,21 @@ async function fetchExpenses() {
                 // Delete button
                 const canDelete = _groupSettings.is_admin || _groupSettings.allow_member_delete;
                 const deleteBtn = canDelete ? `<button class="delete-expense-btn" onclick="deleteExpense(${exp.id})" title="Delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>` : '';
+
+                // Settle button: shown only to debtors on unsettled non-personal expenses
+                const splits0 = exp.splits || [];
+                const myShareSplit = window.currentUser ? splits0.find(s => String(s.user_id) === String(window.currentUser.id)) : null;
+                const isDebtorHere = myShareSplit && String(exp.user_id) !== String(window.currentUser?.id);
+                let settleExpBtn = '';
+                if (isDebtorHere && !isPersonal && !exp.settled) {
+                    // Convert debtor's base-currency share to expense's original currency
+                    let shareOrig = parseFloat(myShareSplit.amount);
+                    if (exp.original_amount && exp.amount && Math.abs(parseFloat(exp.original_amount) - parseFloat(exp.amount)) > 0.01) {
+                        shareOrig = shareOrig * (parseFloat(exp.original_amount) / parseFloat(exp.amount));
+                    }
+                    const settleLabel = typeof i18n === 'function' ? i18n('settle_up') : 'סלק';
+                    settleExpBtn = `<button class="settle-expense-btn" onclick="event.stopPropagation(); openSettleExpenseModal(${exp.id}, ${window.currentUser.id}, ${exp.user_id}, ${shareOrig.toFixed(2)}, '${expCurrency}')" title="${settleLabel}">💸</button>`;
+                }
 
                 const personalBadge = isPersonal ? `<span class="personal-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>` : '';
                 const personalClass = isPersonal ? ' personal-expense' : '';
@@ -1746,7 +1769,7 @@ async function fetchExpenses() {
                         const isPayer = String(s.user_id) === String(exp.user_id);
                         const colorStyle = isPayer ? 'color: #6b7280;' : 'color: #dc2626;';
                         const nameStyle = isCustomSplit ? 'color: var(--text-main);' : colorStyle;
-                        
+
                         let displayAmt = parseFloat(s.amount);
                         if (exp.original_amount && parseFloat(exp.original_amount) !== parseFloat(exp.amount)) {
                             if (!isCustomSplit) {
@@ -1756,19 +1779,26 @@ async function fetchExpenses() {
                                 displayAmt = displayAmt * ratio;
                             }
                         }
-                        
+
+                        // Contribution: show "paid X → owes Y" when multi-payer is active
+                        const contribOrig = parseFloat(s.contribution_orig) || 0;
+                        const netOwed = Math.max(0, displayAmt - contribOrig);
+                        const showContrib = !isPayer && contribOrig > 0;
+
                         const sAvatar = s.avatar_url
                             ? `<img class="split-detail-avatar" src="${escapeHTML(s.avatar_url)}" referrerpolicy="no-referrer">`
                             : `<div class="split-detail-avatar split-detail-initial">${escapeHTML(s.name.charAt(0))}</div>`;
-                            
-                        const labelText = (typeof i18n === 'function')
-                            ? (isPayer ? (i18n('split_own_share') || 'החלק שלו/ה:') : (i18n('split_owes') || 'חייב/ת:'))
-                            : (isPayer ? 'החלק שלו/ה:' : 'חייב/ת:');
+
+                        const labelText = showContrib
+                            ? `<span style="font-size:0.78em; color:var(--text-muted); margin-right:4px;">שילמ ${expSym}${contribOrig.toFixed(1)} · חייב/ת:</span>`
+                            : `<span style="font-size:0.8em; color:var(--text-muted); margin-right:4px;">${isPayer ? (i18n && i18n('split_own_share') || 'החלק שלו/ה:') : (i18n && i18n('split_owes') || 'חייב/ת:')}</span>`;
+                        const amtText = showContrib ? netOwed.toFixed(1) : displayAmt.toFixed(1);
+                        const amtColor = showContrib ? (netOwed < 0.01 ? '#22c55e' : '#dc2626') : colorStyle;
 
                         return `<div class="split-detail-row">
                             ${sAvatar}
                             <span class="split-detail-name" style="${nameStyle}">${escapeHTML(s.name)}</span>
-                            <span class="split-detail-amount" style="${colorStyle}"><span style="font-size:0.8em; color:var(--text-muted); margin-right:4px;">${labelText}</span>${expSym}${displayAmt.toFixed(1)}</span>
+                            <span class="split-detail-amount" style="color:${amtColor}">${labelText}${expSym}${amtText}</span>
                         </div>`;
                     }).join('');
                     splitsDetailHTML = `<div class="expense-splits-detail" id="splits-${exp.id}" style="display:none">
@@ -1799,6 +1829,7 @@ async function fetchExpenses() {
                             <div style="font-size: 0.75rem; color: var(--text-sec); font-weight: 500; white-space: nowrap; margin-bottom: 6px;">${safeDateStr}</div>
                             <div class="item-amount" style="margin-bottom: auto;">${amountDisplay}</div>
                             <div class="expense-actions" style="margin-top: 8px;">
+                                ${settleExpBtn}
                                 ${isPersonal ? '' : `<button class="edit-expense-btn" onclick="openEditExpenseModal(${exp.id}, ${parseFloat(exp.original_amount || exp.amount)}, '${safeDesc.replace(/'/g, "\\'")}', '${safeCat.replace(/'/g, "\\'")}', '${expCurrency}')">✏️</button>`}
                                 ${deleteBtn}
                             </div>
@@ -1807,6 +1838,7 @@ async function fetchExpenses() {
                     ${splitsDetailHTML}
                 </div>`;
                 if (isSettled) { htmlSettled += card; } else { html += card; }
+                if (!firstCard) firstCard = card;
             });
         }
 
@@ -1824,13 +1856,120 @@ async function fetchExpenses() {
         }
 
         const full = document.getElementById('expenses-list');
-        const home = document.getElementById('home-expenses-list');
         if (full) full.innerHTML = html;
-        if (home) home.innerHTML = html;
+
+        // Home screen: show only the single latest row (same card design)
+        const homeLatest = document.getElementById('home-latest-expense');
+        if (homeLatest) {
+            homeLatest.innerHTML = firstCard || `<div class="loading-state">${typeof i18n === 'function' ? i18n('expenses_no_data') : 'אין הוצאות בינתיים'}</div>`;
+        }
 
         window.currentExpenses = expenses; // Store globally for edit modal
         renderCategoryChart(expenses);
+        renderHomeStats(expenses);
     } catch (e) { console.error('Fetch expenses error:', e); }
+}
+
+/**
+ * Home screen stats: "my expenses" (my share across all expenses) vs
+ * "group expenses" (total of all shared, non-personal expenses).
+ * All amounts are in the viewer's profile currency via amount_in_profile.
+ */
+function renderHomeStats(expenses) {
+    const elMine = document.getElementById('home-stat-mine');
+    const elAll = document.getElementById('home-stat-all');
+    if (!elMine && !elAll) return;
+    const me = window.currentUser?.id;
+    const profileCurrency = window.currentUser?.default_currency || 'ILS';
+    const sym = getCurrencySymbol(profileCurrency);
+
+    let mineSum = 0, mineCount = 0, allSum = 0, allCount = 0;
+    (expenses || []).forEach(e => {
+        if (e.type === 'settlement') return;
+        const totProfile = (e.amount_in_profile != null) ? parseFloat(e.amount_in_profile) : parseFloat(e.amount);
+        if (!e.is_personal) { allSum += totProfile; allCount++; }
+        const splits = e.splits || [];
+        const myS = splits.find(s => String(s.user_id) === String(me));
+        if (myS) {
+            const base = parseFloat(e.amount) || 0;
+            const myShareProfile = base > 0 ? (parseFloat(myS.amount) / base) * totProfile : parseFloat(myS.amount);
+            mineSum += myShareProfile;
+            mineCount++;
+        }
+    });
+
+    const expWord = typeof i18n === 'function' ? (i18n('home_expenses_count') || 'הוצאות') : 'הוצאות';
+    if (elMine) elMine.textContent = `${sym}${formatNumber(Math.round(mineSum))}`;
+    if (elAll) elAll.textContent = `${sym}${formatNumber(Math.round(allSum))}`;
+    const elMineCount = document.getElementById('home-stat-mine-count');
+    const elAllCount = document.getElementById('home-stat-all-count');
+    if (elMineCount) elMineCount.textContent = `${mineCount} ${expWord}`;
+    if (elAllCount) elAllCount.textContent = `${allCount} ${expWord}`;
+}
+
+/**
+ * Home screen personal summary: who owes me, and who I owe (converted view,
+ * profile currency). Built from the optimized settlements already cached.
+ */
+function renderHomePersonal() {
+    const box = document.getElementById('home-personal-summary');
+    if (!box) return;
+    const optData = window.cachedOptimizedData;
+    const me = window.currentUser?.id;
+    if (!optData || !optData.optimized_settlements || me == null) {
+        box.innerHTML = `<div class="loading-state">${typeof i18n === 'function' ? i18n('loading') : 'טוען...'}</div>`;
+        return;
+    }
+    const profileCur = (window.currentUser && window.currentUser.default_currency) || optData.currency || 'ILS';
+    const sym = getCurrencySymbol(profileCur);
+
+    const owedToMe = optData.optimized_settlements.filter(s => s.to_id === me);   // they pay me
+    const iOwe = optData.optimized_settlements.filter(s => s.from_id === me);     // I pay them
+
+    const totalIn = owedToMe.reduce((a, s) => a + s.amount, 0);
+    const totalOut = iOwe.reduce((a, s) => a + s.amount, 0);
+
+    if (owedToMe.length === 0 && iOwe.length === 0) {
+        const allSettledTitle = (typeof i18n === 'function') ? (i18n('balances_all_settled_title') || 'הכל מאוזן!') : 'הכל מאוזן!';
+        box.innerHTML = `<div style="text-align:center; padding: 18px 12px; color: var(--text-muted);">
+            <div style="font-size: 2rem; margin-bottom: 6px;">🎉</div>
+            <div style="font-weight: 600;">${allSettledTitle}</div>
+        </div>`;
+        return;
+    }
+
+    const lblReceive = typeof i18n === 'function' ? (i18n('home_owed_to_me') || 'מקבל') : 'מקבל';
+    const lblPay = typeof i18n === 'function' ? (i18n('home_i_owe') || 'חייב') : 'חייב';
+
+    const rowsHtml = (list, sign, color) => {
+        if (!list.length) return `<div class="home-debt-empty" data-i18n="home_none">—</div>`;
+        return list.map(s => {
+            const other = escapeHTML(sign > 0 ? s.from : s.to);
+            return `<div class="home-debt-row">
+                <span class="home-debt-name">${other}</span>
+                <span class="home-debt-amt" style="color:${color}">${sym}${formatNumber(s.amount)}</span>
+            </div>`;
+        }).join('');
+    };
+
+    box.innerHTML = `
+        <div class="home-summary-grid">
+            <div class="home-summary-col">
+                <div class="home-summary-head">
+                    <span class="home-summary-label">${lblReceive}</span>
+                    <strong class="home-summary-total positive">${sym}${formatNumber(totalIn)}</strong>
+                </div>
+                ${rowsHtml(owedToMe, 1, '#22c55e')}
+            </div>
+            <div class="home-summary-vline"></div>
+            <div class="home-summary-col">
+                <div class="home-summary-head">
+                    <span class="home-summary-label">${lblPay}</span>
+                    <strong class="home-summary-total negative">${sym}${formatNumber(totalOut)}</strong>
+                </div>
+                ${rowsHtml(iOwe, -1, '#ef4444')}
+            </div>
+        </div>`;
 }
 
 function toggleExpenseSplits(expId, event) {
@@ -2233,6 +2372,23 @@ async function addExpense() {
         }
     }
 
+    // Collect contributions if enabled
+    let contributions = null;
+    if (document.getElementById('contribs-mode-toggle')?.checked) {
+        const cinputs = document.querySelectorAll('#contribs-container input[data-contrib-uid]');
+        if (cinputs.length > 0) {
+            contributions = Array.from(cinputs).map(inp => ({
+                user_id: parseInt(inp.dataset.contribUid, 10),
+                amount: parseFloat(inp.value) || 0
+            })).filter(c => c.amount > 0);
+            const contribSum = contributions.reduce((a, c) => a + c.amount, 0);
+            if (Math.abs(contribSum - amount) > 0.01) {
+                alert(typeof i18n === 'function' ? i18n('contribs_sum_error') : 'סכומי התשלום חייבים להסתכם לסכום הכולל');
+                return;
+            }
+        }
+    }
+
     try {
         const payload = {
             group_id: currentGroupId,
@@ -2246,6 +2402,9 @@ async function addExpense() {
         if (currentPayerId) {
             payload.payer_id = currentPayerId;
         }
+        if (contributions && contributions.length > 0) {
+            payload.contributions = contributions;
+        }
 
         const res = await fetch('/api/expenses', {
             method: 'POST',
@@ -2258,6 +2417,8 @@ async function addExpense() {
             amountInput.value = '';
             descInput.value = '';
             document.getElementById('split-mode-toggle').checked = false;
+            const contribToggle = document.getElementById('contribs-mode-toggle');
+            if (contribToggle) { contribToggle.checked = false; toggleContribMode(); }
             const personalToggle = document.getElementById('personal-expense-toggle');
             if (personalToggle) personalToggle.checked = false;
             toggleSplitMode();
@@ -2383,6 +2544,7 @@ async function fetchBalances() {
         if (elPct) elPct.textContent = `${pct}%`;
 
         renderBalancesList();
+        renderHomePersonal();
 
         // Show the "reset settlements" recovery control to group admins only
         const resetBtn = document.getElementById('btn-reset-settlements');
@@ -2626,26 +2788,97 @@ async function executeLimboOffset() {
     }
 }
 
-async function triggerSettleUp(payerId, payeeId, amount, currency = 'ILS') {
-    const msg = typeof i18n === 'function' ? i18n('settle_confirm') : 'לסלק חוב?';
-    if (!confirm(`${msg} (${getCurrencySymbol(currency)}${formatNumber(amount)})`)) return;
+// --- Settle Up Modal ---
+let _pendingSettle = null;
+
+/**
+ * Open the settle modal for a pair-level settlement (from the balance/summaries screen).
+ * desc: optional human-readable label (e.g. "אבי → נופר")
+ */
+function triggerSettleUp(payerId, payeeId, amount, currency = 'ILS', desc = '') {
+    _openSettleModal({ payerId, payeeId, amount, currency, expenseId: null }, desc);
+}
+
+/**
+ * Open the settle modal for a specific expense card.
+ * shareAmount: the debtor's share in the expense's original currency.
+ */
+function openSettleExpenseModal(expenseId, payerId, payeeId, shareAmount, currency) {
+    const sym = getCurrencySymbol(currency);
+    const desc = (typeof i18n === 'function' ? i18n('settle_expense_desc') : 'סלק הוצאה זו') +
+        ` (${sym}${formatNumber(shareAmount)})`;
+    _openSettleModal({ payerId, payeeId, amount: shareAmount, currency, expenseId }, desc);
+}
+
+function _openSettleModal(settle, desc) {
+    _pendingSettle = settle;
+    const { amount, currency } = settle;
+    const sym = getCurrencySymbol(currency);
+    const overlay = document.getElementById('settle-modal-overlay');
+    if (!overlay) return;
+
+    const titleEl = document.getElementById('settle-modal-title');
+    const descEl  = document.getElementById('settle-modal-desc');
+    const symEl   = document.getElementById('settle-modal-sym');
+    const inp     = document.getElementById('settle-amount-input');
+    const hint    = document.getElementById('settle-amount-hint');
+
+    if (titleEl) titleEl.textContent = (typeof i18n === 'function' ? i18n('settle_up') : 'סלק חוב') + ' 💸';
+    if (descEl)  descEl.textContent  = desc || '';
+    if (symEl)   symEl.textContent   = sym;
+    if (inp) {
+        inp.value = parseFloat(amount).toFixed(2);
+        inp.max   = parseFloat(amount).toFixed(2);
+    }
+    if (hint) {
+        const maxTxt = typeof i18n === 'function' ? i18n('settle_max_hint') : 'מקסימום';
+        hint.textContent = `${maxTxt}: ${sym}${formatNumber(amount)}`;
+    }
+    overlay.style.display = 'flex';
+    if (inp) setTimeout(() => inp.focus(), 50);
+}
+
+function closeSettleModal() {
+    const overlay = document.getElementById('settle-modal-overlay');
+    if (overlay) overlay.style.display = 'none';
+    _pendingSettle = null;
+}
+
+async function confirmSettleUp() {
+    if (!_pendingSettle) return;
+    const inp = document.getElementById('settle-amount-input');
+    const amount = parseFloat(inp?.value);
+    if (!amount || amount <= 0) {
+        alert(typeof i18n === 'function' ? i18n('enter_valid_amount') : 'הזן סכום תקין');
+        return;
+    }
+    const maxAmt = parseFloat(inp?.max || _pendingSettle.amount);
+    if (amount > maxAmt + 0.01) {
+        alert(typeof i18n === 'function' ? i18n('settle_max_exceeded') : 'הסכום גדול מהחוב הפתוח');
+        return;
+    }
+
+    const { payerId, payeeId, currency, expenseId } = _pendingSettle;
+    closeSettleModal();
 
     try {
+        const body = {
+            group_id: currentGroupId,
+            payer_id: payerId,
+            payee_id: payeeId,
+            amount: amount,
+            currency: currency
+        };
+        if (expenseId != null) body.expense_id = expenseId;
+
         const res = await fetch('/api/settlements', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                group_id: currentGroupId,
-                payer_id: payerId,
-                payee_id: payeeId,
-                amount: amount,
-                currency: currency
-            })
+            body: JSON.stringify(body)
         });
         const data = await res.json();
         if (res.ok && data.success) {
-            const toastMsg = typeof i18n === 'function' ? i18n('toast_settled') : 'החוב סולק! 🎉';
-            showToast(toastMsg);
+            showToast(typeof i18n === 'function' ? i18n('toast_settled') : 'החוב סולק! 🎉');
             launchConfetti();
             fetchBalances();
             fetchExpenses();
@@ -3106,6 +3339,75 @@ function submitAssignItems() {
 // ============================================
 //   PHASE 4: UNEQUAL SPLITS LOGIC
 // ============================================
+
+// =====================
+//  CONTRIBUTIONS MODE (multi-payer: who paid how much)
+// =====================
+
+function toggleContribMode() {
+    const isOn = document.getElementById('contribs-mode-toggle')?.checked;
+    const container = document.getElementById('contribs-container');
+    const msg = document.getElementById('contribs-validation-msg');
+    if (!container) return;
+    if (isOn) {
+        container.style.display = 'flex';
+        renderContribInputs();
+    } else {
+        container.style.display = 'none';
+        if (msg) msg.style.display = 'none';
+    }
+}
+
+function renderContribInputs() {
+    const container = document.getElementById('contribs-container');
+    if (!container) return;
+    const parts = getSelectedParticipants();
+    if (!parts.length) {
+        container.innerHTML = `<div style="color:var(--text-muted);text-align:center;padding:8px;">בחר קודם משתתפים</div>`;
+        return;
+    }
+    const totalAmount = parseFloat(document.getElementById('amount')?.value || 0);
+    const currency = document.getElementById('currency')?.value || 'ILS';
+    const sym = getCurrencySymbol(currency);
+    const equalShare = parts.length > 0 ? (totalAmount / parts.length) : 0;
+    // Preserve existing values
+    const existing = {};
+    container.querySelectorAll('input[data-contrib-uid]').forEach(inp => {
+        existing[inp.dataset.contribUid] = inp.value;
+    });
+    container.innerHTML = parts.map(pid => {
+        const member = groupMembers.find(m => String(m.id) === String(pid));
+        const name = member ? escapeHTML(member.name) : `משתתף`;
+        const val = existing[pid] !== undefined ? existing[pid] : equalShare.toFixed(2);
+        return `<div class="split-input-row">
+            <span class="split-input-name">${name}</span>
+            <input type="number" data-contrib-uid="${pid}" class="split-input-field"
+                value="${val}" min="0" step="0.01" oninput="updateContribSum()">
+        </div>`;
+    }).join('');
+    updateContribSum();
+}
+
+function updateContribSum() {
+    const container = document.getElementById('contribs-container');
+    const msg = document.getElementById('contribs-validation-msg');
+    if (!container || !msg) return;
+    const totalAmount = parseFloat(document.getElementById('amount')?.value || 0);
+    const inputs = container.querySelectorAll('input[data-contrib-uid]');
+    const sum = Array.from(inputs).reduce((acc, inp) => acc + (parseFloat(inp.value) || 0), 0);
+    const diff = Math.abs(sum - totalAmount);
+    const currency = document.getElementById('currency')?.value || 'ILS';
+    const sym = getCurrencySymbol(currency);
+    if (diff < 0.01) {
+        msg.className = 'split-validation-msg valid';
+        msg.textContent = typeof i18n === 'function' ? i18n('toast_expense_updated') : 'הסכומים תואמים! ✓';
+        msg.style.display = 'block';
+    } else {
+        msg.className = 'split-validation-msg invalid';
+        msg.textContent = `${sym}${sum.toFixed(2)} / ${sym}${totalAmount.toFixed(2)} — ${sum > totalAmount ? 'עודף' : 'חסר'} ${sym}${Math.abs(diff).toFixed(2)}`;
+        msg.style.display = 'block';
+    }
+}
 
 function toggleSplitMode() {
     const container = document.getElementById('custom-splits-container');

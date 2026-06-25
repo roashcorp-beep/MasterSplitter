@@ -7,7 +7,7 @@
     <title>MasterSplitter</title>
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800;900&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=3.99">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=4.02">
     <script>
         if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.documentElement.classList.add('dark');
@@ -134,55 +134,96 @@
                     </div>
                 </div>
 
-                <!-- Swappable Budget Card -->
-                <div class="flip-card-container">
-                    <div class="flip-card-inner" id="budget-flip-card">
+                <!-- Personal summary: who owes me / who I owe -->
+                <div class="card home-personal-card" id="home-personal-summary">
+                    <div class="loading-state" data-i18n="loading">טוען...</div>
+                </div>
 
-                        <!-- Front: Budget summary -->
-                        <div class="flip-card-front card budget-card">
-                            <button class="flip-btn" onclick="toggleBudgetCard()" title="Show Categories">📊</button>
-                            <div class="budget-main">
-                                <div class="stat-col text-right">
-                                    <span class="budget-label" data-i18n="home_total_budget">סה"כ תקציב</span>
-                                    <strong class="budget-value dark-text" id="total-budget">₪0</strong>
-                                </div>
-                                <div class="budget-circle-wrapper">
-                                    <div class="budget-circle-new">
-                                        <span class="circle-percent" id="circle-percent">0%</span>
-                                        <span class="circle-label" data-i18n="home_spent">הוצא</span>
-                                    </div>
-                                </div>
-                                <div class="stat-col text-left">
-                                    <span class="budget-label" data-i18n="home_spent">הוצא</span>
-                                    <strong class="budget-value dark-text" id="total-spent">₪0</strong>
-                                    <div style="margin-top: 10px;"></div>
-                                    <span class="budget-label" data-i18n="home_left">נותר</span>
-                                    <strong class="budget-value purple-text" id="budget-left">₪0</strong>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Back: Category Chart -->
-                        <div class="flip-card-back card budget-card">
-                            <button class="flip-btn" onclick="toggleBudgetCard()" title="Show Budget">🔙</button>
-                            <h4 style="text-align:center; margin-bottom: 15px; color: var(--text-dark);"
-                                data-i18n="expenses_title">הוצאות לפי קטגוריה</h4>
-                            <div class="category-chart-container" id="category-chart">
-                                <!-- Bars injected via JS -->
-                            </div>
-                        </div>
-
+                <!-- My-vs-everyone expense stats -->
+                <div class="home-stats-row" id="home-stats-row">
+                    <div class="home-stat-box">
+                        <span class="home-stat-label" data-i18n="home_my_expenses">ההוצאות שלי</span>
+                        <strong class="home-stat-value" id="home-stat-mine">₪0</strong>
+                        <span class="home-stat-sub" id="home-stat-mine-count">0 הוצאות</span>
+                    </div>
+                    <div class="home-stat-divider"></div>
+                    <div class="home-stat-box">
+                        <span class="home-stat-label" data-i18n="home_group_expenses">הוצאות הקבוצה</span>
+                        <strong class="home-stat-value" id="home-stat-all">₪0</strong>
+                        <span class="home-stat-sub" id="home-stat-all-count">0 הוצאות</span>
                     </div>
                 </div>
 
+                <!-- Dashboard button -->
+                <button class="home-dashboard-btn" onclick="switchTab('dashboard')">
+                    <span class="home-dashboard-icon">📊</span>
+                    <span data-i18n="home_dashboard_btn">דשבורד הוצאות</span>
+                    <span class="home-dashboard-arrow">‹</span>
+                </button>
+
+                <!-- Latest expense (same design as the expenses screen) -->
                 <div class="recent-expenses-header">
-                    <h3 data-i18n="home_recent_expenses">הוצאות אחרונות</h3>
+                    <h3 data-i18n="home_latest_expense">ההוצאה האחרונה</h3>
                     <a href="#" class="view-all-link" onclick="switchTab('expenses'); return false;"
                         data-i18n="home_view_all">הצג הכל</a>
                 </div>
-                <div class="card expenses-list-card">
-                    <div id="home-expenses-list">
-                        <div class="loading-state" data-i18n="loading">טוען...</div>
+                <div id="home-latest-expense">
+                    <div class="loading-state" data-i18n="loading">טוען...</div>
+                </div>
+            </div>
+
+            <!-- DASHBOARD SCREEN (budget + categories; to be expanded later) -->
+            <div id="screen-dashboard" class="screen">
+                <div style="padding: 10px 0;">
+                    <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+                        <button class="dashboard-back-btn" onclick="switchTab('home')" title="Back">›</button>
+                        <h3 class="screen-title" style="margin:0;" data-i18n="home_dashboard_btn">דשבורד הוצאות</h3>
+                    </div>
+
+                    <!-- Swappable Budget Card -->
+                    <div class="flip-card-container">
+                        <div class="flip-card-inner" id="budget-flip-card">
+
+                            <!-- Front: Budget summary -->
+                            <div class="flip-card-front card budget-card">
+                                <button class="flip-btn" onclick="toggleBudgetCard()" title="Show Categories">📊</button>
+                                <div class="budget-main">
+                                    <div class="stat-col text-right">
+                                        <span class="budget-label" data-i18n="home_total_budget">סה"כ תקציב</span>
+                                        <strong class="budget-value dark-text" id="total-budget">₪0</strong>
+                                    </div>
+                                    <div class="budget-circle-wrapper">
+                                        <div class="budget-circle-new">
+                                            <span class="circle-percent" id="circle-percent">0%</span>
+                                            <span class="circle-label" data-i18n="home_spent">הוצא</span>
+                                        </div>
+                                    </div>
+                                    <div class="stat-col text-left">
+                                        <span class="budget-label" data-i18n="home_spent">הוצא</span>
+                                        <strong class="budget-value dark-text" id="total-spent">₪0</strong>
+                                        <div style="margin-top: 10px;"></div>
+                                        <span class="budget-label" data-i18n="home_left">נותר</span>
+                                        <strong class="budget-value purple-text" id="budget-left">₪0</strong>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Back: Category Chart -->
+                            <div class="flip-card-back card budget-card">
+                                <button class="flip-btn" onclick="toggleBudgetCard()" title="Show Budget">🔙</button>
+                                <h4 style="text-align:center; margin-bottom: 15px; color: var(--text-dark);"
+                                    data-i18n="expenses_title">הוצאות לפי קטגוריה</h4>
+                                <div class="category-chart-container" id="category-chart">
+                                    <!-- Bars injected via JS -->
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <div class="card" style="margin-top:16px; text-align:center; color:var(--text-muted); padding:24px;">
+                        <div style="font-size:2rem; margin-bottom:8px;">🚧</div>
+                        <div data-i18n="dashboard_coming_soon">דשבורד מורחב יגיע בקרוב</div>
                     </div>
                 </div>
             </div>
@@ -257,6 +298,17 @@
                     </div>
                     <div id="custom-splits-container" class="custom-splits-container" style="display:none;"></div>
                     <div id="split-validation-msg" class="split-validation-msg" style="display:none;"></div>
+
+                    <!-- Contributions Mode Toggle: how much each person actually paid -->
+                    <div style="margin-top:10px;">
+                        <label class="split-toggle-label" style="width:100%; display:flex; align-items:center; justify-content:space-between;">
+                            <input type="checkbox" id="contribs-mode-toggle" onchange="toggleContribMode()">
+                            <span class="split-toggle-slider"></span>
+                            <span class="split-toggle-text" data-i18n="contribs_mode">תשלום משותף 💰</span>
+                        </label>
+                    </div>
+                    <div id="contribs-container" class="custom-splits-container" style="display:none;"></div>
+                    <div id="contribs-validation-msg" class="split-validation-msg" style="display:none;"></div>
 
                     <button class="primary-btn full-width" style="margin-top:20px;" onclick="addExpense()"
                         data-i18n="expense_btn_save">שמור הוצאה</button>
@@ -412,8 +464,8 @@
         </button>
     </div>
 
-    <script src="{{ url_for('static', filename='js/translations.js') }}?v=4.00"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=4.13"></script>
+    <script src="{{ url_for('static', filename='js/translations.js') }}?v=4.03"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=4.16"></script>
     <script>
         function checkCookieConsent() {
             if (!localStorage.getItem('cookieConsent')) {
@@ -606,6 +658,31 @@
     </script>
 
     <!-- Limbo Offset Modal -->
+    <!-- Settle Up Modal (partial + full settlements, works for pair-level and per-expense) -->
+    <div id="settle-modal-overlay" class="modal-overlay" style="display:none; z-index:9998;" onclick="if(event.target===this)closeSettleModal()">
+        <div class="modal-content" style="max-width:400px;">
+            <div class="modal-header">
+                <h3 id="settle-modal-title">💸 סלק חוב</h3>
+                <button class="modal-close-x" onclick="closeSettleModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+            </div>
+            <div class="modal-body">
+                <p id="settle-modal-desc" style="color:var(--text-sec); margin-bottom:16px; font-size:0.9rem; line-height:1.5;"></p>
+                <label style="font-weight:600; display:block; margin-bottom:8px;" data-i18n="settle_amount_label">סכום לתשלום</label>
+                <div style="display:flex; align-items:center; gap:8px; background:var(--surface-input,rgba(255,255,255,0.05)); border:1px solid var(--glass-border); border-radius:12px; padding:10px 14px; margin-bottom:8px;">
+                    <span id="settle-modal-sym" style="font-size:1.1rem; color:var(--primary); font-weight:700;">₪</span>
+                    <input type="number" id="settle-amount-input" min="0.01" step="0.01"
+                        style="flex:1; background:transparent; border:none; outline:none; color:var(--text-main); font-size:1.15rem; font-weight:600; width:100%;"
+                        placeholder="0.00">
+                </div>
+                <p id="settle-amount-hint" style="font-size:0.78rem; color:var(--text-muted);"></p>
+            </div>
+            <div class="modal-actions">
+                <button class="secondary-btn" onclick="closeSettleModal()" data-i18n="btn_cancel">ביטול</button>
+                <button class="primary-btn" onclick="confirmSettleUp()">✅ <span data-i18n="btn_confirm">אשר</span></button>
+            </div>
+        </div>
+    </div>
+
     <div id="limbo-modal" class="modal-overlay" style="display:none; z-index:9999;" onclick="if(event.target===this) closeModal('limbo-modal')">
         <div class="modal-card">
             <div class="modal-header">

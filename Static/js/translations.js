@@ -109,8 +109,17 @@ const translations = {
         "home_spent": "הוצא",
         "home_left": "נותר",
         "home_recent_expenses": "הוצאות אחרונות",
+        "home_latest_expense": "ההוצאה האחרונה",
         "home_view_all": "הצג הכל",
-        
+        "home_my_expenses": "ההוצאות שלי",
+        "home_group_expenses": "הוצאות הקבוצה",
+        "home_expenses_count": "הוצאות",
+        "home_dashboard_btn": "דשבורד הוצאות",
+        "home_owed_to_me": "מקבל",
+        "home_i_owe": "חייב",
+        "home_none": "—",
+        "dashboard_coming_soon": "דשבורד מורחב יגיע בקרוב",
+
         // Expenses
         "expenses_title": "כל ההוצאות",
         "expenses_no_data": "אין הוצאות בינתיים",
@@ -218,6 +227,14 @@ const translations = {
         "settle_up": "סלק חוב",
         "settle_confirm": "לסלק חוב?",
         "toast_settled": "החוב סולק!",
+        "settle_amount_label": "סכום לתשלום",
+        "settle_max_hint": "מקסימום",
+        "settle_expense_desc": "סלק הוצאה זו",
+        "settle_max_exceeded": "הסכום גדול מהחוב הפתוח",
+        "enter_valid_amount": "הזן סכום תקין",
+        "btn_confirm": "אשר",
+        "contribs_mode": "תשלום משותף 💰",
+        "contribs_sum_error": "סכומי התשלום חייבים להסתכם לסכום הכולל",
 
         // Activity Feed
         "activity_title": "פעילות",
@@ -463,8 +480,17 @@ const translations = {
         "home_spent": "Spent",
         "home_left": "Left",
         "home_recent_expenses": "Recent Expenses",
+        "home_latest_expense": "Latest Expense",
         "home_view_all": "View All",
-        
+        "home_my_expenses": "My Expenses",
+        "home_group_expenses": "Group Expenses",
+        "home_expenses_count": "expenses",
+        "home_dashboard_btn": "Expense Dashboard",
+        "home_owed_to_me": "Owed to me",
+        "home_i_owe": "I owe",
+        "home_none": "—",
+        "dashboard_coming_soon": "Full dashboard coming soon",
+
         // Expenses
         "expenses_title": "All Expenses",
         "expenses_no_data": "No expenses yet",
@@ -572,6 +598,14 @@ const translations = {
         "settle_up": "Settle Up",
         "settle_confirm": "Settle this debt?",
         "toast_settled": "Debt settled!",
+        "settle_amount_label": "Amount to pay",
+        "settle_max_hint": "Maximum",
+        "settle_expense_desc": "Settle this expense",
+        "settle_max_exceeded": "Amount exceeds open debt",
+        "enter_valid_amount": "Enter a valid amount",
+        "btn_confirm": "Confirm",
+        "contribs_mode": "Shared Payment 💰",
+        "contribs_sum_error": "Payment amounts must sum to the total",
 
         // Activity Feed
         "activity_title": "Activity",

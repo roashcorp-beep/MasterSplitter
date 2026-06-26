@@ -3577,27 +3577,28 @@ def get_optimized_balances(group_id):
         return out
 
     net_pairs = net_directed(pair_base)  # [(debtor, creditor, base_amount), ...]
+    disp_rate = safe_rate(base_cur, disp_cur)
 
-    # --- Per-currency view: a single bucket, the group base currency. ---
+    # Build both views, dropping near-zero residuals (a fully-settled debt can leave a
+    # sub-cent remainder from converting split shares between currencies — that should
+    # read as "settled", not as a phantom 0.00 debt).
     currency_settlements = {}
     user_currency_balances = {u['id']: {} for u in users}
-    if net_pairs:
-        lst = []
-        for deb, cred, val in net_pairs:
-            v = round(val, 2)
-            lst.append({"from_id": deb, "from": user_name.get(deb),
-                        "to_id": cred, "to": user_name.get(cred), "amount": v})
-            user_currency_balances.setdefault(deb, {})[base_cur] = round(user_currency_balances.get(deb, {}).get(base_cur, 0.0) - v, 2)
-            user_currency_balances.setdefault(cred, {})[base_cur] = round(user_currency_balances.get(cred, {}).get(base_cur, 0.0) + v, 2)
+    converted_settlements = []
+    lst = []
+    for deb, cred, val in net_pairs:
+        disp_amt = round(val * disp_rate, 2)
+        if disp_amt < 0.01:
+            continue  # residual — treat as settled
+        v = round(val, 2)
+        converted_settlements.append({"from_id": deb, "from": user_name.get(deb),
+                                      "to_id": cred, "to": user_name.get(cred), "amount": disp_amt})
+        lst.append({"from_id": deb, "from": user_name.get(deb),
+                    "to_id": cred, "to": user_name.get(cred), "amount": v})
+        user_currency_balances.setdefault(deb, {})[base_cur] = round(user_currency_balances.get(deb, {}).get(base_cur, 0.0) - v, 2)
+        user_currency_balances.setdefault(cred, {})[base_cur] = round(user_currency_balances.get(cred, {}).get(base_cur, 0.0) + v, 2)
+    if lst:
         currency_settlements[base_cur] = lst
-
-    # --- Converted view: net base debt -> the requesting user's display currency. ---
-    disp_rate = safe_rate(base_cur, disp_cur)
-    converted_settlements = [
-        {"from_id": deb, "from": user_name.get(deb),
-         "to_id": cred, "to": user_name.get(cred), "amount": round(val * disp_rate, 2)}
-        for deb, cred, val in net_pairs
-    ]
 
     conn.close()
 

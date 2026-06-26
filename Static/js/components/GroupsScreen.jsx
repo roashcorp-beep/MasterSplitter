@@ -593,8 +593,17 @@ const GroupsScreen = () => {
                                                 </div>
                                             </div>
                                             <div className="flex items-center justify-between">
+                                                <label className="text-sm text-gray-700 dark:text-gray-300">{i18n("public_settlements") || "הצג קיזוזים לכולם"}</label>
+                                                <div
+                                                    className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ease-in-out ${group.is_public_settlements === true ? 'bg-purple-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                                                    onClick={() => togglePermission('is_public_settlements')}
+                                                >
+                                                    <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${group.is_public_settlements === true ? (isRTL ? '-translate-x-5' : 'translate-x-5') : 'translate-x-0'}`}></div>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center justify-between">
                                                 <label className="text-sm text-gray-700 dark:text-gray-300">{i18n("allow_member_delete_lbl") || "אפשר למשתתפים למחוק הוצאות"}</label>
-                                                <div 
+                                                <div
                                                     className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ease-in-out ${group.allow_member_delete !== false ? 'bg-purple-500' : 'bg-gray-300 dark:bg-gray-600'}`}
                                                     onClick={() => togglePermission('allow_member_delete')}
                                                 >

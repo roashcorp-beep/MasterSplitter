@@ -4517,6 +4517,7 @@ window.saveEditGroupFromReact = async function(group) {
         budgets_json: group.budgets_json || {},
         is_budget_per_user: group.is_budget_per_user,
         is_public_expenses: group.is_public_expenses,
+        is_public_settlements: group.is_public_settlements,
         allow_member_delete: group.allow_member_delete,
         user_budgets: group.user_budgets || {},
         participants: participants

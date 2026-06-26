@@ -517,6 +517,9 @@ def init_db_updates():
         if 'is_public_expenses' not in groups_cols:
             cursor.execute("ALTER TABLE Groups ADD COLUMN is_public_expenses INTEGER DEFAULT 0")
             logger.info("Migration: added 'is_public_expenses' column to Groups")
+        if 'is_public_settlements' not in groups_cols:
+            cursor.execute("ALTER TABLE Groups ADD COLUMN is_public_settlements INTEGER DEFAULT 0")
+            logger.info("Migration: added 'is_public_settlements' column to Groups")
         if 'budget_type' not in groups_cols:
             cursor.execute("ALTER TABLE Groups ADD COLUMN budget_type TEXT DEFAULT 'none'")
             logger.info("Migration: added 'budget_type' column to Groups")
@@ -736,6 +739,23 @@ def user_display_currency(cursor, user_id):
     if row and row['default_currency']:
         return row['default_currency']
     return 'ILS'
+
+
+def can_see_all_settlements(cursor, group_id, user_id):
+    """Whether the user may see EVERY member's balances/debts on the summaries screen.
+    True when the group's is_public_settlements is ON, or the user is the group
+    owner/admin. Otherwise each member only sees debts that involve themselves."""
+    row = cursor.execute(
+        "SELECT COALESCE(is_public_settlements, 0) AS pub, owner_id FROM Groups WHERE id = ?",
+        (group_id,)).fetchone()
+    if row is None:
+        return True
+    if row['pub'] or row['owner_id'] == user_id:
+        return True
+    m = cursor.execute(
+        "SELECT COALESCE(is_admin, 0) AS a FROM GroupMembers WHERE group_id = ? AND user_id = ?",
+        (group_id, user_id)).fetchone()
+    return bool(m and m['a'])
 
 
 def safe_rate(from_cur, to_cur):
@@ -2080,6 +2100,7 @@ def get_group(group_id):
             'is_owner': group['owner_id'] == session['user_id'],
             'invite_token': group['invite_token'],
             'is_public_expenses': bool(group['is_public_expenses']) if 'is_public_expenses' in group.keys() else False,
+            'is_public_settlements': bool(group['is_public_settlements']) if 'is_public_settlements' in group.keys() else False,
             'allow_member_delete': bool(group['allow_member_delete']) if 'allow_member_delete' in group.keys() else True,
             'participants': participants,
             'is_readonly': is_readonly
@@ -2149,6 +2170,10 @@ def update_group(group_id):
         if 'is_public_expenses' in data:
             updates.append("is_public_expenses = ?")
             params.append(1 if data['is_public_expenses'] else 0)
+
+        if 'is_public_settlements' in data:
+            updates.append("is_public_settlements = ?")
+            params.append(1 if data['is_public_settlements'] else 0)
 
         if 'allow_member_delete' in data:
             updates.append("allow_member_delete = ?")
@@ -2289,7 +2314,7 @@ def get_group_members(group_id):
 def get_group_settings(group_id):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT COALESCE(is_public_expenses, 0) as is_public_expenses, COALESCE(allow_member_delete, 1) as allow_member_delete FROM Groups WHERE id = ?", (group_id,))
+    cursor.execute("SELECT COALESCE(is_public_expenses, 0) as is_public_expenses, COALESCE(is_public_settlements, 0) as is_public_settlements, COALESCE(allow_member_delete, 1) as allow_member_delete FROM Groups WHERE id = ?", (group_id,))
     group = cursor.fetchone()
     cursor.execute("SELECT COALESCE(is_admin, 0) as is_admin FROM GroupMembers WHERE group_id = ? AND user_id = ?",
                    (group_id, session['user_id']))
@@ -2297,6 +2322,7 @@ def get_group_settings(group_id):
     conn.close()
     return jsonify({
         'is_public_expenses': bool(group['is_public_expenses']) if group else False,
+        'is_public_settlements': bool(group['is_public_settlements']) if group else False,
         'allow_member_delete': bool(group['allow_member_delete']) if group else True,
         'is_admin': bool(member['is_admin']) if member else False
     })
@@ -2320,6 +2346,9 @@ def update_group_settings(group_id):
     if 'is_public_expenses' in data:
         val = 1 if data['is_public_expenses'] else 0
         cursor.execute("UPDATE Groups SET is_public_expenses = ? WHERE id = ?", (val, group_id))
+    if 'is_public_settlements' in data:
+        val = 1 if data['is_public_settlements'] else 0
+        cursor.execute("UPDATE Groups SET is_public_settlements = ? WHERE id = ?", (val, group_id))
     if 'allow_member_delete' in data:
         val = 1 if data['allow_member_delete'] else 0
         cursor.execute("UPDATE Groups SET allow_member_delete = ? WHERE id = ?", (val, group_id))
@@ -3412,6 +3441,7 @@ def get_balances(group_id):
     base_cur = group_base_currency(cursor, group_id)
     disp_cur = user_display_currency(cursor, session['user_id'])
     disp_rate = safe_rate(base_cur, disp_cur)
+    see_all = can_see_all_settlements(cursor, group_id, session['user_id'])
 
     conn.close()
 
@@ -3444,6 +3474,10 @@ def get_balances(group_id):
             'paid': round(paid * disp_rate, 2),
             'balance': round(balance * disp_rate, 2)
         })
+
+    # Per-user visibility: non-admins (in a non-public group) only see their own row.
+    if not see_all:
+        balances = [b for b in balances if b['user_id'] == session['user_id']]
 
     return jsonify({
         'total': total_expenses,
@@ -3645,6 +3679,18 @@ def get_optimized_balances(group_id):
                                       "to_id": cred, "to": user_name.get(cred), "amount": disp_amt})
         user_base_balances.setdefault(deb, {})[base_cur] = round(user_base_balances.get(deb, {}).get(base_cur, 0.0) - v, 2)
         user_base_balances.setdefault(cred, {})[base_cur] = round(user_base_balances.get(cred, {}).get(base_cur, 0.0) + v, 2)
+
+    # Per-user visibility: unless the group is public-settlements or the viewer is an
+    # owner/admin, each member only sees debts that involve themselves.
+    me = session['user_id']
+    if not can_see_all_settlements(cursor, group_id, me):
+        def mine(lst):
+            return [s for s in lst if s['from_id'] == me or s['to_id'] == me]
+        converted_settlements = mine(converted_settlements)
+        base_settlements = mine(base_settlements)
+        currency_settlements = {c: m for c, v in currency_settlements.items() for m in [mine(v)] if m}
+        user_currency_balances = {me: user_currency_balances.get(me, {})}
+        user_base_balances = {me: user_base_balances.get(me, {})}
 
     conn.close()
 

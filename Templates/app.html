@@ -343,8 +343,9 @@
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
                         <h3 class="screen-title" style="margin:0;" data-i18n="balances_title">סיכומים ויתרות</h3>
                         <div class="balances-toggle-container" style="display:flex; background: rgba(255,255,255,0.05); border-radius: 8px; padding: 2px;">
-                            <button id="btn-view-currency" class="balances-toggle-btn active" onclick="setBalancesView('currency')" style="background: var(--primary); color: #fff; border: none; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 0.8rem;" data-i18n="bal_view_currency">לפי מטבע</button>
-                            <button id="btn-view-converted" class="balances-toggle-btn" onclick="setBalancesView('converted')" style="background: transparent; color: var(--text-muted); border: none; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 0.8rem;" data-i18n="bal_view_converted">מומר</button>
+                            <button id="btn-view-currency" class="balances-toggle-btn active" onclick="setBalancesView('currency')" style="background: var(--primary); color: #fff; border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 0.72rem;" data-i18n="bal_view_currency">לפי מטבע</button>
+                            <button id="btn-view-group" class="balances-toggle-btn" onclick="setBalancesView('group')" style="background: transparent; color: var(--text-muted); border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 0.72rem;" data-i18n="bal_view_group">מטבע הקבוצה</button>
+                            <button id="btn-view-converted" class="balances-toggle-btn" onclick="setBalancesView('converted')" style="background: transparent; color: var(--text-muted); border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 0.72rem;" data-i18n="bal_view_converted">המטבע שלי</button>
                         </div>
                     </div>
                     <button class="primary-btn full-width" id="btn-suggest-offset" style="margin-bottom: 16px; background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3);" onclick="suggestLimboOffset()" data-i18n="suggest_offset">✨ הצע קיזוז (Settle Up)</button>
@@ -486,8 +487,8 @@
         </button>
     </div>
 
-    <script src="{{ url_for('static', filename='js/translations.js') }}?v=4.06"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=4.20"></script>
+    <script src="{{ url_for('static', filename='js/translations.js') }}?v=4.07"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=4.21"></script>
     <script>
         function checkCookieConsent() {
             if (!localStorage.getItem('cookieConsent')) {

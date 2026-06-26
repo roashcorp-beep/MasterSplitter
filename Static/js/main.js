@@ -2499,18 +2499,18 @@ window.cachedOptimizedData = null;
 
 function setBalancesView(view) {
     window.currentBalancesView = view;
-    
-    const btnCur = document.getElementById('btn-view-currency');
-    const btnConv = document.getElementById('btn-view-converted');
-    
-    if (view === 'currency') {
-        if(btnCur) { btnCur.style.background = 'var(--primary)'; btnCur.style.color = '#fff'; }
-        if(btnConv) { btnConv.style.background = 'transparent'; btnConv.style.color = 'var(--text-muted)'; }
-    } else {
-        if(btnConv) { btnConv.style.background = 'var(--primary)'; btnConv.style.color = '#fff'; }
-        if(btnCur) { btnCur.style.background = 'transparent'; btnCur.style.color = 'var(--text-muted)'; }
-    }
-    
+    const btns = {
+        currency: document.getElementById('btn-view-currency'),
+        group: document.getElementById('btn-view-group'),
+        converted: document.getElementById('btn-view-converted')
+    };
+    Object.keys(btns).forEach(k => {
+        const b = btns[k];
+        if (!b) return;
+        const on = (k === view);
+        b.style.background = on ? 'var(--primary)' : 'transparent';
+        b.style.color = on ? '#fff' : 'var(--text-muted)';
+    });
     renderBalancesList();
 }
 
@@ -2581,19 +2581,37 @@ function renderBalancesList() {
         return; 
     }
 
-    const isCurrencyView = window.currentBalancesView === 'currency';
-    // Converted-view amounts (header balance + optimized_settlements) are returned
-    // by the backend already converted to the viewer's PROFILE currency.
+    const view = window.currentBalancesView || 'currency';
+    const isMulti = view === 'currency';      // by entry currency (breakdown)
+    const isGroup = view === 'group';         // netted in the group's base currency
+    // Converted ("my currency") amounts are returned already converted to the viewer's
+    // PROFILE currency; base amounts use the group's base currency.
     const profileCur = (window.currentUser && window.currentUser.default_currency) || optData.currency || 'ILS';
     const userSym = getCurrencySymbol(profileCur);
+    const baseCur = optData.base_currency || 'ILS';
+    const baseSym = getCurrencySymbol(baseCur);
+
+    // Single-currency debt lines — used by the "group currency" and "my currency" views.
+    const singleDebtLines = (settlements, sym, settleCur, userId, settledTxt) => {
+        const debts = (settlements || []).filter(s => s.from_id === userId || s.to_id === userId);
+        if (!debts.length) return `<div class="debt-line" style="justify-content:center; color:var(--text-muted);">${settledTxt} ✓</div>`;
+        return debts.map(s => {
+            const isDebtor = window.currentUser && window.currentUser.id === s.from_id;
+            const isCreditor = window.currentUser && window.currentUser.id === s.to_id;
+            const settleBtn = (isDebtor || isCreditor) ? settleButtonsHtml(s.from_id, s.to_id, s.amount, settleCur, null, false) : '';
+            return `<div class="debt-line"><div class="debt-info"><span>${escapeHTML(s.from)}</span><span class="debt-arrow">←</span><span>${escapeHTML(s.to)}</span><span class="debt-amount">${sym}${formatMoney(s.amount)}</span></div>${settleBtn}</div>`;
+        }).join('');
+    };
 
     let activeBalances = data.balances.filter(b => {
-        if (isCurrencyView) {
-            const curBalances = (optData.user_currency_balances || {})[b.user_id] || {};
-            return Object.values(curBalances).some(val => Math.abs(val) > 0.01);
-        } else {
-            return Math.abs(b.balance) > 0.01;
+        if (isMulti) {
+            const cb = (optData.user_currency_balances || {})[b.user_id] || {};
+            return Object.values(cb).some(v => Math.abs(v) > 0.01);
+        } else if (isGroup) {
+            const bb = (optData.user_base_balances || {})[b.user_id] || {};
+            return Object.values(bb).some(v => Math.abs(v) > 0.01);
         }
+        return Math.abs(b.balance) > 0.01;
     });
 
     if (activeBalances.length === 0) {
@@ -2625,13 +2643,11 @@ function renderBalancesList() {
 
         let debtLines = '';
 
-        if (isCurrencyView) {
-            // Currency View Header Overrides
+        if (isMulti) {
+            // "By currency": per-entry-currency breakdown.
             const curBalances = (optData.user_currency_balances || {})[b.user_id] || {};
             const curKeys = Object.keys(curBalances);
-            
             if (curKeys.length > 0) {
-                // If there are multiple currencies, show them all in the header
                 amountDisplay = curKeys.map(c => {
                     const cb = curBalances[c];
                     const cbSym = getCurrencySymbol(c);
@@ -2641,70 +2657,34 @@ function renderBalancesList() {
                 badgeTxt = (typeof i18n === 'function') ? (i18n('balance_split') || 'מאזן מפוצל') : 'מאזן מפוצל';
                 badgeCls = 'neutral';
             }
-
-            // Accordion Body (Currency Split)
             let allDebts = [];
             for (const cur of Object.keys(optData.currency_settlements || {})) {
-                const cSetts = optData.currency_settlements[cur].filter(s => s.from_id === b.user_id || s.to_id === b.user_id);
-                cSetts.forEach(s => allDebts.push({...s, currency: cur}));
+                optData.currency_settlements[cur]
+                    .filter(s => s.from_id === b.user_id || s.to_id === b.user_id)
+                    .forEach(s => allDebts.push({ ...s, currency: cur }));
             }
-
             if (allDebts.length > 0) {
                 debtLines = allDebts.map(s => {
-                    const safeFrom = escapeHTML(s.from);
-                    const safeTo = escapeHTML(s.to);
                     const sSym = getCurrencySymbol(s.currency);
-
                     const isDebtor = window.currentUser && window.currentUser.id === s.from_id;
                     const isCreditor = window.currentUser && window.currentUser.id === s.to_id;
-
-                    let settleBtn = '';
-                    if (isDebtor || isCreditor) {
-                        settleBtn = settleButtonsHtml(s.from_id, s.to_id, s.amount, s.currency, null, false);
-                    }
-
-                    return `<div class="debt-line">
-                        <div class="debt-info">
-                            <span>${safeFrom}</span>
-                            <span class="debt-arrow">←</span>
-                            <span>${safeTo}</span>
-                            <span class="debt-amount">${sSym}${formatMoney(s.amount)}</span>
-                        </div>
-                        ${settleBtn}
-                    </div>`;
+                    const settleBtn = (isDebtor || isCreditor) ? settleButtonsHtml(s.from_id, s.to_id, s.amount, s.currency, null, false) : '';
+                    return `<div class="debt-line"><div class="debt-info"><span>${escapeHTML(s.from)}</span><span class="debt-arrow">←</span><span>${escapeHTML(s.to)}</span><span class="debt-amount">${sSym}${formatMoney(s.amount)}</span></div>${settleBtn}</div>`;
                 }).join('');
             } else {
                 debtLines = `<div class="debt-line" style="justify-content:center; color:var(--text-muted);">${txtSettled} ✓</div>`;
             }
+        } else if (isGroup) {
+            // "Group currency": single net debt in the group's base currency.
+            const baseBal = ((optData.user_base_balances || {})[b.user_id] || {})[baseCur] || 0;
+            badgeCls = baseBal > 0.01 ? 'positive' : baseBal < -0.01 ? 'negative' : 'neutral';
+            badgeTxt = baseBal > 0.01 ? txtReceive : baseBal < -0.01 ? txtPay : txtSettled;
+            const balCls = baseBal > 0.01 ? 'amount-pos' : baseBal < -0.01 ? 'amount-neg' : '';
+            amountDisplay = `<span class="${balCls}">${baseSym}${formatMoney(Math.abs(baseBal))}</span>`;
+            debtLines = singleDebtLines(optData.base_settlements, baseSym, baseCur, b.user_id, txtSettled);
         } else {
-            // Converted View
-            const personDebts = optData.optimized_settlements.filter(s => s.from_id === b.user_id || s.to_id === b.user_id);
-            if (personDebts.length > 0) {
-                debtLines = personDebts.map(s => {
-                    const safeFrom = escapeHTML(s.from);
-                    const safeTo = escapeHTML(s.to);
-                    const isDebtor = window.currentUser && window.currentUser.id === s.from_id;
-                    const isCreditor = window.currentUser && window.currentUser.id === s.to_id;
-
-                    let settleBtn = '';
-                    if (isDebtor || isCreditor) {
-                        // Converted view settles in the viewer's profile currency
-                        settleBtn = settleButtonsHtml(s.from_id, s.to_id, s.amount, profileCur, null, false);
-                    }
-
-                    return `<div class="debt-line">
-                        <div class="debt-info">
-                            <span>${safeFrom}</span>
-                            <span class="debt-arrow">←</span>
-                            <span>${safeTo}</span>
-                            <span class="debt-amount">${userSym}${formatMoney(s.amount)}</span>
-                        </div>
-                        ${settleBtn}
-                    </div>`;
-                }).join('');
-            } else {
-                debtLines = `<div class="debt-line" style="justify-content:center; color:var(--text-muted);">${txtSettled} ✓</div>`;
-            }
+            // "My currency": single net debt converted to the viewer's display currency.
+            debtLines = singleDebtLines(optData.optimized_settlements, userSym, profileCur, b.user_id, txtSettled);
         }
 
         return `
@@ -2732,19 +2712,22 @@ function renderBalancesList() {
 function suggestLimboOffset() {
     if (!window.cachedOptimizedData) return;
     
-    // We'll execute Limbo based on the currently selected view (currency vs converted)
-    const isCurrencyView = window.currentBalancesView === 'currency';
+    // Execute Limbo based on the currently selected view.
+    const view = window.currentBalancesView || 'currency';
     const optData = window.cachedOptimizedData;
-    
+
     let allDebts = [];
-    if (isCurrencyView) {
-        for (const cur of Object.keys(optData.currency_settlements)) {
-            optData.currency_settlements[cur].forEach(s => allDebts.push({...s, currency: cur}));
+    if (view === 'currency') {
+        for (const cur of Object.keys(optData.currency_settlements || {})) {
+            optData.currency_settlements[cur].forEach(s => allDebts.push({ ...s, currency: cur }));
         }
+    } else if (view === 'group') {
+        const baseCur = optData.base_currency || 'ILS';
+        allDebts = (optData.base_settlements || []).map(s => ({ ...s, currency: baseCur }));
     } else {
-        // Converted view debts are already in the viewer's profile currency
+        // "My currency" debts are already in the viewer's profile currency
         const profileCur = (window.currentUser && window.currentUser.default_currency) || optData.currency || 'ILS';
-        allDebts = optData.optimized_settlements.map(s => ({...s, currency: profileCur}));
+        allDebts = (optData.optimized_settlements || []).map(s => ({ ...s, currency: profileCur }));
     }
     
     if (allDebts.length === 0) {

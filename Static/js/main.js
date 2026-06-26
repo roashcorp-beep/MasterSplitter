@@ -1241,6 +1241,13 @@ function switchTab(tabName, skipHistory = false) {
     if (!skipHistory) {
         history.pushState({ tabName: tabName }, "", "#" + tabName);
     }
+    // We're inside the app — make sure the bottom nav / FAB are visible. They get
+    // hidden by showView('lobby'); a stray back-navigation could otherwise leave them
+    // hidden until a full page refresh ("the bottom part disappears").
+    const _bn = document.querySelector('.bottom-nav');
+    if (_bn) _bn.style.display = 'flex';
+    const _fab = document.getElementById('ai-fab');
+    if (_fab) _fab.style.display = '';
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     const screen = document.getElementById(`screen-${tabName}`);

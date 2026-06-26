@@ -79,7 +79,8 @@
                 let perm = Notification.permission;
                 if (perm === 'default') perm = await Notification.requestPermission();
                 if (perm !== 'granted') { alert('כדי לקבל התראות יש לאשר את הרשאת ההתראות בדפדפן.'); return false; }
-                const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+                const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' });
+                try { await reg.update(); } catch (e) {}
                 await navigator.serviceWorker.ready;
                 let sub = await reg.pushManager.getSubscription();
                 if (!sub) {

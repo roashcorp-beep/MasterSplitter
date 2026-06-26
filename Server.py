@@ -1068,7 +1068,12 @@ def serve_manifest():
 
 @app.route('/sw.js')
 def serve_sw():
-    return send_from_directory('Static', 'sw.js', mimetype='application/javascript')
+    # Never let the browser HTTP-cache the service worker, so new versions (e.g. an
+    # added push handler) propagate to devices immediately on the next visit.
+    resp = send_from_directory('Static', 'sw.js', mimetype='application/javascript')
+    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    resp.headers['Service-Worker-Allowed'] = '/'
+    return resp
 
 @app.route('/')
 def serve_login():

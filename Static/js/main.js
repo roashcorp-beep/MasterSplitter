@@ -4064,9 +4064,10 @@ document.addEventListener('DOMContentLoaded', () => {
 // =====================
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' })
             .then((registration) => {
                 console.log('[PWA] Service Worker registered successfully. Scope:', registration.scope);
+                registration.update();  // force an update check so a new SW (push handler) activates
                 // If the user already granted notifications, keep the server subscription fresh.
                 if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
                     subscribeToPush(false);
@@ -4116,7 +4117,8 @@ async function subscribeToPush(interactive = false) {
             if (interactive) alert('כדי לקבל התראות יש לאשר את הרשאת ההתראות בדפדפן.');
             return false;
         }
-        const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+        const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' });
+        try { await reg.update(); } catch (e) {}
         await navigator.serviceWorker.ready;
         let sub = await reg.pushManager.getSubscription();
         if (!sub) {

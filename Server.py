@@ -1526,23 +1526,28 @@ def get_profile():
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute("SELECT id, name, email, phone, language, avatar_url, default_currency, google_id, two_fa_method FROM Users WHERE id = ?", (session['user_id'],))
+        cursor.execute("SELECT id, name, email, phone, language, avatar_url, default_currency, google_id, two_fa_method, notify_expense_added, notify_group_expense FROM Users WHERE id = ?", (session['user_id'],))
         user = cursor.fetchone()
         if not user:
             return jsonify({"error": "User not found"}), 404
         phone = user['phone'] if 'phone' in user.keys() else ''
         default_currency = user['default_currency'] if 'default_currency' in user.keys() else 'ILS'
         two_fa_method = user['two_fa_method'] if 'two_fa_method' in user.keys() else 'none'
+        # Default ON when the column is missing/NULL, matching the DB default.
+        nea = user['notify_expense_added'] if 'notify_expense_added' in user.keys() and user['notify_expense_added'] is not None else 1
+        nge = user['notify_group_expense'] if 'notify_group_expense' in user.keys() and user['notify_group_expense'] is not None else 1
         return jsonify({
-            "id": user['id'], 
-            "name": user['name'], 
-            "email": user['email'], 
-            "phone": phone, 
-            "language": user['language'], 
+            "id": user['id'],
+            "name": user['name'],
+            "email": user['email'],
+            "phone": phone,
+            "language": user['language'],
             "avatar_url": user['avatar_url'],
             "default_currency": default_currency,
             "is_google_auth": bool(user['google_id']),
-            "two_fa_method": two_fa_method
+            "two_fa_method": two_fa_method,
+            "notify_expense_added": nea,
+            "notify_group_expense": nge
         })
     finally:
         conn.close()

@@ -3519,76 +3519,45 @@ def get_optimized_balances(group_id):
 
     disp_cur = user_display_currency(cursor, session['user_id'])
 
+    base_cur = group_base_currency(cursor, group_id)
+
     # ---------------------------------------------------------------
-    # DIRECT per-expense debts (NOT greedy-netted across third parties):
-    # every split participant owes the expense's payer their share, in the
-    # expense's ORIGINAL currency. We only net the two directions of the SAME
-    # pair (A owes B for dinner, B owes A for a taxi -> one net debt). This
-    # makes "who pays whom" match the expenses screen 1:1.
+    # Net ALL debts in the GROUP BASE currency — the single source of truth also
+    # used by get_balances and the settled-divider. ExpenseSplits.amount,
+    # Settlements.amount and ExpenseContributions.amount are ALL stored in the base
+    # currency, so settlements always cancel the matching debt even when expenses
+    # were ENTERED in different currencies (e.g. a base-ALL group with expenses
+    # typed in ILS/USD). The previous per-entry-currency bucketing left such debts
+    # uncleared because a settlement landed in a different currency bucket.
+    # Only the FINAL net is converted to a display currency.
     # ---------------------------------------------------------------
-    cursor.execute("""
-        SELECT e.id, e.user_id AS payer_id, e.amount, e.original_amount,
-               COALESCE(e.currency, 'ILS') AS currency
-        FROM Expenses e WHERE e.group_id = ?
-    """, (group_id,))
-    exp_by_id = {r['id']: r for r in cursor.fetchall()}
+    pair_base = defaultdict(float)  # (debtor, creditor) -> base-currency amount owed
 
     cursor.execute("""
-        SELECT es.expense_id, es.user_id, es.amount
+        SELECT es.user_id AS debtor, e.user_id AS payer, COALESCE(es.amount, 0) AS amt
         FROM ExpenseSplits es JOIN Expenses e ON es.expense_id = e.id
         WHERE e.group_id = ?
     """, (group_id,))
-    split_rows = cursor.fetchall()
-
-    # pair_cur[(debtor, creditor)][currency] = amount debtor owes creditor in that currency
-    pair_cur = defaultdict(lambda: defaultdict(float))
-    for s in split_rows:
-        e = exp_by_id.get(s['expense_id'])
-        if not e:
+    for s in cursor.fetchall():
+        if s['debtor'] == s['payer']:
             continue
-        payer = e['payer_id']
-        debtor = s['user_id']
-        if debtor == payer:
-            continue
-        cur = e['currency']
-        # Express the split share in the expense's ORIGINAL currency.
-        if e['original_amount'] is not None and e['amount']:
-            share = float(s['amount']) / float(e['amount']) * float(e['original_amount'])
-        else:
-            share = float(s['amount'])
-        pair_cur[(debtor, payer)][cur] += share
+        pair_base[(s['debtor'], s['payer'])] += float(s['amt'] or 0)
 
-    # Settlements reduce the pair's debt in the settlement's own currency.
-    cursor.execute("""
-        SELECT payer_id, payee_id, COALESCE(currency, 'ILS') AS currency,
-               COALESCE(original_amount, amount) AS amt
-        FROM Settlements WHERE group_id = ?
-    """, (group_id,))
+    # Settlements reduce what the payer owes the payee (amount column is base).
+    cursor.execute("SELECT payer_id, payee_id, COALESCE(amount, 0) AS amt FROM Settlements WHERE group_id = ?", (group_id,))
     for st in cursor.fetchall():
-        pair_cur[(st['payer_id'], st['payee_id'])][st['currency']] -= float(st['amt'])
+        pair_base[(st['payer_id'], st['payee_id'])] -= float(st['amt'] or 0)
 
-    # Contributions reduce what non-main-payers owe:
-    # If B contributed 100 to A's expense, B owes A 100 less.
+    # Contributions reduce what the contributor owes the main payer (base).
     cursor.execute("""
-        SELECT ec.user_id AS contributor, e.user_id AS main_payer,
-               COALESCE(e.currency, 'ILS') AS currency,
-               ec.amount AS base_amt, e.original_amount, e.amount AS base_total
-        FROM ExpenseContributions ec
-        JOIN Expenses e ON ec.expense_id = e.id
+        SELECT ec.user_id AS contributor, e.user_id AS main_payer, COALESCE(ec.amount, 0) AS amt
+        FROM ExpenseContributions ec JOIN Expenses e ON ec.expense_id = e.id
         WHERE e.group_id = ?
     """, (group_id,))
     for c in cursor.fetchall():
-        contributor = c['contributor']
-        main_payer = c['main_payer']
-        if contributor == main_payer:
+        if c['contributor'] == c['main_payer']:
             continue
-        cur = c['currency']
-        # Convert base-currency contribution back to original currency for pair_cur
-        base_total = float(c['base_total']) if c['base_total'] else 0.0
-        orig_total = float(c['original_amount']) if c['original_amount'] else base_total
-        ratio = (orig_total / base_total) if base_total else 1.0
-        contrib_orig = float(c['base_amt']) * ratio
-        pair_cur[(contributor, main_payer)][cur] -= contrib_orig
+        pair_base[(c['contributor'], c['main_payer'])] -= float(c['amt'] or 0)
 
     def net_directed(directed):
         """directed: {(debtor,creditor): amount}. Net the two directions of each
@@ -3602,53 +3571,32 @@ def get_optimized_balances(group_id):
             handled.add((b, a))
             net = amt - directed.get((b, a), 0.0)
             if net > 0.01:
-                out.append((a, b, round(net, 2)))
+                out.append((a, b, net))
             elif net < -0.01:
-                out.append((b, a, round(-net, 2)))
+                out.append((b, a, -net))
         return out
 
-    # --- Per-currency view (one settlement list per original currency) ---
-    cur_set = set()
-    for cd in pair_cur.values():
-        cur_set.update(cd.keys())
+    net_pairs = net_directed(pair_base)  # [(debtor, creditor, base_amount), ...]
 
+    # --- Per-currency view: a single bucket, the group base currency. ---
     currency_settlements = {}
     user_currency_balances = {u['id']: {} for u in users}
-    for cur in cur_set:
-        directed = {}
-        for (a, b), cd in pair_cur.items():
-            amt = cd.get(cur, 0.0)
-            if abs(amt) > 0.0001:
-                directed[(a, b)] = directed.get((a, b), 0.0) + amt
+    if net_pairs:
         lst = []
-        for deb, cred, val in net_directed(directed):
+        for deb, cred, val in net_pairs:
+            v = round(val, 2)
             lst.append({"from_id": deb, "from": user_name.get(deb),
-                        "to_id": cred, "to": user_name.get(cred), "amount": val})
-            user_currency_balances.setdefault(deb, {})[cur] = round(user_currency_balances.get(deb, {}).get(cur, 0.0) - val, 2)
-            user_currency_balances.setdefault(cred, {})[cur] = round(user_currency_balances.get(cred, {}).get(cur, 0.0) + val, 2)
-        if lst:
-            currency_settlements[cur] = lst
+                        "to_id": cred, "to": user_name.get(cred), "amount": v})
+            user_currency_balances.setdefault(deb, {})[base_cur] = round(user_currency_balances.get(deb, {}).get(base_cur, 0.0) - v, 2)
+            user_currency_balances.setdefault(cred, {})[base_cur] = round(user_currency_balances.get(cred, {}).get(base_cur, 0.0) + v, 2)
+        currency_settlements[base_cur] = lst
 
-    # --- Converted view: convert each pair's per-currency debts into the
-    #     requesting user's display currency, then net per pair. ---
-    rate_cache = {}
-    def to_disp(amt, cur):
-        if cur == disp_cur:
-            return amt
-        if cur not in rate_cache:
-            rate_cache[cur] = safe_rate(cur, disp_cur)
-        return amt * rate_cache[cur]
-
-    conv_directed = {}
-    for (a, b), cd in pair_cur.items():
-        total = sum(to_disp(amt, cur) for cur, amt in cd.items())
-        if abs(total) > 0.0001:
-            conv_directed[(a, b)] = conv_directed.get((a, b), 0.0) + total
-
+    # --- Converted view: net base debt -> the requesting user's display currency. ---
+    disp_rate = safe_rate(base_cur, disp_cur)
     converted_settlements = [
         {"from_id": deb, "from": user_name.get(deb),
-         "to_id": cred, "to": user_name.get(cred), "amount": val}
-        for deb, cred, val in net_directed(conv_directed)
+         "to_id": cred, "to": user_name.get(cred), "amount": round(val * disp_rate, 2)}
+        for deb, cred, val in net_pairs
     ]
 
     conn.close()

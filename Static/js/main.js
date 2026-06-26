@@ -2869,6 +2869,30 @@ function closeSettleModal() {
     _pendingSettle = null;
 }
 
+// ---- In-app video player (promo / tutorial) ----
+function openVideoModal(src, title) {
+    const overlay = document.getElementById('video-modal-overlay');
+    const video = document.getElementById('app-video');
+    const fb = document.getElementById('video-fallback');
+    const titleEl = document.getElementById('video-modal-title');
+    if (!overlay || !video) return;
+    if (titleEl && title) titleEl.textContent = title;
+    if (fb) fb.style.display = 'none';
+    video.style.display = 'block';
+    video.src = src;
+    video.load();
+    overlay.style.display = 'flex';
+    video.play().catch(() => {});   // autoplay may be blocked — native controls remain
+}
+function closeVideoModal() {
+    const overlay = document.getElementById('video-modal-overlay');
+    const video = document.getElementById('app-video');
+    if (video) { try { video.pause(); } catch (e) {} video.removeAttribute('src'); video.load(); }
+    if (overlay) overlay.style.display = 'none';
+}
+window.openVideoModal = openVideoModal;
+window.closeVideoModal = closeVideoModal;
+
 async function confirmSettleUp() {
     if (!_pendingSettle) return;
     const inp = document.getElementById('settle-amount-input');

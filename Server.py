@@ -82,18 +82,25 @@ def _push_title(notif_type):
     }.get(notif_type, 'MasterSplitter')
 
 
-def _push_to_members_bg(user_ids, notif_type, message):
-    """Send web-push to opted-in members in a background thread (own DB conn)."""
+def _push_to_members_bg(user_ids, notif_type, message, charged_ids=None):
+    """Send web-push to opted-in members in a background thread (own DB conn).
+
+    Per recipient, the preference checked is `notify_expense_added` when the user was
+    personally charged in the expense (their id is in charged_ids), otherwise
+    `notify_group_expense`. Both default ON; we skip only when explicitly disabled.
+    """
     if not PUSH_ENABLED:
         return
+    charged = set(charged_ids or [])
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         title = _push_title(notif_type)
+        dead_ids = []  # prune AFTER the loop so we don't hold a write lock across network I/O
         for uid in user_ids:
-            pref = cursor.execute("SELECT notify_group_expense FROM Users WHERE id = ?", (uid,)).fetchone()
-            # Default ON when column missing/NULL; skip only when explicitly disabled.
-            if pref is not None and pref['notify_group_expense'] == 0:
+            col = 'notify_expense_added' if uid in charged else 'notify_group_expense'
+            pref = cursor.execute(f"SELECT {col} AS p FROM Users WHERE id = ?", (uid,)).fetchone()
+            if pref is not None and pref['p'] == 0:
                 continue
             subs = cursor.execute(
                 "SELECT id, endpoint, p256dh, auth FROM PushSubscriptions WHERE user_id = ?", (uid,)).fetchall()
@@ -109,10 +116,14 @@ def _push_to_members_bg(user_ids, notif_type, message):
                 except WebPushException as ex:
                     status = getattr(getattr(ex, 'response', None), 'status_code', None)
                     if status in (404, 410):  # gone — prune dead subscription
-                        cursor.execute("DELETE FROM PushSubscriptions WHERE id = ?", (s['id'],))
+                        dead_ids.append(s['id'])
+                    else:
+                        logger.warning(f"web push failed (status={status}): {ex}")
                 except Exception as ex:
                     logger.error(f"web push send error: {ex}")
-        conn.commit()
+        if dead_ids:
+            cursor.executemany("DELETE FROM PushSubscriptions WHERE id = ?", [(d,) for d in dead_ids])
+            conn.commit()
         conn.close()
     except Exception as e:
         logger.error(f"_push_to_members_bg error: {e}")
@@ -140,6 +151,9 @@ def get_db_connection():
     conn = sqlite3.connect('master_splitter.db')
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    # Wait up to 5s for a lock instead of failing instantly — matters now that the
+    # background push thread writes concurrently with request threads.
+    conn.execute("PRAGMA busy_timeout = 5000")
     return conn
 
 def check_db_schema():
@@ -770,7 +784,10 @@ def create_notification(user_id, group_id, notif_type, message):
     except Exception as e:
         logger.error(f"create_notification error: {e}")
 
-def notify_group_members(group_id, notif_type, message, exclude_user_id=None):
+def notify_group_members(group_id, notif_type, message, exclude_user_id=None, charged_user_ids=None):
+    """In-app notification for every group member (minus the actor), plus a phone push
+    to those who opted in. charged_user_ids = members personally charged in the expense;
+    their push is gated by `notify_expense_added`, everyone else's by `notify_group_expense`."""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -792,7 +809,9 @@ def notify_group_members(group_id, notif_type, message, exclude_user_id=None):
         # Fire-and-forget phone push to opted-in members (doesn't block the request).
         if PUSH_ENABLED and recipients:
             import threading
-            threading.Thread(target=_push_to_members_bg, args=(recipients, notif_type, message), daemon=True).start()
+            threading.Thread(target=_push_to_members_bg,
+                             args=(recipients, notif_type, message, charged_user_ids),
+                             daemon=True).start()
     except Exception as e:
         logger.error(f"notify_group_members error: {e}")
 
@@ -848,7 +867,7 @@ def push_vapid_public_key():
 @login_required
 def push_subscribe():
     """Store (or refresh) this device's push subscription for the logged-in user."""
-    data = request.json or {}
+    data = request.get_json(silent=True) or {}
     sub = data.get('subscription') or data
     endpoint = sub.get('endpoint')
     keys = sub.get('keys') or {}
@@ -877,7 +896,7 @@ def push_subscribe():
 @login_required
 def push_unsubscribe():
     """Remove this device's push subscription."""
-    data = request.json or {}
+    data = request.get_json(silent=True) or {}
     sub = data.get('subscription') or data
     endpoint = sub.get('endpoint') or data.get('endpoint')
     if not endpoint:
@@ -3117,7 +3136,12 @@ def add_expense():
         conn.commit()
         logger.info(f"Expense added: {currency} {amount} for group {group_id} by user {session['user_id']}")
         log_activity(group_id, session['user_id'], 'expense_added', f"{description} — {currency} {amount}")
-        notify_group_members(group_id, 'expense_added', f"New expense: {description} ({amount} {currency})", exclude_user_id=session['user_id'])
+        # Members personally charged in this expense (split participants) — their push
+        # respects notify_expense_added; everyone else's respects notify_group_expense.
+        charged = [r['user_id'] for r in cursor.execute(
+            "SELECT DISTINCT user_id FROM ExpenseSplits WHERE expense_id = ?", (expense_id,)).fetchall()]
+        notify_group_members(group_id, 'expense_added', f"New expense: {description} ({amount} {currency})",
+                             exclude_user_id=session['user_id'], charged_user_ids=charged)
         return jsonify({"success": True})
     except sqlite3.Error as e:
         logger.error(f"Add expense error: {e}")

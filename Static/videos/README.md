@@ -1,15 +1,25 @@
 # In-app videos
 
-Drop the rendered videos here and they play inside the app automatically — no code
+`promo.mp4` and `tutorial.mp4` here play inside the app automatically — no code
 changes needed.
 
-| File | Where it plays | Source script |
-|------|----------------|----------------|
-| `promo.mp4` | Home screen → **🎬 סרטון התדמית** button (bottom) | `marketing/promo_script.md` |
-| `tutorial.mp4` | Profile → **🎓 סרטון הדרכה** | `marketing/tutorial_script.md` |
+| File | Where it plays | Source |
+|------|----------------|--------|
+| `promo.mp4` | Home screen → **🎬 סרטון התדמית** button (bottom) | `marketing/make_videos.py` |
+| `tutorial.mp4` | Profile → **🎓 סרטון הדרכה** | `marketing/make_videos.py` |
 
-Until a file exists, the player shows a friendly "הסרטון יתווסף בקרוב / Video coming
-soon" state — nothing breaks.
+If a file is missing, the player shows a friendly "הסרטון יתווסף בקרוב / Video
+coming soon" state — nothing breaks.
+
+## Regenerate the videos
+These are **real, rendered H.264 MP4s** (1080×1920, 24fps) produced entirely in
+Python — Pillow for the branded motion-graphics frames (with the real demo data),
+`imageio` (bundled ffmpeg) for encoding, `python-bidi` for Hebrew RTL:
+```bash
+python marketing/make_videos.py     # re-renders promo.mp4 + tutorial.mp4 here
+```
+Edit the scenes/captions in `marketing/make_videos.py` and re-run to update them.
+To swap in real screen-capture footage instead, replace either file (same name).
 
 ## Recommended encoding (mobile-friendly, fast start)
 ```bash

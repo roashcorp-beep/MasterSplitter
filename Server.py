@@ -3603,16 +3603,32 @@ def get_optimized_balances(group_id):
     # unmatched, which then wrongly shrank every currency of the pair proportionally. The
     # linked expense's currency is the ground truth for which paid-currency debt got cleared;
     # we fall back to the settlement's own currency only for unlinked (legacy) rows.
+    # We also CAP each linked settlement at the payer's actual share of that expense. The settle
+    # API tolerates a small rounding overflow (settling a few cents over the share); left
+    # uncapped that overflow pushes the authoritative base ledger below the real debt — which
+    # showed up as 1199.95 instead of 1200 in BOTH the group-currency and by-currency views.
+    # Capping at the share (and discarding the overflow) keeps every view exact.
     cursor.execute("""
         SELECT s.payer_id, s.payee_id, COALESCE(s.amount, 0) AS base_amt,
-               COALESCE(e.currency, s.currency, 'ILS') AS cur
+               COALESCE(e.currency, s.currency, 'ILS') AS cur,
+               s.expense_id, e.user_id AS exp_payer,
+               (SELECT COALESCE(SUM(amount), 0) FROM ExpenseSplits
+                WHERE expense_id = s.expense_id AND user_id = s.payer_id) AS payer_share
         FROM Settlements s
         LEFT JOIN Expenses e ON s.expense_id = e.id
         WHERE s.group_id = ?
+        ORDER BY s.id
     """, (group_id,))
     settle_by_cur = defaultdict(lambda: defaultdict(float))   # [(payer,payee)][cur] -> base settled
+    _applied = defaultdict(float)                             # (payer,payee,expense_id) -> base credited
     for st in cursor.fetchall():
         b = float(st['base_amt'] or 0)
+        eid = st['expense_id']
+        if eid is not None and st['exp_payer'] == st['payee_id']:
+            share = float(st['payer_share'] or 0)
+            key = (st['payer_id'], st['payee_id'], eid)
+            b = min(b, max(0.0, share - _applied[key]))      # cap at the debtor's share; drop overflow
+            _applied[key] += b
         pair_base[(st['payer_id'], st['payee_id'])] -= b
         settle_by_cur[(st['payer_id'], st['payee_id'])][st['cur']] += b
 

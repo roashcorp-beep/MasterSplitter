@@ -190,9 +190,14 @@ bob_ils = float(cc.execute("SELECT amount FROM ExpenseSplits WHERE expense_id=? 
 cc.execute("INSERT INTO Settlements (group_id,payer_id,payee_id,amount,original_amount,currency,expense_id,created_at) VALUES (?,?,?,?,?,?,?,?)",
            (g, 2, 1, bob_ils + 0.05, bob_ils + 0.05, 'ALL', ils_eid, '2026-01-01T00:00:00'))
 conn.commit(); conn.close()
-c = cs(1, g)
-check("L1 Bob's ALL stays exactly 200 (overflow discarded)", abs((find(c.get('ALL', []), 2, 1) or 0) - 200) < 0.02, c)
+sess(1)
+full = client.get(f'/api/groups/{g}/optimized-balances').get_json()
+c = full['currency_settlements']
+check("L1 by-currency: Bob's ALL stays exactly 200 (overflow discarded)", abs((find(c.get('ALL', []), 2, 1) or 0) - 200) < 0.02, c)
 check("L2 Bob's ILS is cleared", not any(s['from_id'] == 2 for s in c.get('ILS', [])), c.get('ILS'))
+# group-currency (base) view must also be exact, not 199.95
+bob_base = next((s['amount'] for s in full['base_settlements'] if s['from_id'] == 2 and s['to_id'] == 1), None)
+check("L3 group-currency view: Bob owes exactly 200 (not 199.95)", abs((bob_base or 0) - 200) < 0.02, full['base_settlements'])
 
 print("="*70)
 print(f"RESULT: {PASS} passed, {FAIL} failed")

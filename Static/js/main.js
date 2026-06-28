@@ -415,6 +415,7 @@ async function loadLobby() {
         window.allGroups = allGroups;
 
         maybeShowTripWelcome();   // one-time trip welcome (TEMPORARY — see block below)
+        setTimeout(maybeOfferNotifications, 2500);   // gently offer to enable device notifications
 
         // Auto-open the most recent group on first load
         if (!hasAutoOpenedGroup && allGroups.length > 0) {
@@ -4197,6 +4198,40 @@ if ('serviceWorker' in navigator) {
                 console.error('[PWA] Service Worker registration failed:', error);
             });
     });
+}
+
+// =====================
+//  NOTIFICATION SOFT-PROMPT (offer on app entry)
+// =====================
+function _notifT(key, fb) {
+    return (typeof i18n === 'function' && i18n(key) && i18n(key) !== key) ? i18n(key) : fb;
+}
+function maybeOfferNotifications() {
+    try {
+        if (typeof Notification === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
+        if (Notification.permission !== 'default') return;                 // already granted/denied — never nag
+        const last = parseInt(localStorage.getItem('notif_prompt_ts') || '0', 10);
+        if (Date.now() - last < 7 * 24 * 60 * 60 * 1000) return;           // re-offer at most once a week
+        showNotifSoftPrompt();
+    } catch (e) { /* never block app load */ }
+}
+function showNotifSoftPrompt() {
+    if (document.getElementById('notif-soft-prompt')) return;
+    const ov = document.createElement('div');
+    ov.id = 'notif-soft-prompt';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(5px);z-index:10800;display:flex;align-items:flex-end;justify-content:center;';
+    ov.innerHTML = `<div style="width:100%;max-width:520px;background:linear-gradient(160deg,#1b1442,#0d0b22);border:1px solid rgba(168,85,247,.4);border-radius:24px 24px 0 0;padding:26px 24px calc(26px + env(safe-area-inset-bottom));text-align:center;box-shadow:0 -10px 40px rgba(0,0,0,.5);">
+        <div style="font-size:2.6rem;margin-bottom:8px;">🔔</div>
+        <div style="color:#f0f1f8;font-size:1.2rem;font-weight:800;margin-bottom:8px;">${escapeHTML(_notifT('notif_prompt_title','נישאר מעודכנים?'))}</div>
+        <div style="color:#aab0c8;font-size:0.95rem;line-height:1.5;margin-bottom:20px;">${escapeHTML(_notifT('notif_prompt_body','קבלו התראה לטלפון כשמוסיפים הוצאה חדשה או כשמסלקים חוב.'))}</div>
+        <button id="notif-enable" style="background:#a855f7;color:#fff;border:none;border-radius:14px;padding:14px 0;width:100%;font-size:1.02rem;font-weight:800;cursor:pointer;margin-bottom:10px;">${escapeHTML(_notifT('notif_prompt_enable','הפעלת התראות'))}</button>
+        <button id="notif-later" style="background:transparent;color:#8a90ad;border:none;padding:8px;width:100%;font-size:0.95rem;font-weight:600;cursor:pointer;">${escapeHTML(_notifT('notif_prompt_later','אולי אחר כך'))}</button>
+    </div>`;
+    const dismiss = () => { try { localStorage.setItem('notif_prompt_ts', String(Date.now())); } catch (e) {} ov.remove(); };
+    ov.querySelector('#notif-enable').onclick = async () => { dismiss(); await subscribeToPush(true); };
+    ov.querySelector('#notif-later').onclick = dismiss;
+    ov.onclick = (e) => { if (e.target === ov) dismiss(); };
+    document.body.appendChild(ov);
 }
 
 // =====================

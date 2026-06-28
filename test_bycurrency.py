@@ -65,16 +65,20 @@ add(1, g, 200, 'EUR', [{'user_id': 1, 'amount': 100}, {'user_id': 2, 'amount': 1
 settle(2, g, 2, 1, 100, 'EUR')                             # 100 EUR exactly (amount is in `currency` units)
 c = cs(1, g); check("B1 EUR cleared", not c.get('EUR'), c)
 
-# C) two same-direction currencies, partial (50%) settle in base -> both shrink proportionally
-print("C) partial settle of a 2-currency debt shrinks both proportionally")
+# C) two same-direction currencies, partial settle from summaries (in base ALL): the settle-up
+#    FIFO-links to the OLDEST expense first, so it clears the EUR debt then dents USD — the
+#    by-currency view reflects what was actually paid down (oldest-first), not a flat shrink.
+print("C) partial settle FIFO-clears the oldest currency first, then dents the next")
 g = make_group('ALL')
-add(1, g, 200, 'EUR', [{'user_id': 1, 'amount': 100}, {'user_id': 2, 'amount': 100}])  # Bob owes 100 EUR
+add(1, g, 200, 'EUR', [{'user_id': 1, 'amount': 100}, {'user_id': 2, 'amount': 100}])  # Bob owes 100 EUR (oldest)
 add(1, g, 400, 'USD', [{'user_id': 1, 'amount': 200}, {'user_id': 2, 'amount': 200}])  # Bob owes 200 USD
 total = base_of(100, 'EUR', 'ALL') + base_of(200, 'USD', 'ALL')
-settle(2, g, 2, 1, total / 2, 'ALL')                       # pay half the total base
+settle(2, g, 2, 1, total / 2, 'ALL')                       # pay half the total base, FIFO oldest-first
 c = cs(1, g)
-check("C1 EUR ~50, USD ~100, no ALL phantom",
-      abs((find(c.get('EUR', []), 2, 1) or 0) - 50) < 1 and abs((find(c.get('USD', []), 2, 1) or 0) - 100) < 1 and 'ALL' not in c, c)
+# half = 50% of total; EUR share (1/3 of total) is cleared fully, the rest (~half-EUR) dents USD
+usd_left = 200 - (total / 2 - base_of(100, 'EUR', 'ALL')) * (VAL_ILS['ALL'] / VAL_ILS['USD'])
+check("C1 EUR cleared first, USD reduced, no ALL phantom",
+      not c.get('EUR') and abs((find(c.get('USD', []), 2, 1) or 0) - usd_left) < 1 and 'ALL' not in c, c)
 
 # D) settle the NET of two opposite-direction currencies -> everything clears
 print("D) settling the mixed net clears the by-currency view")
@@ -148,6 +152,30 @@ add(2, g, 100, 'USD', [{'user_id': 1, 'amount': 50}, {'user_id': 2, 'amount': 50
 c = cs(1, g)
 check("J1 EUR line present (Bob->Alice 100)", abs((find(c.get('EUR', []), 2, 1) or 0) - 100) < 1, c)
 check("J2 USD line present (Alice->Bob 50)", abs((find(c.get('USD', []), 1, 2) or 0) - 50) < 1, c)
+
+# K) REAL CASE (live group 11): base=ALL, a USD debt + an ILS debt; the ILS expense is
+#    settled via a summaries settle-up recorded in the BASE currency (ALL) but FIFO-linked
+#    to the ILS expense. The USD debt must stay intact ($100, not shrunk), ILS must clear.
+print("K) settle ILS expense recorded in base ALL -> USD stays $100, ILS clears (group-11 repro)")
+g = make_group('ALL')
+# Oldest expense first (FIFO target): Alice pays 210 ILS, split 3 ways (70 each)
+add(1, g, 210, 'ILS', [{'user_id': 1, 'amount': 70}, {'user_id': 2, 'amount': 70}, {'user_id': 3, 'amount': 70}])
+# Then Alice pays 300 USD, split 3 ways (100 each)
+add(1, g, 300, 'USD', [{'user_id': 1, 'amount': 100}, {'user_id': 2, 'amount': 100}, {'user_id': 3, 'amount': 100}])
+c = cs(1, g)
+check("K0 before: Bob owes USD 100 and ILS 70",
+      abs((find(c.get('USD', []), 2, 1) or 0) - 100) < 1 and abs((find(c.get('ILS', []), 2, 1) or 0) - 70) < 1, c)
+# Settle the ILS share for Bob & Carol from summaries, recorded in BASE (ALL); FIFO links to the ILS expense
+for u in (2, 3):
+    settle(u, g, u, 1, base_of(70, 'ILS', 'ALL'), 'ALL')
+c = cs(1, g)
+check("K1 USD still 100 for Bob (not shrunk)", abs((find(c.get('USD', []), 2, 1) or 0) - 100) < 1, c)
+check("K2 USD still 100 for Carol (not shrunk)", abs((find(c.get('USD', []), 3, 1) or 0) - 100) < 1, c)
+check("K3 ILS fully cleared (no shekel bucket)", not c.get('ILS'), c)
+# Moran (payer) is owed exactly 2 x 100 USD, nothing in ILS
+sess(1)
+ucb = client.get(f'/api/groups/{g}/optimized-balances').get_json()['user_currency_balances'].get('1', {})
+check("K4 payer owed USD 200, no ILS line", abs(ucb.get('USD', 0) - 200) < 1 and abs(ucb.get('ILS', 0)) < 1, ucb)
 
 print("="*70)
 print(f"RESULT: {PASS} passed, {FAIL} failed")

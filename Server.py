@@ -3595,19 +3595,26 @@ def get_optimized_balances(group_id):
             share = base_amt
         cur_entry[(debtor, payer)][cur] += share
 
-    # Settlements: the base column nets the base view. For the per-currency view we keep the
-    # settled BASE value per (pair, recorded-currency). We never INVENT a debt in the
-    # settlement's currency (that was the phantom bug); instead, below, a settlement first
-    # cancels the matching paid-currency debt, and only the leftover is spread proportionally.
+    # Settlements: the base column nets the base view. For the per-currency view we attribute
+    # each settlement to the currency of the EXPENSE it actually paid down (its linked
+    # expense_id) — NOT the currency it happened to be recorded in. A summaries settle-up is
+    # stored in the view's currency (often the group base) yet FIFO-linked to a specific
+    # expense; keying off the recorded currency made an ILS debt settled "in ALL" look
+    # unmatched, which then wrongly shrank every currency of the pair proportionally. The
+    # linked expense's currency is the ground truth for which paid-currency debt got cleared;
+    # we fall back to the settlement's own currency only for unlinked (legacy) rows.
     cursor.execute("""
-        SELECT payer_id, payee_id, COALESCE(amount, 0) AS base_amt, COALESCE(currency, 'ILS') AS currency
-        FROM Settlements WHERE group_id = ?
+        SELECT s.payer_id, s.payee_id, COALESCE(s.amount, 0) AS base_amt,
+               COALESCE(e.currency, s.currency, 'ILS') AS cur
+        FROM Settlements s
+        LEFT JOIN Expenses e ON s.expense_id = e.id
+        WHERE s.group_id = ?
     """, (group_id,))
     settle_by_cur = defaultdict(lambda: defaultdict(float))   # [(payer,payee)][cur] -> base settled
     for st in cursor.fetchall():
         b = float(st['base_amt'] or 0)
         pair_base[(st['payer_id'], st['payee_id'])] -= b
-        settle_by_cur[(st['payer_id'], st['payee_id'])][st['currency']] += b
+        settle_by_cur[(st['payer_id'], st['payee_id'])][st['cur']] += b
 
     # Contributions reduce what the contributor owes the main payer.
     cursor.execute("""

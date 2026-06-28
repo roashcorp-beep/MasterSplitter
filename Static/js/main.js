@@ -1835,7 +1835,7 @@ async function fetchExpenses() {
                             <div class="item-amount" style="margin-bottom: auto;">${amountDisplay}</div>
                             <div class="expense-actions" style="margin-top: 8px;">
                                 ${settleExpBtn}
-                                ${isPersonal ? '' : `<button class="edit-expense-btn" onclick="openEditExpenseModal(${exp.id}, ${parseFloat(exp.original_amount || exp.amount)}, '${safeDesc.replace(/'/g, "\\'")}', '${safeCat.replace(/'/g, "\\'")}', '${expCurrency}')">✏️</button>`}
+                                ${(isPersonal || isSettled) ? '' : `<button class="edit-expense-btn" onclick="openEditExpenseModal(${exp.id}, ${parseFloat(exp.original_amount || exp.amount)}, '${safeDesc.replace(/'/g, "\\'")}', '${safeCat.replace(/'/g, "\\'")}', '${expCurrency}')">✏️</button>`}
                                 ${deleteBtn}
                             </div>
                         </div>
@@ -2096,21 +2096,27 @@ function openEditExpenseModal(id, amount, desc, category, currency) {
             }).join('');
         }
         
-        // Render custom splits amounts if they exist and are uneven, or just show toggle off
+        // Render custom splits amounts if they exist and are uneven, or just show toggle off.
         if (expense && expense.splits && expense.splits.length > 0) {
-            // Check if splits are evenly divided among participants
-            const numSplits = expense.splits.length;
+            // Splits are stored in the group's BASE currency; convert them to the expense's
+            // ENTRY currency for display so the fields match the amount the user typed (and so a
+            // save round-trips instead of re-converting base values as if they were entry amounts).
+            const baseAmt = parseFloat(expense.amount) || 0;
+            const origAmt = (expense.original_amount != null) ? parseFloat(expense.original_amount) : baseAmt;
+            const ratio = (baseAmt > 0) ? (origAmt / baseAmt) : 1;
+            const entrySplits = expense.splits.map(s => ({ user_id: s.user_id, amount: (parseFloat(s.amount) || 0) * ratio }));
+            // Check if splits are evenly divided among participants (in entry currency).
+            const numSplits = entrySplits.length;
             const expectedEven = amount / numSplits;
             let isUneven = false;
-            for (let s of expense.splits) {
-                if (Math.abs(s.amount - expectedEven) > 0.01) {
+            for (let s of entrySplits) {
+                if (Math.abs(s.amount - expectedEven) > 0.02) {
                     isUneven = true;
                     break;
                 }
             }
-            
             splitToggle.checked = isUneven;
-            renderEditCustomSplits(expense.splits);
+            renderEditCustomSplits(entrySplits);
         } else {
             splitToggle.checked = false;
             renderEditCustomSplits([]);

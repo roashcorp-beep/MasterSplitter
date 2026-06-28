@@ -177,6 +177,23 @@ sess(1)
 ucb = client.get(f'/api/groups/{g}/optimized-balances').get_json()['user_currency_balances'].get('1', {})
 check("K4 payer owed USD 200, no ILS line", abs(ucb.get('USD', 0) - 200) < 1 and abs(ucb.get('ILS', 0)) < 1, ucb)
 
+# L) a settlement that rounds a few cents OVER its own currency's debt must not shave another
+#    currency (the live group-11 "ALL 199.95 instead of 200" bug).
+print("L) settlement rounding overflow does not leak into another currency")
+g = make_group('ALL')
+add(1, g, 200, 'ILS', [{'user_id': 1, 'amount': 66.67}, {'user_id': 2, 'amount': 66.67}, {'user_id': 3, 'amount': 66.66}])  # ILS (oldest)
+add(1, g, 600, 'ALL', [{'user_id': 1, 'amount': 200}, {'user_id': 2, 'amount': 200}, {'user_id': 3, 'amount': 200}])         # ALL, 200 each
+conn = Server.get_db_connection(); cc = conn.cursor()
+ils_eid = cc.execute("SELECT id FROM Expenses WHERE group_id=? AND currency='ILS'", (g,)).fetchone()['id']
+bob_ils = float(cc.execute("SELECT amount FROM ExpenseSplits WHERE expense_id=? AND user_id=2", (ils_eid,)).fetchone()['amount'])
+# settlement overpays Bob's ILS share by 0.05 base, recorded in ALL, linked to the ILS expense
+cc.execute("INSERT INTO Settlements (group_id,payer_id,payee_id,amount,original_amount,currency,expense_id,created_at) VALUES (?,?,?,?,?,?,?,?)",
+           (g, 2, 1, bob_ils + 0.05, bob_ils + 0.05, 'ALL', ils_eid, '2026-01-01T00:00:00'))
+conn.commit(); conn.close()
+c = cs(1, g)
+check("L1 Bob's ALL stays exactly 200 (overflow discarded)", abs((find(c.get('ALL', []), 2, 1) or 0) - 200) < 0.02, c)
+check("L2 Bob's ILS is cleared", not any(s['from_id'] == 2 for s in c.get('ILS', [])), c.get('ILS'))
+
 print("="*70)
 print(f"RESULT: {PASS} passed, {FAIL} failed")
 os.chdir(CODE_DIR); shutil.rmtree(_tmp, ignore_errors=True)

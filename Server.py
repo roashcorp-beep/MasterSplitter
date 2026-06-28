@@ -3679,29 +3679,25 @@ def get_optimized_balances(group_id):
             ee = cur_entry.get((x, y), {}).get(cur, 0.0) - cur_entry.get((y, x), {}).get(cur, 0.0)
             net[cur] = [ee, eb]
 
-        # Total settled base in the x->y direction (positive = x paid y, reducing x-owes-y).
-        s_total = (sum(settle_by_cur.get((x, y), {}).values())
-                   - sum(settle_by_cur.get((y, x), {}).values()))
-        # 1) Cancel each settlement against the debt in its OWN currency first (same direction,
-        #    capped at that currency's debt so a matched settle can't flip the line).
-        matched = 0.0
-        for cur, (ee, eb) in net.items():
-            if abs(eb) < EPS:
-                continue
+        # Apply settlements. A settlement attributed to a currency that has a matching debt
+        # (same direction) cancels that currency's debt, CAPPED at the debt — its rounding
+        # overflow is DISCARDED, so a fully-settled debt can't bleed sub-cent residue into a
+        # still-open currency (which showed e.g. 199.95 instead of 200 in the ALL column when
+        # ILS/USD settlements rounded a few cents over their share). Only a settlement whose
+        # currency has no matching debt is spread proportionally across what's left.
+        leftover = 0.0
+        settle_curs = set(settle_by_cur.get((x, y), {})) | set(settle_by_cur.get((y, x), {}))
+        for cur in settle_curs:
             sc = settle_by_cur.get((x, y), {}).get(cur, 0.0) - settle_by_cur.get((y, x), {}).get(cur, 0.0)
-            if eb > 0 and sc > 0:
-                used = min(eb, sc)
-            elif eb < 0 and sc < 0:
-                used = max(eb, sc)
-            else:
-                used = 0.0
-            if used:
-                rate = ee / eb               # entry-per-base for this currency (sign-safe)
+            if abs(sc) < EPS:
+                continue
+            ee, eb = net.get(cur, [0.0, 0.0])
+            if abs(eb) >= EPS and ((eb > 0 and sc > 0) or (eb < 0 and sc < 0)):
+                used = min(eb, sc) if eb > 0 else max(eb, sc)   # cap at the debt; discard overflow
                 eb2 = eb - used
-                net[cur] = [eb2 * rate, eb2]
-                matched += used
-        # 2) Spread the unmatched remainder proportionally over what's left.
-        leftover = s_total - matched
+                net[cur] = [eb2 * (ee / eb), eb2]
+            else:
+                leftover += sc                                  # no matching debt -> proportional
         total_base = sum(v[1] for v in net.values())
         f = ((total_base - leftover) / total_base) if abs(total_base) > EPS else 1.0
         for cur, (ee, eb) in net.items():

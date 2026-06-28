@@ -414,6 +414,8 @@ async function loadLobby() {
         allGroups = await res.json();
         window.allGroups = allGroups;
 
+        maybeShowTripWelcome();   // one-time trip welcome (TEMPORARY — see block below)
+
         // Auto-open the most recent group on first load
         if (!hasAutoOpenedGroup && allGroups.length > 0) {
             hasAutoOpenedGroup = true;
@@ -434,6 +436,42 @@ async function loadLobby() {
         }
     }
 }
+
+// ============================================================================
+// ONE-TIME TRIP WELCOME — TEMPORARY. Remove this whole block after the trip
+// (and the maybeShowTripWelcome() call in loadLobby) to permanently disable it.
+// Shows once per device to members of the matching group, from startDate onward.
+// ============================================================================
+const TRIP_WELCOME = {
+    matchName: 'מונטנגרו',                 // show to members of any group whose name contains this
+    startDate: '2026-07-30',               // first day it may appear (local time)
+    seenKey: 'trip_welcome_montenegro_2026',
+    text: (groupName) => `ברוכים הבאים, תהנו בטיול - ${groupName}, לא להגזים עם השטויות, יאללה תנו בראש! 🎉`,
+};
+function maybeShowTripWelcome() {
+    try {
+        if (localStorage.getItem(TRIP_WELCOME.seenKey)) return;          // already shown on this device
+        const start = new Date(TRIP_WELCOME.startDate + 'T00:00:00');
+        if (new Date() < start) return;                                  // not yet the start date
+        const g = (window.allGroups || []).find(x => (x.name || '').includes(TRIP_WELCOME.matchName));
+        if (!g) return;                                                  // user isn't in the trip group
+        localStorage.setItem(TRIP_WELCOME.seenKey, '1');                 // mark seen BEFORE showing
+        showTripWelcomeModal(TRIP_WELCOME.text(g.name));
+    } catch (e) { /* never block app load */ }
+}
+function showTripWelcomeModal(msg) {
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(6px);z-index:11000;display:flex;align-items:center;justify-content:center;padding:24px;';
+    ov.innerHTML = `<div style="max-width:420px;width:100%;background:linear-gradient(160deg,#1b1442,#0d0b22);border:1px solid rgba(168,85,247,.5);border-radius:22px;padding:30px 24px;text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.55);">
+        <div style="font-size:3rem;margin-bottom:12px;">🎉✈️</div>
+        <div style="color:#f0f1f8;font-size:1.15rem;font-weight:700;line-height:1.55;margin-bottom:24px;">${escapeHTML(msg)}</div>
+        <button style="background:#a855f7;color:#fff;border:none;border-radius:14px;padding:14px 0;width:100%;font-size:1.05rem;font-weight:800;cursor:pointer;">יאללה! 🚀</button>
+    </div>`;
+    ov.querySelector('button').onclick = () => ov.remove();
+    ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+    document.body.appendChild(ov);
+}
+// ============================ /ONE-TIME TRIP WELCOME =========================
 
 function showView(view) {
     const screens = document.querySelectorAll('.screen');

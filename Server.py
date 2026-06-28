@@ -3574,8 +3574,9 @@ def get_optimized_balances(group_id):
         FROM ExpenseSplits es JOIN Expenses e ON es.expense_id = e.id
         WHERE e.group_id = ?
     """, (group_id,))
-    pair_cur = defaultdict(lambda: defaultdict(float))   # [(deb,cred)][cur] -> entry-cur amt
-    pair_base = defaultdict(float)                        # (deb,cred) -> base amt
+    pair_base = defaultdict(float)                        # (deb,cred) -> base amt (authoritative)
+    cur_entry = defaultdict(lambda: defaultdict(float))  # [(deb,cred)][cur] -> entry-cur amt
+    cur_base = defaultdict(lambda: defaultdict(float))   # [(deb,cred)][cur] -> base amt
     for s in cursor.fetchall():
         e = exp_by_id.get(s['expense_id'])
         if not e:
@@ -3587,22 +3588,26 @@ def get_optimized_balances(group_id):
         base_amt = float(s['amount'] or 0)
         pair_base[(debtor, payer)] += base_amt
         cur = e['currency']
+        cur_base[(debtor, payer)][cur] += base_amt
         if e['original_amount'] is not None and e['amount']:
             share = base_amt / float(e['amount']) * float(e['original_amount'])
         else:
             share = base_amt
-        pair_cur[(debtor, payer)][cur] += share
+        cur_entry[(debtor, payer)][cur] += share
 
-    # Settlements: the base column nets the base view; original_amount + currency the
-    # per-currency view.
+    # Settlements: the base column nets the base view. For the per-currency view we keep the
+    # settled BASE value per (pair, recorded-currency). We never INVENT a debt in the
+    # settlement's currency (that was the phantom bug); instead, below, a settlement first
+    # cancels the matching paid-currency debt, and only the leftover is spread proportionally.
     cursor.execute("""
-        SELECT payer_id, payee_id, COALESCE(amount, 0) AS base_amt,
-               COALESCE(currency, 'ILS') AS currency, COALESCE(original_amount, amount) AS orig_amt
+        SELECT payer_id, payee_id, COALESCE(amount, 0) AS base_amt, COALESCE(currency, 'ILS') AS currency
         FROM Settlements WHERE group_id = ?
     """, (group_id,))
+    settle_by_cur = defaultdict(lambda: defaultdict(float))   # [(payer,payee)][cur] -> base settled
     for st in cursor.fetchall():
-        pair_base[(st['payer_id'], st['payee_id'])] -= float(st['base_amt'] or 0)
-        pair_cur[(st['payer_id'], st['payee_id'])][st['currency']] -= float(st['orig_amt'] or 0)
+        b = float(st['base_amt'] or 0)
+        pair_base[(st['payer_id'], st['payee_id'])] -= b
+        settle_by_cur[(st['payer_id'], st['payee_id'])][st['currency']] += b
 
     # Contributions reduce what the contributor owes the main payer.
     cursor.execute("""
@@ -3616,10 +3621,11 @@ def get_optimized_balances(group_id):
             continue
         cb = float(c['base_amt'] or 0)
         pair_base[(c['contributor'], c['main_payer'])] -= cb
+        cur_base[(c['contributor'], c['main_payer'])][c['currency']] -= cb
         bt = float(c['base_total']) if c['base_total'] else 0.0
         ot = float(c['original_amount']) if c['original_amount'] else bt
         ratio = (ot / bt) if bt else 1.0
-        pair_cur[(c['contributor'], c['main_payer'])][c['currency']] -= cb * ratio
+        cur_entry[(c['contributor'], c['main_payer'])][c['currency']] -= cb * ratio
 
     def net_directed(directed):
         """directed: {(debtor,creditor): amount}. Net the two directions of each
@@ -3638,29 +3644,67 @@ def get_optimized_balances(group_id):
                 out.append((b, a, -net))
         return out
 
-    # ---- "By currency" view: net per entry currency ----
-    cur_set = set()
-    for cd in pair_cur.values():
-        cur_set.update(cd.keys())
+    # ---- "By currency" view ----
+    # Show each unordered pair's net debt expressed ONLY in the currencies the expenses were
+    # actually paid in — with NO FX conversion to any display currency. A settlement first
+    # cancels the debt in the SAME currency it was recorded in (so settling the EUR line clears
+    # EUR and leaves the USD line untouched); whatever it can't match there (e.g. a debt settled
+    # in the group's base currency) is spread proportionally across the pair's remaining
+    # currencies. Either way no phantom settlement-currency bucket is ever invented, and the
+    # per-currency totals net to the same remaining base as the authoritative view.
+    EPS = 0.01
     currency_settlements = {}
     user_currency_balances = {u['id']: {} for u in users}
-    for cur in cur_set:
-        directed = {}
-        for (a, b), cd in pair_cur.items():
-            amt = cd.get(cur, 0.0)
-            if abs(amt) > 0.01:
-                directed[(a, b)] = directed.get((a, b), 0.0) + amt
-        clist = []
-        for deb, cred, val in net_directed(directed):
-            v = round(val, 2)
-            if v < 0.01:
+    pair_keys = set()
+    for (a, b) in list(cur_base.keys()) + list(settle_by_cur.keys()):
+        pair_keys.add((a, b) if a < b else (b, a))
+    for (x, y) in pair_keys:
+        curs = set(cur_base.get((x, y), {})) | set(cur_base.get((y, x), {}))
+        net = {}                       # cur -> [entry_signed, base_signed]   (+ = x owes y)
+        for cur in curs:
+            eb = cur_base.get((x, y), {}).get(cur, 0.0) - cur_base.get((y, x), {}).get(cur, 0.0)
+            ee = cur_entry.get((x, y), {}).get(cur, 0.0) - cur_entry.get((y, x), {}).get(cur, 0.0)
+            net[cur] = [ee, eb]
+
+        # Total settled base in the x->y direction (positive = x paid y, reducing x-owes-y).
+        s_total = (sum(settle_by_cur.get((x, y), {}).values())
+                   - sum(settle_by_cur.get((y, x), {}).values()))
+        # 1) Cancel each settlement against the debt in its OWN currency first (same direction,
+        #    capped at that currency's debt so a matched settle can't flip the line).
+        matched = 0.0
+        for cur, (ee, eb) in net.items():
+            if abs(eb) < EPS:
                 continue
-            clist.append({"from_id": deb, "from": user_name.get(deb),
-                          "to_id": cred, "to": user_name.get(cred), "amount": v})
-            user_currency_balances.setdefault(deb, {})[cur] = round(user_currency_balances.get(deb, {}).get(cur, 0.0) - v, 2)
-            user_currency_balances.setdefault(cred, {})[cur] = round(user_currency_balances.get(cred, {}).get(cur, 0.0) + v, 2)
-        if clist:
-            currency_settlements[cur] = clist
+            sc = settle_by_cur.get((x, y), {}).get(cur, 0.0) - settle_by_cur.get((y, x), {}).get(cur, 0.0)
+            if eb > 0 and sc > 0:
+                used = min(eb, sc)
+            elif eb < 0 and sc < 0:
+                used = max(eb, sc)
+            else:
+                used = 0.0
+            if used:
+                rate = ee / eb               # entry-per-base for this currency (sign-safe)
+                eb2 = eb - used
+                net[cur] = [eb2 * rate, eb2]
+                matched += used
+        # 2) Spread the unmatched remainder proportionally over what's left.
+        leftover = s_total - matched
+        total_base = sum(v[1] for v in net.values())
+        f = ((total_base - leftover) / total_base) if abs(total_base) > EPS else 1.0
+        for cur, (ee, eb) in net.items():
+            eb *= f
+            ee *= f
+            if abs(eb) < EPS:
+                continue
+            deb, cred = (x, y) if eb > 0 else (y, x)
+            amt = round(abs(ee), 2)
+            if amt < EPS:
+                continue
+            currency_settlements.setdefault(cur, []).append(
+                {"from_id": deb, "from": user_name.get(deb),
+                 "to_id": cred, "to": user_name.get(cred), "amount": amt})
+            user_currency_balances.setdefault(deb, {})[cur] = round(user_currency_balances.get(deb, {}).get(cur, 0.0) - amt, 2)
+            user_currency_balances.setdefault(cred, {})[cur] = round(user_currency_balances.get(cred, {}).get(cur, 0.0) + amt, 2)
 
     # ---- "Group currency" (base) + "My currency" (converted) views ----
     net_pairs = net_directed(pair_base)

@@ -199,6 +199,17 @@ check("L2 Bob's ILS is cleared", not any(s['from_id'] == 2 for s in c.get('ILS',
 bob_base = next((s['amount'] for s in full['base_settlements'] if s['from_id'] == 2 and s['to_id'] == 1), None)
 check("L3 group-currency view: Bob owes exactly 200 (not 199.95)", abs((bob_base or 0) - 200) < 0.02, full['base_settlements'])
 
+# M) settling an ILS debt must target the ILS expense, not FIFO-consume an OLDER ALL expense
+#    (the live "converted 200 ALL into shekels, left a ₪7.16 remainder" bug).
+print("M) settle in ILS targets the ILS expense, leaves the older ALL debt intact")
+g = make_group('ALL')
+add(1, g, 400, 'ALL', [{'user_id': 1, 'amount': 200}, {'user_id': 2, 'amount': 200}])      # ALL (older): Bob owes 200 ALL
+add(1, g, 1600, 'ILS', [{'user_id': 1, 'amount': 800}, {'user_id': 2, 'amount': 800}])      # ILS (newer): Bob owes 800 ILS
+settle(2, g, 2, 1, 800, 'ILS')                                                               # settle Bob's 800 ILS, in ILS
+c = cs(1, g)
+check("M1 Bob's ILS debt cleared", not any(s['from_id'] == 2 for s in c.get('ILS', [])), c.get('ILS'))
+check("M2 Bob's ALL debt still 200 (untouched)", abs((find(c.get('ALL', []), 2, 1) or 0) - 200) < 1, c)
+
 print("="*70)
 print(f"RESULT: {PASS} passed, {FAIL} failed")
 os.chdir(CODE_DIR); shutil.rmtree(_tmp, ignore_errors=True)

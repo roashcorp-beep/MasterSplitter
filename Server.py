@@ -4209,17 +4209,21 @@ def create_settlement():
         else:
             # Summaries-screen settle-up: allocate the payment FIFO across the payer's
             # unsettled expenses where the payee is the payer of record (the debts that
-            # make up THIS PAIR's balance), oldest first, creating one linked row per
-            # expense. That lets the settle-up move the related expense below the line,
-            # and lets deleting that expense remove its share of the settlement.
+            # make up THIS PAIR's balance), creating one linked row per expense. That lets
+            # the settle-up move the related expense below the line, and lets deleting that
+            # expense remove its share of the settlement.
+            #   We allocate expenses in the SETTLEMENT'S CURRENCY first (then oldest-first).
+            # Otherwise settling, say, an 800 ILS debt would FIFO-consume an older ALL expense
+            # instead — "converting" a 200 ALL debt into the settlement and leaving a phantom
+            # shekel remainder on the dinner.
             targets = cursor.execute("""
                 SELECT e.id AS eid, COALESCE(SUM(es.amount), 0) AS debtor_split
                 FROM Expenses e
                 JOIN ExpenseSplits es ON es.expense_id = e.id AND es.user_id = ?
                 WHERE e.group_id = ? AND e.user_id = ? AND COALESCE(e.is_personal, 0) = 0
                 GROUP BY e.id
-                ORDER BY e.id ASC
-            """, (payer_id, group_id, payee_id)).fetchall()
+                ORDER BY (COALESCE(e.currency, 'ILS') = ?) DESC, e.id ASC
+            """, (payer_id, group_id, payee_id, currency)).fetchall()
 
             # Outstanding per expense = the debtor's share minus what's already linked
             # for this pair. The pair total is what the payer genuinely owes the payee.

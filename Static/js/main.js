@@ -420,7 +420,8 @@ async function loadLobby() {
         // Auto-open the most recent group on first load
         if (!hasAutoOpenedGroup && allGroups.length > 0) {
             hasAutoOpenedGroup = true;
-            openGroup(allGroups[0].id);
+            renderGroupsList(allGroups);   // populate the lobby behind the auto-opened group,
+            openGroup(allGroups[0].id);     // so it isn't empty if the user navigates back to it
             return;
         }
 
@@ -4734,6 +4735,7 @@ window.openGroupInfo = function() {
     }
 
     if (typeof showView === 'function') showView('lobby');
+    if (typeof renderGroupsList === 'function') renderGroupsList(window.allGroups || allGroups);  // don't show an empty lobby behind the modal
 
     setTimeout(() => {
         if (typeof window.reactOpenEditModal === 'function') {

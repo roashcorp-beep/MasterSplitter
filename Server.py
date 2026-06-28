@@ -3653,12 +3653,18 @@ def get_optimized_balances(group_id):
     # currencies. Either way no phantom settlement-currency bucket is ever invented, and the
     # per-currency totals net to the same remaining base as the authoritative view.
     EPS = 0.01
+    # The authoritative base view decides which pairs are genuinely settled. Show a pair in the
+    # by-currency view ONLY if the base view shows it, so a settled pair — or two cross-currency
+    # expenses that offset to ~0 in base — never lingers here as leftover per-currency lines.
+    net_pairs = net_directed(pair_base)
+    disp_rate = safe_rate(base_cur, disp_cur)
+    active_pairs = set()
+    for deb, cred, val in net_pairs:
+        if round(val * disp_rate, 2) >= 0.01:
+            active_pairs.add((deb, cred) if deb < cred else (cred, deb))
     currency_settlements = {}
     user_currency_balances = {u['id']: {} for u in users}
-    pair_keys = set()
-    for (a, b) in list(cur_base.keys()) + list(settle_by_cur.keys()):
-        pair_keys.add((a, b) if a < b else (b, a))
-    for (x, y) in pair_keys:
+    for (x, y) in active_pairs:
         curs = set(cur_base.get((x, y), {})) | set(cur_base.get((y, x), {}))
         net = {}                       # cur -> [entry_signed, base_signed]   (+ = x owes y)
         for cur in curs:
@@ -3707,8 +3713,6 @@ def get_optimized_balances(group_id):
             user_currency_balances.setdefault(cred, {})[cur] = round(user_currency_balances.get(cred, {}).get(cur, 0.0) + amt, 2)
 
     # ---- "Group currency" (base) + "My currency" (converted) views ----
-    net_pairs = net_directed(pair_base)
-    disp_rate = safe_rate(base_cur, disp_cur)
     base_settlements = []
     user_base_balances = {u['id']: {} for u in users}
     converted_settlements = []

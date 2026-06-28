@@ -2364,8 +2364,18 @@ body.light-theme .list-item:hover {
 
 .balance-item.open .accordion-body {
     max-height: 300px;
+    overflow-y: auto;                 /* scroll when there are many debt lines */
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;     /* don't scroll the page when the list ends */
     padding: 12px 16px 16px;
     border-top: 1px solid var(--border);
+}
+
+/* Slim scrollbar for the expanded debt list */
+.balance-item.open .accordion-body::-webkit-scrollbar { width: 6px; }
+.balance-item.open .accordion-body::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 3px;
 }
 
 .debt-line {

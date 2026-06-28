@@ -128,6 +128,27 @@ c = cs(1, g)
 check("H1 EUR -> 60, USD -> 200 (untouched)",
       abs((find(c.get('EUR', []), 2, 1) or 0) - 60) < 1 and abs((find(c.get('USD', []), 2, 1) or 0) - 200) < 1, c)
 
+# I) cross-currency offset that nets to ~0 in base: by-currency must be EMPTY like the other tabs
+print("I) cross-currency offset (net ~0) is hidden in by-currency too")
+g = make_group('ALL')
+add(1, g, 200, 'EUR', [{'user_id': 1, 'amount': 100}, {'user_id': 2, 'amount': 100}])  # Bob owes Alice 100 EUR
+# Bob pays a USD expense worth the SAME base as 100 EUR, so Alice owes Bob ~100 EUR-worth USD
+usd_amount = base_of(100, 'EUR', 'ALL') / (VAL_ILS['USD'] / VAL_ILS['ALL'])              # USD that equals 100 EUR in base
+add(2, g, usd_amount * 2, 'USD', [{'user_id': 1, 'amount': usd_amount}, {'user_id': 2, 'amount': usd_amount}])
+sess(1)
+full = client.get(f'/api/groups/{g}/optimized-balances').get_json()
+check("I1 base view shows nothing (square)", not full.get('base_settlements'), full.get('base_settlements'))
+check("I2 by-currency also shows nothing", not full.get('currency_settlements'), full.get('currency_settlements'))
+
+# J) a NON-square pair still shows its per-currency breakdown (offset must not over-hide)
+print("J) partially-offsetting pair still shows the per-currency lines")
+g = make_group('ALL')
+add(1, g, 200, 'EUR', [{'user_id': 1, 'amount': 100}, {'user_id': 2, 'amount': 100}])  # Bob owes Alice 100 EUR
+add(2, g, 100, 'USD', [{'user_id': 1, 'amount': 50}, {'user_id': 2, 'amount': 50}])      # Alice owes Bob 50 USD
+c = cs(1, g)
+check("J1 EUR line present (Bob->Alice 100)", abs((find(c.get('EUR', []), 2, 1) or 0) - 100) < 1, c)
+check("J2 USD line present (Alice->Bob 50)", abs((find(c.get('USD', []), 1, 2) or 0) - 50) < 1, c)
+
 print("="*70)
 print(f"RESULT: {PASS} passed, {FAIL} failed")
 os.chdir(CODE_DIR); shutil.rmtree(_tmp, ignore_errors=True)

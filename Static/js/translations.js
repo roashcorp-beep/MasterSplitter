@@ -119,6 +119,12 @@ const translations = {
         "home_dashboard_btn": "דשבורד הוצאות",
         "promo_video": "סרטון התדמית",
         "video_coming_soon": "הסרטון יתווסף בקרוב",
+        "public_settlements": "הצג קיזוזים לכולם",
+        "user_guide": "מדריך שימוש",
+        "user_guide_sub": "צפו בסרטון הדרכה קצר",
+        "dash_top_category": "קטגוריה מובילה",
+        "dash_biggest": "ההוצאה הגדולה",
+        "dash_avg": "ממוצע להוצאה",
         "home_owed_to_me": "מקבל",
         "home_i_owe": "חייב",
         "home_none": "—",
@@ -507,6 +513,12 @@ const translations = {
         "home_dashboard_btn": "Expense Dashboard",
         "promo_video": "Promo video",
         "video_coming_soon": "Video coming soon",
+        "public_settlements": "Show settlements to everyone",
+        "user_guide": "User Guide",
+        "user_guide_sub": "Watch a short tutorial",
+        "dash_top_category": "Top category",
+        "dash_biggest": "Biggest expense",
+        "dash_avg": "Average per expense",
         "home_owed_to_me": "Owed to me",
         "home_i_owe": "I owe",
         "home_none": "—",
@@ -2349,20 +2361,20 @@ let currentLang = 'he';
 
 function initLanguage() {
     let saved = localStorage.getItem('lang');
-    if(saved) setLanguage(saved);
-    else applyTranslations(); // fallback to default 'he'
-
-    // We fetch language from API to sync
-    fetch('/api/me').then(res => {
-        if(res.ok) {
-            res.json().then(data => {
-                if(data.language && data.language !== saved) {
-                    setLanguage(data.language);
-                }
-            });
-        }
+    // An explicit choice (made on the login screen or in-app) is authoritative and must
+    // survive into the app — do NOT let the saved profile language override it, otherwise the
+    // language picked on the login screen gets reverted right after entering the app.
+    if (saved) {
+        setLanguage(saved);
+        return;
+    }
+    // No local choice yet: adopt the user's saved profile language.
+    fetch('/api/me').then(res => res.ok ? res.json() : null).then(data => {
+        if (data && data.language) setLanguage(data.language);
+        else applyTranslations(); // fallback to default 'he'
     }).catch(e => {
         console.error('Failed to sync language from API', e);
+        applyTranslations();
     });
 }
 
@@ -2375,6 +2387,11 @@ function setLanguage(lang) {
     document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
     document.body.style.direction = isRTL ? 'rtl' : 'ltr';
     applyTranslations();
+    // Keep the second i18n engine (i18n.js, used by the React islands) in sync so a key that
+    // lives only there resolves in the same language as the rest of the app.
+    if (window.MasterSplitterI18n && typeof window.MasterSplitterI18n.changeLanguage === 'function') {
+        window.MasterSplitterI18n.changeLanguage(lang);
+    }
     if (typeof window.updateUI === 'function') window.updateUI();
     window.dispatchEvent(new Event('languageChanged'));
 }

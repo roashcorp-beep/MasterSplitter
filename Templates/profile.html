@@ -566,7 +566,7 @@ const LEGAL_TEXTS = {
                                     </div>
                                 </button>
                                 {renderMenuItem(<Bell size={20}/>, t('profileNotifications'), () => openModal('notifications'))}
-                                {renderMenuItem(<span style={{fontSize:'20px'}}>🎓</span>, isRTL ? 'סרטון הדרכה' : 'Tutorial video', () => window.openTutorialVideo && window.openTutorialVideo(isRTL))}
+                                {renderMenuItem(<span style={{fontSize:'20px'}}>🎓</span>, isRTL ? 'מדריך שימוש' : 'User Guide', () => window.openTutorialVideo && window.openTutorialVideo(isRTL))}
                             </div>
                         </div>
 
@@ -820,7 +820,7 @@ const LEGAL_TEXTS = {
         var fb = document.getElementById('tutorial-video-fallback');
         var soon = document.getElementById('tutorial-video-soon');
         var title = document.getElementById('tutorial-video-title');
-        if (title) title.textContent = '🎓 ' + (isRTL === false ? 'Tutorial video' : 'סרטון הדרכה');
+        if (title) title.textContent = '🎓 ' + (isRTL === false ? 'User Guide' : 'מדריך שימוש');
         if (soon) soon.textContent = (isRTL === false ? 'Video coming soon' : 'הסרטון יתווסף בקרוב');
         if (fb) fb.style.display = 'none';
         if (v) { v.style.display = 'block'; v.src = '/static/videos/tutorial.mp4'; v.load(); v.play().catch(function(){}); }

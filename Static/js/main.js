@@ -501,9 +501,8 @@ async function openGroup(groupId) {
         }
     }
     showView('dashboard');
-    // Land on the expenses list, not the home dashboard. The dashboard is being
-    // redesigned separately; auto-opening it caused a brief flash on every group entry.
-    switchTab('expenses');
+    // Land on the HOME screen by default whenever a group is opened (user preference).
+    switchTab('home');
     await fetchGroupMembers();
     await fetchGroupSettings();
     fetchExpenses();
@@ -3240,6 +3239,45 @@ function _dashStatCard(label, value, sub, accent) {
     </div>`;
 }
 
+function _dashInsight(icon, label, value) {
+    return `<div class="dash-insight">
+        <span class="dash-insight-icon">${icon}</span>
+        <div class="dash-insight-text">
+            <span class="dash-insight-label">${label}</span>
+            <strong class="dash-insight-value">${value}</strong>
+        </div>
+    </div>`;
+}
+
+// SVG donut for the category breakdown.
+function _dashDonut(cats, catTotals, total, sym) {
+    if (!cats.length || total <= 0) return '';
+    const R = 70, C = 2 * Math.PI * R;
+    let off = 0;
+    const segs = cats.map(cat => {
+        const len = (catTotals[cat] / total) * C;
+        const color = DASH_CAT_COLORS[cat] || 'var(--primary)';
+        const seg = `<circle cx="100" cy="100" r="${R}" fill="none" stroke="${color}" stroke-width="26"
+            stroke-dasharray="${len.toFixed(2)} ${(C - len).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}"
+            transform="rotate(-90 100 100)" stroke-linecap="butt"></circle>`;
+        off += len;
+        return seg;
+    }).join('');
+    const legend = cats.map(cat => {
+        const pct = Math.round(catTotals[cat] / total * 100);
+        const color = DASH_CAT_COLORS[cat] || 'var(--primary)';
+        return `<div class="dash-legend-item"><span class="dash-legend-dot" style="background:${color}"></span>
+            <span class="dash-legend-name">${translateCategory(cat)}</span><span class="dash-legend-pct">${pct}%</span></div>`;
+    }).join('');
+    return `<svg viewBox="0 0 200 200" class="dash-donut-svg">
+            <circle cx="100" cy="100" r="${R}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="26"></circle>
+            ${segs}
+            <text x="100" y="96" text-anchor="middle" class="dash-donut-total">${sym}${formatNumber(Math.round(total))}</text>
+            <text x="100" y="118" text-anchor="middle" class="dash-donut-sub">${_dashT('dash_total_spent', 'סה"כ')}</text>
+        </svg>
+        <div class="dash-legend">${legend}</div>`;
+}
+
 function renderDashboard() {
     const screen = document.getElementById('screen-dashboard');
     if (!screen) return;
@@ -3305,12 +3343,36 @@ function renderDashboard() {
         });
         const cats = Object.keys(catTotals).sort((a, b) => catTotals[b] - catTotals[a]);
         const maxCat = cats.length ? catTotals[cats[0]] : 0;
+        const total = cats.reduce((a, c) => a + catTotals[c], 0);
+        const donutEl = document.getElementById('dash-donut');
+        if (donutEl) donutEl.innerHTML = _dashDonut(cats, catTotals, total, sym);
         if (!cats.length) {
             catEl.innerHTML = `<div class="dash-empty">${_dashT('balances_no_data', 'אין נתונים')}</div>`;
         } else {
             catEl.innerHTML = cats.map(cat =>
                 _dashBarRow(translateCategory(cat), getCategoryIcon(cat), catTotals[cat], maxCat, sym, DASH_CAT_COLORS[cat] || 'var(--primary)', false)
             ).join('');
+        }
+
+        // ---- INSIGHTS ----
+        const insEl = document.getElementById('dash-insights');
+        if (insEl) {
+            if (!cats.length || total <= 0) {
+                insEl.innerHTML = '';
+            } else {
+                const topCat = cats[0];
+                const topPct = Math.round(catTotals[topCat] / total * 100);
+                let big = null;
+                expenses.forEach(e => {
+                    const v = isMine ? myShare(e) : (e.is_personal ? 0 : expTot(e));
+                    if (v > 0 && (!big || v > big.v)) big = { v, name: e.description || '' };
+                });
+                const avg = expenses.length ? total / expenses.length : 0;
+                insEl.innerHTML =
+                    _dashInsight('🏆', _dashT('dash_top_category', 'קטגוריה מובילה'), `${translateCategory(topCat)} · ${topPct}%`) +
+                    (big ? _dashInsight('🔝', _dashT('dash_biggest', 'ההוצאה הגדולה'), `${escapeHTML(big.name)} · ${sym}${formatNumber(Math.round(big.v))}`) : '') +
+                    _dashInsight('📊', _dashT('dash_avg', 'ממוצע להוצאה'), `${sym}${formatNumber(Math.round(avg))}`);
+            }
         }
     }
 

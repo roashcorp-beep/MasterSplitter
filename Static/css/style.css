@@ -1347,6 +1347,30 @@ body.dark-theme .lobby-glass-card {
     display: flex;
     align-items: center;
     gap: 12px;
+    flex: 1;
+    min-width: 0;            /* allow the long names label to truncate instead of pushing */
+}
+
+/* Right side of the banner: avatars + bell, always kept intact */
+.group-banner-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+.activity-bell-btn {
+    background: rgba(255, 255, 255, 0.15);
+    border: none;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #fff;
+    transition: background 0.2s;
 }
 
 .group-icon {
@@ -1363,6 +1387,7 @@ body.dark-theme .lobby-glass-card {
 .group-details {
     display: flex;
     flex-direction: column;
+    min-width: 0;
 }
 
 .group-select-label {
@@ -1375,6 +1400,9 @@ body.dark-theme .lobby-glass-card {
 .group-dates {
     font-size: 0.78rem;
     opacity: 0.85;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;   /* long member-name lists end with "…" instead of wrapping */
 }
 
 .group-participants {

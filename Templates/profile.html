@@ -567,6 +567,7 @@ const LEGAL_TEXTS = {
                                 </button>
                                 {renderMenuItem(<Bell size={20}/>, t('profileNotifications'), () => openModal('notifications'))}
                                 {renderMenuItem(<span style={{fontSize:'20px'}}>🎓</span>, isRTL ? 'מדריך שימוש' : 'User Guide', () => window.openTutorialVideo && window.openTutorialVideo(isRTL))}
+                                {renderMenuItem(<span style={{fontSize:'20px'}}>🧭</span>, isRTL ? 'סיור מודרך' : 'Guided tour', () => { try { localStorage.setItem('start_tour_on_load', '1'); } catch (e) {} window.location.href = '/app'; })}
                             </div>
                         </div>
 

@@ -415,7 +415,12 @@ async function loadLobby() {
         window.allGroups = allGroups;
 
         maybeShowTripWelcome();   // one-time trip welcome (TEMPORARY — see block below)
-        setTimeout(maybeOfferNotifications, 2500);   // gently offer to enable device notifications
+        let _relaunchTour = false, _tourDone = true;
+        try { _relaunchTour = !!localStorage.getItem('start_tour_on_load'); if (_relaunchTour) localStorage.removeItem('start_tour_on_load'); } catch (e) {}
+        try { _tourDone = !!localStorage.getItem('onboarding_tour_done'); } catch (e) {}
+        if (_relaunchTour) setTimeout(startTour, 1500);              // re-launched from Profile
+        else if (!_tourDone) setTimeout(maybeStartTour, 1800);      // first-login guided tour
+        else setTimeout(maybeOfferNotifications, 2500);             // returning users: maybe offer notifications
 
         // Auto-open the most recent group on first load
         if (!hasAutoOpenedGroup && allGroups.length > 0) {
@@ -474,6 +479,101 @@ function showTripWelcomeModal(msg) {
     document.body.appendChild(ov);
 }
 // ============================ /ONE-TIME TRIP WELCOME =========================
+
+// ============================================================================
+//  GUIDED ONBOARDING TOUR — interactive spotlight tour of the main features.
+//  Runs once after first login (per device), and is re-launchable from Profile.
+// ============================================================================
+function getTourSteps() {
+    const he = (typeof currentLang !== 'undefined' ? currentLang : (localStorage.getItem('lang') || 'he')) === 'he';
+    return [
+        { target: null, title: he ? 'ברוכים הבאים ל-Master Splitter! 👋' : 'Welcome to Master Splitter! 👋',
+          body: he ? 'סיור קצר של חצי דקה ואתם מוכנים לטיול. אפשר לדלג בכל רגע.' : "A 30-second tour and you're ready. You can skip anytime." },
+        { target: '.group-banner', title: he ? 'הקבוצה שלכם 🧑‍🤝‍🧑' : 'Your group 🧑‍🤝‍🧑',
+          body: he ? 'כאן הקבוצה הפעילה. לחיצה פותחת חברים, מטבע בסיס והגדרות. בפעמון רואים יומן פעילות.' : 'Your active group. Tap it for members, base currency and settings. The bell opens the activity log.' },
+        { target: '#tab-add', title: he ? 'הוספת הוצאה ➕' : 'Add an expense ➕',
+          body: he ? 'כאן מוסיפים הוצאה — בכל מטבע, חלוקה איך שבא לכם, ואפילו סריקת קבלה עם AI שמחלקת לבד.' : 'Add an expense here — any currency, split however you like, and even scan a receipt with AI that splits it for you.' },
+        { target: '#tab-expenses', title: he ? 'כל ההוצאות 🧾' : 'All expenses 🧾',
+          body: he ? 'רשימת ההוצאות של הקבוצה. הוצאה שסולקה יורדת אוטומטית מתחת לקו "מאוזן".' : 'Your group\'s expenses. A settled expense drops automatically below the "balanced" line.' },
+        { target: '#tab-balances', title: he ? 'מאזן וסילוק ⚖️' : 'Balances & settle up ⚖️',
+          body: he ? 'רואים מי חייב למי — לפי מטבע, מטבע הקבוצה, או המטבע שלכם — ומסלקים חוב בלחיצה אחת.' : 'See who owes whom — by currency, group currency, or your currency — and settle up in one tap.' },
+        { target: '.home-dashboard-btn', title: he ? 'סטטיסטיקה 📊' : 'Statistics 📊',
+          body: he ? 'תרשימים ותובנות: פילוח לפי קטגוריה, ההוצאה הגדולה, וגם מאזן לפי חבר.' : 'Charts and insights: spend by category, biggest expense, and per-member balances.' },
+        { target: '#tab-profile', title: he ? 'פרופיל והגדרות 👤' : 'Profile & settings 👤',
+          body: he ? 'שפה, התראות, מטבע ברירת מחדל — והסיור הזה תמיד זמין שם תחת "סיור מודרך". יאללה, תהנו! 🚀' : 'Language, notifications, default currency — and this tour is always here under "Guided tour". Enjoy! 🚀' },
+    ];
+}
+let _tourStep = 0, _tourSteps = [], _tourEls = null;
+function startTour() {
+    if (currentGroupId && typeof switchTab === 'function') switchTab('home');  // tour targets the home screen
+    _tourSteps = getTourSteps();
+    if (!_tourEls) {
+        const blocker = document.createElement('div'); blocker.className = 'tour-blocker';
+        const spot = document.createElement('div'); spot.className = 'tour-spotlight';
+        const tip = document.createElement('div'); tip.className = 'tour-tooltip';
+        document.body.appendChild(blocker); document.body.appendChild(spot); document.body.appendChild(tip);
+        _tourEls = { blocker, spot, tip };
+        window.addEventListener('resize', () => { if (_tourEls && _tourEls.tip.style.display === 'block') renderTourStep(_tourStep); });
+    }
+    setTimeout(() => renderTourStep(0), 350);
+}
+function endTour() {
+    if (_tourEls) { _tourEls.blocker.style.display = 'none'; _tourEls.spot.style.display = 'none'; _tourEls.tip.style.display = 'none'; }
+    try { localStorage.setItem('onboarding_tour_done', '1'); } catch (e) {}
+}
+function renderTourStep(i) {
+    if (!_tourEls) return;
+    _tourStep = i;
+    const step = _tourSteps[i];
+    const { blocker, spot, tip } = _tourEls;
+    const he = (typeof currentLang !== 'undefined' ? currentLang : (localStorage.getItem('lang') || 'he')) === 'he';
+    const isLast = i === _tourSteps.length - 1;
+    const el = step.target ? document.querySelector(step.target) : null;
+    tip.innerHTML = `
+        <div class="tour-progress">${i + 1} / ${_tourSteps.length}</div>
+        <div class="tour-title">${escapeHTML(step.title)}</div>
+        <div class="tour-body">${escapeHTML(step.body)}</div>
+        <div class="tour-actions">
+            <button class="tour-skip">${he ? 'דלג' : 'Skip'}</button>
+            <div class="tour-nav">
+                ${i > 0 ? `<button class="tour-back">${he ? 'הקודם' : 'Back'}</button>` : ''}
+                <button class="tour-next">${isLast ? (he ? 'סיום' : 'Done') : (he ? 'הבא' : 'Next')}</button>
+            </div>
+        </div>`;
+    tip.querySelector('.tour-skip').onclick = endTour;
+    tip.querySelector('.tour-next').onclick = () => { isLast ? endTour() : renderTourStep(i + 1); };
+    const back = tip.querySelector('.tour-back'); if (back) back.onclick = () => renderTourStep(i - 1);
+    blocker.style.display = 'block';
+    tip.style.display = 'block';
+    if (el) {
+        try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
+        const r = el.getBoundingClientRect();
+        const pad = 8;
+        spot.style.display = 'block';
+        spot.style.top = (r.top - pad) + 'px'; spot.style.left = (r.left - pad) + 'px';
+        spot.style.width = (r.width + pad * 2) + 'px'; spot.style.height = (r.height + pad * 2) + 'px';
+        spot.style.borderRadius = (r.width < 64 && r.height < 64) ? '50%' : '14px';
+        blocker.style.background = 'transparent';
+        const tipH = tip.offsetHeight || 170, tipW = tip.offsetWidth || 300, vh = window.innerHeight, vw = window.innerWidth;
+        let top = (r.bottom + tipH + 20 < vh) ? r.bottom + 16 : r.top - tipH - 16;
+        top = Math.max(12, Math.min(top, vh - tipH - 12));
+        let left = Math.max(12, Math.min(r.left + r.width / 2 - tipW / 2, vw - tipW - 12));
+        tip.style.transform = 'none'; tip.style.top = top + 'px'; tip.style.left = left + 'px';
+    } else {
+        spot.style.display = 'none';
+        blocker.style.background = 'rgba(0,0,0,0.72)';
+        tip.style.top = '50%'; tip.style.left = '50%'; tip.style.transform = 'translate(-50%,-50%)';
+    }
+}
+function maybeStartTour() {
+    try {
+        if (localStorage.getItem('onboarding_tour_done')) return;
+        if (!(window.allGroups && window.allGroups.length)) return;       // need a group so the home is shown
+        startTour();
+    } catch (e) {}
+}
+window.startTour = startTour;
+// ====================== /GUIDED ONBOARDING TOUR =============================
 
 function showView(view) {
     const screens = document.querySelectorAll('.screen');

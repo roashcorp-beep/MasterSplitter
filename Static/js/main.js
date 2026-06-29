@@ -503,23 +503,30 @@ function getTourSteps() {
           body: he ? 'שפה, התראות, מטבע ברירת מחדל — והסיור הזה תמיד זמין שם תחת "סיור מודרך". יאללה, תהנו! 🚀' : 'Language, notifications, default currency — and this tour is always here under "Guided tour". Enjoy! 🚀' },
     ];
 }
-let _tourStep = 0, _tourSteps = [], _tourEls = null;
-function startTour() {
-    if (currentGroupId && typeof switchTab === 'function') switchTab('home');  // tour targets the home screen
-    _tourSteps = getTourSteps();
+let _tourStep = 0, _tourSteps = [], _tourEls = null, _tourDoneKey = 'onboarding_tour_done', _tourActive = false;
+function runTour(steps, doneKey) {
+    _tourSteps = (steps || []).filter(s => !s.target || document.querySelector(s.target));  // drop steps whose target is missing
+    if (!_tourSteps.length) return;
+    _tourDoneKey = doneKey || 'onboarding_tour_done';
+    _tourActive = true;
     if (!_tourEls) {
         const blocker = document.createElement('div'); blocker.className = 'tour-blocker';
         const spot = document.createElement('div'); spot.className = 'tour-spotlight';
         const tip = document.createElement('div'); tip.className = 'tour-tooltip';
         document.body.appendChild(blocker); document.body.appendChild(spot); document.body.appendChild(tip);
         _tourEls = { blocker, spot, tip };
-        window.addEventListener('resize', () => { if (_tourEls && _tourEls.tip.style.display === 'block') renderTourStep(_tourStep); });
+        window.addEventListener('resize', () => { if (_tourActive && _tourEls) renderTourStep(_tourStep); });
     }
     setTimeout(() => renderTourStep(0), 350);
 }
+function startTour() {   // the main home/onboarding tour
+    if (currentGroupId && typeof switchTab === 'function') switchTab('home');  // tour targets the home screen
+    runTour(getTourSteps(), 'onboarding_tour_done');
+}
 function endTour() {
+    _tourActive = false;
     if (_tourEls) { _tourEls.blocker.style.display = 'none'; _tourEls.spot.style.display = 'none'; _tourEls.tip.style.display = 'none'; }
-    try { localStorage.setItem('onboarding_tour_done', '1'); } catch (e) {}
+    try { localStorage.setItem(_tourDoneKey, '1'); } catch (e) {}
 }
 function renderTourStep(i) {
     if (!_tourEls) return;
@@ -570,6 +577,48 @@ function maybeStartTour() {
         if (localStorage.getItem('onboarding_tour_done')) return;
         if (!(window.allGroups && window.allGroups.length)) return;       // need a group so the home is shown
         startTour();
+    } catch (e) {}
+}
+
+// ---- Contextual mini-tours: explained the first time each screen is opened ----
+function _tourHe() {
+    return (typeof currentLang !== 'undefined' ? currentLang : (localStorage.getItem('lang') || 'he')) === 'he';
+}
+function getAddTourSteps() {
+    const he = _tourHe();
+    return [
+        { target: '.scan-receipt-btn', title: he ? 'סריקת קבלה 📸' : 'Scan a receipt 📸',
+          body: he ? 'מצלמים קבלה — ה-AI קורא את הפריטים ואתם רק מסמנים מי אכל מה.' : 'Snap a receipt — AI reads the items and you just tap who had what.' },
+        { target: '#amount', title: he ? 'סכום ומטבע' : 'Amount & currency',
+          body: he ? 'מזינים סכום, ובוחרים מטבע מימין — כל מטבע, וההמרה אוטומטית.' : 'Enter the amount and pick a currency on the right — any currency, converted automatically.' },
+        { target: '#payer-container', title: he ? 'מי שילם? 💳' : 'Who paid? 💳',
+          body: he ? 'בוחרים מי שילם. אפשר לסמן כמה אנשים לתשלום משותף (ע"י הכפתור "תשלום משותף").' : 'Pick who paid. Select several people for a shared payment (via the "shared payment" toggle).' },
+        { target: '#participants-container', title: he ? 'עבור מי?' : 'Split between',
+          body: he ? 'מי משתתף בהוצאה. אפשר להפעיל "סכומים מותאמים" לחלוקה לא שווה.' : 'Who shares this expense. Turn on "custom amounts" for an uneven split.' },
+        { target: '#ai-fab', title: he ? 'הוספה חכמה ✨' : 'Smart add ✨',
+          body: he ? 'או פשוט כותבים במילים ("פיצה 90 שקל") וה-AI ממלא הכל לבד.' : 'Or just type it in words ("Pizza 90") and AI fills it all in.' },
+    ];
+}
+function getBalancesTourSteps() {
+    const he = _tourHe();
+    return [
+        { target: '#btn-view-currency', title: he ? 'שלוש תצוגות' : 'Three views',
+          body: he ? 'לפי המטבע ששולם, מטבע הקבוצה, או המטבע שלכם — בלי לאבד מידע בהמרה.' : 'By the paid currency, the group currency, or your currency — without losing info to conversion.' },
+        { target: '#btn-suggest-offset', title: he ? 'קיזוז חכם ✨' : 'Smart settle ✨',
+          body: he ? 'מצמצם את כל החובות בקבוצה למינימום ההעברות הנדרשות, בלחיצה.' : 'Reduces all the group debts to the fewest transfers needed, in one tap.' },
+        { target: '#balances-list', title: he ? 'מי חייב למי' : 'Who owes whom',
+          body: he ? 'כל אחד כאן — לוחצים להרחבה כדי לראות את הפירוט ולסלק חוב.' : 'Each person here — tap to expand, see the breakdown, and settle up.' },
+    ];
+}
+// Run a screen's mini-tour the first time it is opened (after the screen renders).
+function maybeRunContextTour(tabName) {
+    try {
+        if (_tourActive) return;                                  // never stack tours
+        let steps = null, key = null;
+        if (tabName === 'add') { steps = getAddTourSteps(); key = 'tour_add_done'; }
+        else if (tabName === 'balances') { steps = getBalancesTourSteps(); key = 'tour_balances_done'; }
+        if (!steps || localStorage.getItem(key) === '1') return;
+        setTimeout(() => { if (!_tourActive) runTour(steps, key); }, 700);  // let the screen finish rendering
     } catch (e) {}
 }
 window.startTour = startTour;
@@ -1411,6 +1460,7 @@ function switchTab(tabName, skipHistory = false) {
         if (curInput) curInput.value = defaultCur;
         if (curBtn) curBtn.innerText = getCurrencySymbol(defaultCur);
     }
+    if (typeof maybeRunContextTour === 'function') maybeRunContextTour(tabName);  // first-open mini-tour for this screen
 }
 
 async function logout() {

@@ -94,6 +94,11 @@ const GroupsScreen = () => {
         };
     }, []);
 
+    // Notify the (vanilla) tour engine when the create/edit modals open, so it can run a
+    // first-time mini-tour over them.
+    useEffect(() => { if (isCreateOpen && typeof window.onCreateGroupOpened === "function") window.onCreateGroupOpened(); }, [isCreateOpen]);
+    useEffect(() => { if (isEditOpen && typeof window.onEditGroupOpened === "function") window.onEditGroupOpened(); }, [isEditOpen]);
+
     const i18n = (key) => {
         const lang = localStorage.getItem('lang') || 'he';
         // Priority 1: Check translations.js dictionary
@@ -427,9 +432,10 @@ const GroupsScreen = () => {
                             </div>
                         </div>
                         
-                        <input 
-                            type="text" 
-                            defaultValue={group?.name || ''} 
+                        <input
+                            type="text"
+                            data-tour="edit-name"
+                            defaultValue={group?.name || ''}
                             onChange={(e) => setEditGroupDetails(prev => ({...prev, name: e.target.value}))}
                             className="text-2xl font-bold text-gray-900 dark:text-white bg-transparent text-center focus:outline-none focus:border-b-2 focus:border-purple-500 w-3/4 transition-all"
                             placeholder={t?.group_name || 'שם הקבוצה'}
@@ -505,7 +511,7 @@ const GroupsScreen = () => {
                         {/* Advanced Settings */}
                         {isAdmin && (
                             <div className="p-4 border-t border-gray-100 dark:border-gray-700">
-                                <button onClick={() => setEditGroupDetails(prev => ({...prev, showAdvancedBudget: !prev.showAdvancedBudget}))} className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-2xl transition-colors border border-gray-100 dark:border-gray-700">
+                                <button data-tour="edit-advanced" onClick={() => setEditGroupDetails(prev => ({...prev, showAdvancedBudget: !prev.showAdvancedBudget}))} className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-2xl transition-colors border border-gray-100 dark:border-gray-700">
                                     <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200 font-medium">
                                         <IconSettings size={18} className="text-purple-500" /> {i18n("admin_settings") || "הגדרות מנהל"}  
                                     </div>
@@ -619,7 +625,7 @@ const GroupsScreen = () => {
                         {/* Action Buttons inside scroll area */}
                         <div className="mt-8 mb-4 space-y-3 px-2">
                             {!group.is_readonly && (
-                                <button onClick={() => window.saveEditGroupFromReact(group)} className="w-full py-3.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow-[0_0_15px_rgba(99,102,241,0.4)] transition-all flex items-center justify-center gap-2 active:scale-95">
+                                <button data-tour="edit-save" onClick={() => window.saveEditGroupFromReact(group)} className="w-full py-3.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow-[0_0_15px_rgba(99,102,241,0.4)] transition-all flex items-center justify-center gap-2 active:scale-95">
                                     <IconCheck size={18} /> {i18n("save_changes") || "שמור שינויים"}
                                 </button>
                             )}

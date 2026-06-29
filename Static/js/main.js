@@ -432,8 +432,9 @@ async function loadLobby() {
 
         showView('lobby');
         renderGroupsList(allGroups);
-    } catch (e) { 
-        console.error('Load lobby error:', e); 
+        if (typeof maybeRunLobbyTour === 'function') maybeRunLobbyTour();   // first-time groups-screen tour
+    } catch (e) {
+        console.error('Load lobby error:', e);
         showView('lobby');
     } finally {
         const spinner = document.getElementById('screen-loading');
@@ -553,7 +554,7 @@ function renderTourStep(i) {
     blocker.style.display = 'block';
     tip.style.display = 'block';
     if (el) {
-        try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
+        try { el.scrollIntoView({ block: 'center', behavior: 'auto' }); } catch (e) {}  // instant so the rect below is correct after scrolling
         const r = el.getBoundingClientRect();
         const pad = 8;
         spot.style.display = 'block';
@@ -621,6 +622,57 @@ function maybeRunContextTour(tabName) {
         setTimeout(() => { if (!_tourActive) runTour(steps, key); }, 700);  // let the screen finish rendering
     } catch (e) {}
 }
+
+// ---- Groups screen + create/edit group mini-tours ----
+function getLobbyTourSteps() {
+    const he = _tourHe();
+    return [
+        { target: '[data-i18n="lobby_btn_create"]', title: he ? 'יצירת קבוצה ➕' : 'Create a group ➕',
+          body: he ? 'פותחים כאן קבוצה חדשה — לטיול, לדירה או ליציאה.' : 'Start a new group here — for a trip, a flat, or a night out.' },
+        { target: '.group-card-v2', title: he ? 'הקבוצות שלך' : 'Your groups',
+          body: he ? 'לוחצים על קבוצה כדי לפתוח אותה. בעיפרון עורכים אותה (שם, חברים, תקציב והגדרות).' : 'Tap a group to open it. The pencil edits it (name, members, budget and settings).' },
+    ];
+}
+function getCreateTourSteps() {
+    const he = _tourHe();
+    return [
+        { target: '#create-group-name', title: he ? 'שם הקבוצה' : 'Group name',
+          body: he ? 'תנו שם לקבוצה — טיול, דירה, יציאה.' : 'Give the group a name — trip, flat, night out.' },
+        { target: '.invite-tabs-container', title: he ? 'הזמנת חברים' : 'Invite friends',
+          body: he ? 'מזמינים חברים בוואטסאפ, באימייל או כאורח.' : 'Invite friends via WhatsApp, email, or as a guest.' },
+        { target: '#create-group-modal .modal-actions .primary-btn', title: he ? 'יצירה — ועוד הגדרות' : 'Create — and more settings',
+          body: he ? 'לוחצים "צור קבוצה". הגדרות נוספות — כמו תקציב קבוצתי או אישי — זמינות אחר כך דרך פרטי הקבוצה (עריכה ← הגדרות מנהל).' : 'Tap "Create group". More settings — like a group or personal budget — are available afterward via the group details (edit → Admin settings).' },
+    ];
+}
+function getEditTourSteps() {
+    const he = _tourHe();
+    return [
+        { target: '[data-tour="edit-name"]', title: he ? 'עריכת הקבוצה' : 'Edit the group',
+          body: he ? 'כאן עורכים את שם הקבוצה (ובתמונה למעלה — את התמונה).' : 'Edit the group name here (and the picture above).' },
+        { target: '[data-tour="edit-advanced"]', title: he ? 'הגדרות מנהל ⚙️' : 'Admin settings ⚙️',
+          body: he ? 'כאן הכול: תקציב קבוצתי ותקציב אישי לכל משתתף, מטבע הקבוצה, והרשאות (מי רואה הוצאות/קיזוזים ומי יכול למחוק).' : 'Everything is here: a group budget and a per-member personal budget, the group currency, and permissions (who sees expenses/settlements, who can delete).' },
+        { target: '[data-tour="edit-save"]', title: he ? 'שמירה' : 'Save',
+          body: he ? 'אל תשכחו לשמור את השינויים.' : "Don't forget to save your changes." },
+    ];
+}
+function maybeRunLobbyTour() {
+    try {
+        if (_tourActive || localStorage.getItem('tour_lobby_done') === '1') return;
+        setTimeout(() => { if (!_tourActive) runTour(getLobbyTourSteps(), 'tour_lobby_done'); }, 800);
+    } catch (e) {}
+}
+window.onCreateGroupOpened = function () {
+    try {
+        if (_tourActive || localStorage.getItem('tour_create_done') === '1') return;
+        setTimeout(() => { if (!_tourActive) runTour(getCreateTourSteps(), 'tour_create_done'); }, 500);
+    } catch (e) {}
+};
+window.onEditGroupOpened = function () {
+    try {
+        if (_tourActive || localStorage.getItem('tour_edit_done') === '1') return;
+        setTimeout(() => { if (!_tourActive) runTour(getEditTourSteps(), 'tour_edit_done'); }, 500);
+    } catch (e) {}
+};
 window.startTour = startTour;
 // ====================== /GUIDED ONBOARDING TOUR =============================
 

@@ -167,7 +167,7 @@
             pushSaveFailed: 'Saving notification settings to the server failed.',
             pushEnabled: 'Notifications enabled on this device ✅',
             pushEnableErrorPrefix: 'Error enabling notifications: ',
-            permissionsTitle: 'Welcome! We'd love a couple of permissions:',
+            permissionsTitle: 'Welcome! We would love a couple of permissions:',
             permissionsContactsTitle: 'Contacts',
             permissionsContactsDesc: 'To invite friends easily.',
             permissionsDisplayTitle: 'Display',

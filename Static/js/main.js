@@ -2559,6 +2559,7 @@ async function deleteExpense(expenseId) {
     }
 }
 
+let isAddingExpense = false;
 async function addExpense() {
     const amountInput = document.getElementById('amount');
     const descInput = document.getElementById('desc');
@@ -2652,6 +2653,13 @@ async function addExpense() {
         }
     }
 
+    // Guard against double submission (e.g. a double-tap on a slow iOS Safari connection
+    // firing two POSTs and creating the expense twice).
+    if (isAddingExpense) return;
+    isAddingExpense = true;
+    const addExpenseBtn = document.getElementById('add-expense-btn');
+    if (addExpenseBtn) addExpenseBtn.disabled = true;
+
     try {
         const payload = {
             group_id: currentGroupId,
@@ -2694,6 +2702,9 @@ async function addExpense() {
     } catch (e) {
         console.error('Add expense error:', e);
         alert(i18n('network_error'));
+    } finally {
+        isAddingExpense = false;
+        if (addExpenseBtn) addExpenseBtn.disabled = false;
     }
 }
 
@@ -4504,6 +4515,17 @@ window.subscribeToPush = subscribeToPush;
 // =====================
 let deferredPrompt;
 
+// iOS Safari never fires beforeinstallprompt and has no programmatic install,
+// so we detect it to show manual "Add to Home Screen" instructions instead.
+function isIOSDevice() {
+    return /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); // iPadOS reports as Mac
+}
+function isAppInstalled() {
+    return (('standalone' in navigator) && navigator.standalone) ||
+        window.matchMedia('(display-mode: standalone)').matches;
+}
+
 window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
@@ -4512,8 +4534,22 @@ window.addEventListener('beforeinstallprompt', (e) => {
     console.log('[PWA] Install prompt captured — install button shown.');
 });
 
+// On iOS (not already installed) there's no install event, so surface the button
+// up front; tapping it shows the manual instructions.
+window.addEventListener('load', () => {
+    if (isIOSDevice() && !isAppInstalled()) {
+        document.querySelectorAll('.pwa-install-btn').forEach(btn => btn.style.display = 'flex');
+    }
+});
+
 async function triggerPWAInstall() {
-    if (!deferredPrompt) return;
+    if (!deferredPrompt) {
+        // iOS / browsers without a native install prompt: show manual instructions.
+        if (isIOSDevice() && !isAppInstalled()) {
+            alert(typeof i18n === 'function' ? i18n('ios_install_instructions') : 'Open in Safari, tap Share, then "Add to Home Screen".');
+        }
+        return;
+    }
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     console.log(`[PWA] User response to install prompt: ${outcome}`);
@@ -4712,10 +4748,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         showToast(typeof i18n === 'function' ? i18n('invite_joined') : 'Joined group!', 'success');
                         if (data.group_id) {
                             currentGroupId = data.group_id;
-                            loadLobby();
                         }
+                        loadLobby();
                     } else {
-                        showToast(data.error || i18n('err_invalid_invite_link'), 'error');
+                        // The user is already signed in and inside the app. A stale or
+                        // regenerated invite link shouldn't block them with a scary error —
+                        // just take them to their groups. (Common case: a member re-opening
+                        // the original link because they can't install the PWA on iOS.)
+                        showToast(typeof i18n === 'function' ? i18n('invite_link_stale') : 'This invite link is no longer active. Showing your groups.', 'info');
+                        loadLobby();
                     }
                 })
                 .catch(e => console.error('Auto-join error:', e))

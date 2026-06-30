@@ -335,7 +335,7 @@
                     <div id="custom-splits-container" class="custom-splits-container" style="display:none;"></div>
                     <div id="split-validation-msg" class="split-validation-msg" style="display:none;"></div>
 
-                    <button class="primary-btn full-width" style="margin-top:20px;" onclick="addExpense()"
+                    <button id="add-expense-btn" class="primary-btn full-width" style="margin-top:20px;" onclick="addExpense()"
                         data-i18n="expense_btn_save">שמור הוצאה</button>
                 </div>
             </div>
@@ -490,8 +490,8 @@
         </button>
     </div>
 
-    <script src="{{ url_for('static', filename='js/translations.js') }}?v=4.10"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=4.34"></script>
+    <script src="{{ url_for('static', filename='js/translations.js') }}?v=4.11"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=4.35"></script>
     <script>
         function checkCookieConsent() {
             if (!localStorage.getItem('cookieConsent')) {

@@ -6,8 +6,8 @@
     <title>MasterSplitter - Login</title>
     
     <!-- Step 1 Isolated i18n Engine -->
-    <script src="{{ url_for('static', filename='js/i18n.js') }}?v=1.1"></script>
-    <script src="{{ url_for('static', filename='js/legal-texts.js') }}?v=1.0"></script>
+    <script src="{{ url_for('static', filename='js/i18n.js') }}?v=1.2"></script>
+    <script src="{{ url_for('static', filename='js/legal-texts.js') }}?v=1.1"></script>
 
     <!-- OS Default Theme Script -->
     <script>
@@ -349,7 +349,8 @@ const X = ({size=18, className=""}) => <svg width={size} height={size} className
             const [fieldErrors, setFieldErrors] = useState({});
             
             const [modalContent, setModalContent] = useState(null);
-            const legalTexts = (window.MasterSplitterLegalTexts && window.MasterSplitterLegalTexts[lang]) || window.MasterSplitterLegalTexts.he;
+            const _LT = window.MasterSplitterLegalTexts || {};
+            const legalTexts = _LT[lang] || _LT.he || { dir: 'rtl', terms: {}, privacy: {} };
 
             const setLang = (code) => {
                 if (i18n) {

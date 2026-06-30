@@ -353,6 +353,11 @@ def init_db_updates():
         if 'is_personal' not in cols:
             cursor.execute("ALTER TABLE Expenses ADD COLUMN is_personal INTEGER DEFAULT 0")
             logger.info("Migration: added 'is_personal' column to Expenses")
+        if 'created_by' not in cols:
+            # Who actually created the expense (distinct from user_id, which holds the payer).
+            # Existing rows stay NULL; permission falls back to payer/owner/admin for them.
+            cursor.execute("ALTER TABLE Expenses ADD COLUMN created_by INTEGER")
+            logger.info("Migration: added 'created_by' column to Expenses")
     except sqlite3.Error as e:
         logger.error(f"Expenses migration error: {e}")
 
@@ -3102,10 +3107,10 @@ def add_expense():
 
     try:
         cursor.execute("""
-            INSERT INTO Expenses (group_id, user_id, amount, original_amount, currency, description, category, is_personal, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO Expenses (group_id, user_id, amount, original_amount, currency, description, category, is_personal, created_at, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (group_id, payer_id, amount, original_amount, currency, description, category, is_personal,
-              datetime.now(timezone.utc).isoformat()))
+              datetime.now(timezone.utc).isoformat(), session['user_id']))
         expense_id = cursor.lastrowid
 
         # Handle splits
@@ -3352,7 +3357,7 @@ def delete_expense(expense_id):
     try:
         # Get the expense and verify ownership
         cursor.execute("""
-            SELECT e.id, e.group_id, e.user_id, e.amount, e.description, t.owner_id
+            SELECT e.id, e.group_id, e.user_id, e.created_by, e.amount, e.description, t.owner_id
             FROM Expenses e
             JOIN Groups t ON e.group_id = t.id
             WHERE e.id = ?
@@ -3362,22 +3367,29 @@ def delete_expense(expense_id):
         if not expense:
             return jsonify({"error": "הוצאה לא נמצאה."}), 404
 
+        uid = session['user_id']
+
         # Check allow_member_delete setting
         cursor.execute("SELECT COALESCE(allow_member_delete, 1) as allow_member_delete FROM Groups WHERE id = ?", (expense['group_id'],))
         group_settings = cursor.fetchone()
 
         # Check if user is admin
         cursor.execute("SELECT COALESCE(is_admin, 0) as is_admin FROM GroupMembers WHERE group_id = ? AND user_id = ?",
-                       (expense['group_id'], session['user_id']))
+                       (expense['group_id'], uid))
         member_row = cursor.fetchone()
         is_admin = bool(member_row['is_admin']) if member_row else False
 
-        # If allow_member_delete is disabled and user is not admin, block deletion
-        if group_settings and not group_settings['allow_member_delete'] and not is_admin:
+        # The person who created the expense (created_by) can always delete their own,
+        # even when the group disables member deletion. Older rows have created_by=NULL,
+        # so they fall back to the payer/owner/admin rules below.
+        is_creator = expense['created_by'] is not None and expense['created_by'] == uid
+
+        # If allow_member_delete is disabled and user is neither admin nor the creator, block deletion
+        if group_settings and not group_settings['allow_member_delete'] and not is_admin and not is_creator:
             return jsonify({"error": "רק מנהל יכול למחוק הוצאות."}), 403
 
-        # Allow deletion by expense creator, group owner, or admin
-        if expense['user_id'] != session['user_id'] and expense['owner_id'] != session['user_id'] and not is_admin:
+        # Allow deletion by the creator, the payer, the group owner, or an admin
+        if not is_creator and expense['user_id'] != uid and expense['owner_id'] != uid and not is_admin:
             return jsonify({"error": "אין הרשאה למחוק הוצאה זו."}), 403
 
         # Delete linked settlements first (settlements created specifically for this

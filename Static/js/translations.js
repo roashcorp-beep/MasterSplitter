@@ -1,5 +1,6 @@
 const translations = {
     he: {
+        "ios_install_instructions": "כדי להתקין באייפון: פתח/י את האתר ב-Safari, הקש/י על כפתור השיתוף (הריבוע עם החץ למעלה) ואז על “הוסף למסך הבית”. לאחר ההתקנה אפשר גם להפעיל התראות.",
         "invite_banner_text": "{inviter} הזמין אותך להצטרף לטיול {group}",
         "invite_accept_btn": "אישור",
         "invite_decline_btn": "דחייה",
@@ -350,6 +351,7 @@ const translations = {
         "copy_link_prompt": "העתק את הקישור:",
         "wa_invite_msg": "הצטרף/י לקבוצה שלי באפליקציית MasterSplitter!",
         "err_invalid_invite_link": "קישור הזמנה לא תקין",
+        "invite_link_stale": "הקישור כבר אינו פעיל. מציג את הקבוצות שלך.",
         "invite_link_btn": "צור קישור הזמנה",
         "profile_change_phone": "עדכון מספר טלפון",
         "profile_phone_ph": "מספר טלפון חדש",
@@ -440,6 +442,7 @@ const translations = {
         "yearly": "שנתי"
     },
     en: {
+        "ios_install_instructions": "To install on iPhone: open the site in Safari, tap the Share button (the square with an up arrow), then tap “Add to Home Screen”. After installing you can also enable notifications.",
         "invite_banner_text": "{inviter} invited you to join the trip {group}",
         "invite_accept_btn": "Accept",
         "invite_decline_btn": "Decline",
@@ -790,6 +793,7 @@ const translations = {
         "copy_link_prompt": "Copy this link:",
         "wa_invite_msg": "Join my group on MasterSplitter!",
         "err_invalid_invite_link": "Invalid invite link",
+        "invite_link_stale": "This invite link is no longer active. Showing your groups.",
         "invite_link_btn": "Create Invite Link",
         "profile_change_phone": "Update Phone Number",
         "profile_phone_ph": "New phone number",
@@ -880,6 +884,8 @@ const translations = {
         "yearly": "Yearly"
     },
     es: {
+        "pwa_install": "Instalar app",
+        "ios_install_instructions": "Para instalar en iPhone: abre el sitio en Safari, toca el botón Compartir (el cuadrado con una flecha hacia arriba) y luego “Añadir a pantalla de inicio”. Tras instalarla podrás activar las notificaciones.",
         "invite_banner_text": "{inviter} te invitó a unirte al viaje {group}",
         "invite_accept_btn": "Aceptar",
         "invite_decline_btn": "Rechazar",
@@ -1145,6 +1151,7 @@ const translations = {
         "copy_link_prompt": "Copia este enlace:",
         "wa_invite_msg": "¡Únete a mi grupo en MasterSplitter!",
         "err_invalid_invite_link": "Enlace de invitación no válido",
+        "invite_link_stale": "Este enlace de invitación ya no está activo. Mostrando tus grupos.",
         "invite_link_btn": "Crear enlace de invitación",
         "profile_change_phone": "Actualizar número de teléfono",
         "profile_phone_ph": "Nuevo número de teléfono",
@@ -1235,6 +1242,8 @@ const translations = {
         "yearly": "Anual"
     },
     ru: {
+        "pwa_install": "Установить приложение",
+        "ios_install_instructions": "Чтобы установить на iPhone: откройте сайт в Safari, нажмите кнопку «Поделиться» (квадрат со стрелкой вверх), затем «На экран Домой». После установки можно включить уведомления.",
         "invite_banner_text": "{inviter} пригласил(а) вас присоединиться к поездке {group}",
         "invite_accept_btn": "Принять",
         "invite_decline_btn": "Отклонить",
@@ -1500,6 +1509,7 @@ const translations = {
         "copy_link_prompt": "Скопируйте эту ссылку:",
         "wa_invite_msg": "Присоединяйтесь к моей группе в MasterSplitter!",
         "err_invalid_invite_link": "Недействительная ссылка-приглашение",
+        "invite_link_stale": "Эта ссылка-приглашение больше не активна. Показываем ваши группы.",
         "invite_link_btn": "Создать ссылку-приглашение",
         "profile_change_phone": "Обновить номер телефона",
         "profile_phone_ph": "Новый номер телефона",
@@ -1590,6 +1600,8 @@ const translations = {
         "yearly": "Ежегодный"
     },
     ar: {
+        "pwa_install": "تثبيت التطبيق",
+        "ios_install_instructions": "للتثبيت على iPhone: افتح الموقع في Safari، واضغط على زر المشاركة (المربع مع سهم لأعلى)، ثم “إضافة إلى الشاشة الرئيسية”. بعد التثبيت يمكنك أيضًا تفعيل الإشعارات.",
         "invite_banner_text": "دعاك {inviter} للانضمام إلى رحلة {group}",
         "invite_accept_btn": "قبول",
         "invite_decline_btn": "رفض",
@@ -1855,6 +1867,7 @@ const translations = {
         "copy_link_prompt": "انسخ هذا الرابط:",
         "wa_invite_msg": "انضم إلى مجموعتي على MasterSplitter!",
         "err_invalid_invite_link": "رابط دعوة غير صالح",
+        "invite_link_stale": "لم يعد رابط الدعوة هذا نشطًا. عرض مجموعاتك.",
         "invite_link_btn": "إنشاء رابط دعوة",
         "profile_change_phone": "تحديث رقم الهاتف",
         "profile_phone_ph": "رقم هاتف جديد",
@@ -1945,6 +1958,8 @@ const translations = {
         "yearly": "سنوي"
     },
     fr: {
+        "pwa_install": "Installer l'app",
+        "ios_install_instructions": "Pour installer sur iPhone : ouvrez le site dans Safari, appuyez sur le bouton Partager (le carré avec une flèche vers le haut), puis “Sur l'écran d'accueil”. Après l'installation, vous pourrez aussi activer les notifications.",
         "invite_banner_text": "{inviter} vous a invité à rejoindre le voyage {group}",
         "invite_accept_btn": "Accepter",
         "invite_decline_btn": "Refuser",
@@ -2210,6 +2225,7 @@ const translations = {
         "copy_link_prompt": "Copiez ce lien :",
         "wa_invite_msg": "Rejoignez mon groupe sur MasterSplitter !",
         "err_invalid_invite_link": "Lien d'invitation invalide",
+        "invite_link_stale": "Ce lien d'invitation n'est plus actif. Affichage de vos groupes.",
         "invite_link_btn": "Créer un lien d'invitation",
         "profile_change_phone": "Mettre à jour le numéro de téléphone",
         "profile_phone_ph": "Nouveau numéro de téléphone",
@@ -2300,6 +2316,8 @@ const translations = {
         "yearly": "Annuel"
     },
     zh: {
+        "pwa_install": "安装应用",
+        "ios_install_instructions": "在 iPhone 上安装：用 Safari 打开网站，点击“分享”按钮（带向上箭头的方框），然后点击“添加到主屏幕”。安装后还可以启用通知。",
         "invite_banner_text": "{inviter} 邀请您加入旅行 {group}",
         "invite_accept_btn": "接受",
         "invite_decline_btn": "拒绝",
@@ -2565,6 +2583,7 @@ const translations = {
         "copy_link_prompt": "复制此链接：",
         "wa_invite_msg": "加入我在 MasterSplitter 上的群组！",
         "err_invalid_invite_link": "邀请链接无效",
+        "invite_link_stale": "此邀请链接已失效。正在显示您的群组。",
         "invite_link_btn": "创建邀请链接",
         "profile_change_phone": "更新电话号码",
         "profile_phone_ph": "新电话号码",

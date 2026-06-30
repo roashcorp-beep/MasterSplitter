@@ -52,6 +52,18 @@ app.secret_key = os.environ.get('SECRET_KEY', os.urandom(32))
 if not os.environ.get('SECRET_KEY'):
     logger.warning("No SECRET_KEY environment variable set — using random key. Sessions will reset on restart.")
 
+# Keep users signed in across app/PWA restarts. Previously the login cookie was a plain
+# browser-session cookie, so closing the PWA on a phone wiped it and forced a re-login every
+# time. Make it a persistent 30-day cookie whose window slides on each visit.
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
+app.config['SESSION_REFRESH_EACH_REQUEST'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+
+@app.before_request
+def _make_session_permanent():
+    session.permanent = True
+
 # Allowed currency codes
 ALLOWED_CURRENCIES = [
     'USD', 'EUR', 'ILS', 'GBP', 'JPY', 'CHF', 'AUD', 'CAD',

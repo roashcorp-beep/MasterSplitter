@@ -422,11 +422,15 @@ async function loadLobby() {
         else if (!_tourDone) setTimeout(maybeStartTour, 1800);      // first-login guided tour
         else setTimeout(maybeOfferNotifications, 2500);             // returning users: maybe offer notifications
 
-        // Auto-open the most recent group on first load
+        // On first load, re-open the group + screen the user last left (falling back to the
+        // most recent group / home), so reopening the app lands where they were.
         if (!hasAutoOpenedGroup && allGroups.length > 0) {
             hasAutoOpenedGroup = true;
-            renderGroupsList(allGroups);   // populate the lobby behind the auto-opened group,
-            openGroup(allGroups[0].id);     // so it isn't empty if the user navigates back to it
+            renderGroupsList(allGroups);   // populate the lobby behind the auto-opened group
+            let _lastId = parseInt(localStorage.getItem('last_group') || '', 10);
+            let _target = allGroups.find(g => g.id === _lastId) ? _lastId : allGroups[0].id;
+            let _lastTab = localStorage.getItem('last_tab') || 'home';
+            openGroup(_target, _lastTab);
             return;
         }
 
@@ -719,8 +723,9 @@ function renderGroupsList(groupsArray, retryCount = 0) {
     }
 }
 
-async function openGroup(groupId) {
+async function openGroup(groupId, initialTab) {
     currentGroupId = groupId;
+    try { localStorage.setItem('last_group', String(groupId)); } catch (e) {}  // remember for next app open
     currentGroupData = allGroups.find(t => t.id === groupId) || null;
     if (currentGroupData) {
         const nameLabel = document.getElementById('group-name-label');
@@ -742,8 +747,8 @@ async function openGroup(groupId) {
         }
     }
     showView('dashboard');
-    // Land on the HOME screen by default whenever a group is opened (user preference).
-    switchTab('home');
+    // Land on HOME by default, or restore the screen the user left when re-opening the app.
+    switchTab(initialTab || 'home');
     await fetchGroupMembers();
     await fetchGroupSettings();
     fetchExpenses();
@@ -1481,6 +1486,7 @@ function switchTab(tabName, skipHistory = false) {
     if (!skipHistory) {
         history.pushState({ tabName: tabName }, "", "#" + tabName);
     }
+    if (tabName !== 'add') { try { localStorage.setItem('last_tab', tabName); } catch (e) {} }  // remember the screen for next app open
     // We're inside the app — make sure the bottom nav / FAB are visible. They get
     // hidden by showView('lobby'); a stray back-navigation could otherwise leave them
     // hidden until a full page refresh ("the bottom part disappears").

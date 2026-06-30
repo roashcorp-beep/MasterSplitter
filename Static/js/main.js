@@ -436,7 +436,6 @@ async function loadLobby() {
 
         showView('lobby');
         renderGroupsList(allGroups);
-        if (typeof maybeRunLobbyTour === 'function') maybeRunLobbyTour();   // first-time groups-screen tour
     } catch (e) {
         console.error('Load lobby error:', e);
         showView('lobby');
@@ -581,6 +580,7 @@ function maybeStartTour() {
     try {
         if (localStorage.getItem('onboarding_tour_done')) return;
         if (!(window.allGroups && window.allGroups.length)) return;       // need a group so the home is shown
+        localStorage.setItem('onboarding_tour_done', '1');               // mark seen up-front -> shows exactly once, even if closed mid-tour
         startTour();
     } catch (e) {}
 }
@@ -665,18 +665,11 @@ function maybeRunLobbyTour() {
         setTimeout(() => { if (!_tourActive) runTour(getLobbyTourSteps(), 'tour_lobby_done'); }, 800);
     } catch (e) {}
 }
-window.onCreateGroupOpened = function () {
-    try {
-        if (_tourActive || localStorage.getItem('tour_create_done') === '1') return;
-        setTimeout(() => { if (!_tourActive) runTour(getCreateTourSteps(), 'tour_create_done'); }, 500);
-    } catch (e) {}
-};
-window.onEditGroupOpened = function () {
-    try {
-        if (_tourActive || localStorage.getItem('tour_edit_done') === '1') return;
-        setTimeout(() => { if (!_tourActive) runTour(getEditTourSteps(), 'tour_edit_done'); }, 500);
-    } catch (e) {}
-};
+// Per-screen mini-tours are intentionally NOT auto-triggered — the guide should only run on
+// first app connection or from the Profile "Guided tour" button (these stay defined so they
+// can be re-enabled later if wanted).
+window.onCreateGroupOpened = function () {};
+window.onEditGroupOpened = function () {};
 window.startTour = startTour;
 // ====================== /GUIDED ONBOARDING TOUR =============================
 
@@ -1518,7 +1511,6 @@ function switchTab(tabName, skipHistory = false) {
         if (curInput) curInput.value = defaultCur;
         if (curBtn) curBtn.innerText = getCurrencySymbol(defaultCur);
     }
-    if (typeof maybeRunContextTour === 'function') maybeRunContextTour(tabName);  // first-open mini-tour for this screen
 }
 
 async function logout() {

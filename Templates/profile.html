@@ -7,6 +7,7 @@
     
     <!-- Step 1 Isolated i18n Engine -->
     <script src="{{ url_for('static', filename='js/i18n.js') }}?v=1.1"></script>
+    <script src="{{ url_for('static', filename='js/legal-texts.js') }}?v=1.0"></script>
 
     <!-- React & Tailwind CDNs -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -69,16 +70,17 @@
             return arr;
         }
         window.subscribeToPushProfile = async function() {
+            const tt = (key) => (window.MasterSplitterI18n ? window.MasterSplitterI18n.getTranslation(key) : key);
             try {
                 if (!('serviceWorker' in navigator) || !('PushManager' in window) || typeof Notification === 'undefined') {
-                    alert('הדפדפן הזה לא תומך בהתראות פוש. נסה/י דרך האפליקציה המותקנת (PWA).');
+                    alert(tt('pushNotSupported'));
                     return false;
                 }
                 const cfg = await (await fetch('/api/push/vapid-public-key')).json();
-                if (!cfg.enabled || !cfg.key) { alert('התראות אינן מוגדרות בשרת כרגע.'); return false; }
+                if (!cfg.enabled || !cfg.key) { alert(tt('pushNotConfigured')); return false; }
                 let perm = Notification.permission;
                 if (perm === 'default') perm = await Notification.requestPermission();
-                if (perm !== 'granted') { alert('כדי לקבל התראות יש לאשר את הרשאת ההתראות בדפדפן.'); return false; }
+                if (perm !== 'granted') { alert(tt('pushPermissionDenied')); return false; }
                 const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' });
                 try { await reg.update(); } catch (e) {}
                 await navigator.serviceWorker.ready;
@@ -94,12 +96,12 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ subscription: sub }),
                 });
-                if (!res.ok) { alert('שמירת ההתראות בשרת נכשלה.'); return false; }
-                alert('התראות הופעלו במכשיר זה ✅');
+                if (!res.ok) { alert(tt('pushSaveFailed')); return false; }
+                alert(tt('pushEnabled'));
                 return true;
             } catch (e) {
                 console.error('subscribeToPushProfile error:', e);
-                alert('שגיאה בהפעלת התראות: ' + (e && e.message ? e.message : e));
+                alert(tt('pushEnableErrorPrefix') + (e && e.message ? e.message : e));
                 return false;
             }
         };
@@ -293,39 +295,19 @@ const Send = ({size=18, className=""}) => <svg width={size} height={size} classN
             );
         };
 
-const LEGAL_TEXTS = {
-            terms: {
-                title: 'תנאי שימוש - MasterSplitter',
-                content: `ברוכים הבאים לאפליקציית MasterSplitter. השימוש באפליקציה כפוף לתנאים המפורטים להלן. בעצם התחברותך ושימושך במערכת, הנך מסכים לתנאים אלו במלואם.<br/><br/>
-  <strong>1. מטרת השירות:</strong> האפליקציה נועדה לסייע בניהול, מעקב וחלוקת הוצאות כספיות בין משתמשים, חברים או שותפים לדירה. השירות מסופק "כמות שהוא" (As-Is).<br/>
-  <strong>2. אחריות המשתמש:</strong> המשתמש אחראי לדיוק הנתונים המוזנים. הנהלת האפליקציה אינה נושאת באחריות לטעויות בחישובים, סכסוכים כספיים בין משתמשים, או אובדן מידע.<br/>
-  <strong>3. חשבון ואבטחה:</strong> הנך אחראי לשמירת סודיות פרטי ההתחברות שלך. כל פעולה שתבוצע תחת חשבונך היא באחריותך הבלעדית.<br/>
-  <strong>4. שינויים בשירות:</strong> הנהלת האפליקציה רשאית לעדכן, לשנות או להפסיק את השירות בכל עת וללא הודעה מוקדמת.<br/>
-  <strong>5. קניין רוחני:</strong> כל זכויות היוצרים והקניין הרוחני באפליקציה (כולל עיצוב, קוד, ולוגו) שייכים ל-MasterSplitter.`
-            },
-            privacy: {
-                title: 'מדיניות פרטיות - MasterSplitter',
-                content: `פרטיותך חשובה לנו. מדיניות זו מפרטת כיצד אנו אוספים, שומרים ומשתמשים במידע שלך.<br/><br/>
-  <strong>1. איסוף מידע:</strong> אנו אוספים מידע הנמסר על ידך בעת ההרשמה והשימוש (כגון כתובת אימייל, שמות, וסכומי הוצאות). כמו כן, אנו שומרים את העדפות השפה והעיצוב (Dark Mode) במכשירך באמצעות Local Storage.<br/>
-  <strong>2. שימוש במידע:</strong> המידע משמש אך ורק לצורך תפעול האפליקציה, חלוקת ההוצאות ושירותי העזר החכם (AI). אנו לא מוכרים את המידע שלך לצדדים שלישיים.<br/>
-  <strong>3. אבטחת מידע:</strong> אנו נוקטים באמצעי אבטחה מחמירים (כולל הצפנת תקשורת) כדי להגן על המידע שלך, בהתאם לחוק הגנת הפרטיות הישראלי ותקנות ה-GDPR.<br/>
-  <strong>4. שימוש בבינה מלאכותית (AI):</strong> חלק מהפיצ'רים נעזרים במודלי AI צד-שלישי לצורך ניתוח (למשל סריקת קבלות או מתן טיפים). נתונים אלו מועברים בצורה מאובטחת וללא זיהוי אישי ככל הניתן.<br/>
-  <strong>5. זכויותיך:</strong> זכותך לעיין במידע שנשמר אודותיך, לבקש את תיקונו או את מחיקתו המוחלטת ממערכותינו בכל עת.`
-            }
-        };
-
-        const LegalModal = ({ data, onClose }) => {
+const LegalModal = ({ data, onClose }) => {
             if (!data) return null;
+            const dir = data.dir || 'rtl';
             return (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="modal-title">
                     <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-lg w-full max-h-[85vh] overflow-hidden shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-                            <h3 id="modal-title" className="font-bold text-lg text-gray-900 dark:text-white" dir="rtl">{data.title}</h3>
+                            <h3 id="modal-title" className="font-bold text-lg text-gray-900 dark:text-white" dir={dir}>{data.title}</h3>
                             <button onClick={onClose} aria-label="Close modal" className="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white focus:outline-none p-1 rounded-md hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
                                 <X size={20} />
                             </button>
                         </div>
-                        <div className="p-6 overflow-y-auto text-sm text-gray-600 dark:text-gray-300 space-y-2 leading-relaxed" dir="rtl" dangerouslySetInnerHTML={{ __html: data.content }}></div>
+                        <div className="p-6 overflow-y-auto text-sm text-gray-600 dark:text-gray-300 space-y-2 leading-relaxed" dir={dir} dangerouslySetInnerHTML={{ __html: data.content }}></div>
                     </div>
                 </div>
             );
@@ -333,6 +315,7 @@ const LEGAL_TEXTS = {
 
         const ProfileApp = () => {
             const [lang, setLang] = useState(i18n ? i18n.getCurrentLanguage() : 'he');
+            const legalTexts = (window.MasterSplitterLegalTexts && window.MasterSplitterLegalTexts[lang]) || window.MasterSplitterLegalTexts.he;
             const [isDark, setIsDark] = useState(document.documentElement.classList.contains('dark'));
             const [activeModal, setActiveModal] = useState(null);
             
@@ -566,8 +549,8 @@ const LEGAL_TEXTS = {
                                     </div>
                                 </button>
                                 {renderMenuItem(<Bell size={20}/>, t('profileNotifications'), () => openModal('notifications'))}
-                                {renderMenuItem(<span style={{fontSize:'20px'}}>🎓</span>, isRTL ? 'מדריך שימוש' : 'User Guide', () => window.openTutorialVideo && window.openTutorialVideo(isRTL))}
-                                {renderMenuItem(<span style={{fontSize:'20px'}}>🧭</span>, isRTL ? 'סיור מודרך' : 'Guided tour', () => { try { localStorage.setItem('start_tour_on_load', '1'); } catch (e) {} window.location.href = '/app'; })}
+                                {renderMenuItem(<span style={{fontSize:'20px'}}>🎓</span>, t('profileGuide'), () => window.openTutorialVideo && window.openTutorialVideo())}
+                                {renderMenuItem(<span style={{fontSize:'20px'}}>🧭</span>, t('guidedTour'), () => { try { localStorage.setItem('start_tour_on_load', '1'); } catch (e) {} window.location.href = '/app'; })}
                             </div>
                         </div>
 
@@ -586,14 +569,14 @@ const LEGAL_TEXTS = {
                             <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2 px-4">{t('profilePrivacySecurity')}</h3>
                             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
                                 {renderMenuItem(<Shield size={20}/>, t('profilePrivacySettings'), () => openModal('comingSoon'))}
-                                <button onClick={() => setLegalData(LEGAL_TEXTS.terms)} className="w-full flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors border-b border-gray-100 dark:border-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                <button onClick={() => setLegalData({ ...legalTexts.terms, dir: legalTexts.dir })} className="w-full flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors border-b border-gray-100 dark:border-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-500">
                                     <div className="flex items-center gap-3">
                                         <div className="text-purple-500 dark:text-purple-400"><BookOpen size={20}/></div>
                                         <span className="font-medium text-gray-700 dark:text-gray-200 hover:underline focus:underline">{t('termsOfUse')}</span>
                                     </div>
                                     <div className="flex items-center gap-2 text-gray-400"><Chevron size={18} /></div>
                                 </button>
-                                <button onClick={() => setLegalData(LEGAL_TEXTS.privacy)} className="w-full flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors border-b border-gray-100 dark:border-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                <button onClick={() => setLegalData({ ...legalTexts.privacy, dir: legalTexts.dir })} className="w-full flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors border-b border-gray-100 dark:border-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-500">
                                     <div className="flex items-center gap-3">
                                         <div className="text-purple-500 dark:text-purple-400"><BookOpen size={20}/></div>
                                         <span className="font-medium text-gray-700 dark:text-gray-200 hover:underline focus:underline">{t('privacyPolicy')}</span>
@@ -710,7 +693,7 @@ const LEGAL_TEXTS = {
                     </Modal>
 
                     <Modal isOpen={activeModal === 'currency'} onClose={() => setActiveModal(null)} title={t('profileCurrency')}>
-                        <input type="text" placeholder={lang === 'he' ? 'חפש מטבע...' : 'Search currency...'} 
+                        <input type="text" placeholder={t('currencySearchPh')}
                             value={currencySearch || ''} 
                             onChange={(e) => setCurrencySearch(e.target.value)}
                             className="w-full p-2 mb-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
@@ -756,22 +739,22 @@ const LEGAL_TEXTS = {
                             <button onClick={() => handleUpdateProfile('two_fa_method', 'none')} className={`w-full p-4 rounded-xl border transition-colors flex items-center gap-3 ${profileData.two_fa_method === 'none' ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20' : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800'}`}>
                                 <Shield size={20} className={profileData.two_fa_method === 'none' ? 'text-purple-500' : 'text-gray-400'} />
                                 <div className="text-right flex-1">
-                                    <div className={`font-semibold ${profileData.two_fa_method === 'none' ? 'text-purple-600 dark:text-purple-400' : 'text-gray-900 dark:text-white'}`}>Off</div>
-                                    <div className="text-xs text-gray-500">{isRTL ? 'ללא אימות נוסף' : 'No additional verification'}</div>
+                                    <div className={`font-semibold ${profileData.two_fa_method === 'none' ? 'text-purple-600 dark:text-purple-400' : 'text-gray-900 dark:text-white'}`}>{t('twoFaOff')}</div>
+                                    <div className="text-xs text-gray-500">{t('twoFaOffDesc')}</div>
                                 </div>
                             </button>
                             <button onClick={() => handleUpdateProfile('two_fa_method', 'email')} className={`w-full p-4 rounded-xl border transition-colors flex items-center gap-3 ${profileData.two_fa_method === 'email' ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20' : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800'}`}>
                                 <Mail size={20} className={profileData.two_fa_method === 'email' ? 'text-purple-500' : 'text-gray-400'} />
                                 <div className="text-right flex-1">
-                                    <div className={`font-semibold ${profileData.two_fa_method === 'email' ? 'text-purple-600 dark:text-purple-400' : 'text-gray-900 dark:text-white'}`}>Email</div>
-                                    <div className="text-xs text-gray-500">{isRTL ? 'קוד אימות לאימייל' : 'Verification code via email'}</div>
+                                    <div className={`font-semibold ${profileData.two_fa_method === 'email' ? 'text-purple-600 dark:text-purple-400' : 'text-gray-900 dark:text-white'}`}>{t('twoFaEmail')}</div>
+                                    <div className="text-xs text-gray-500">{t('twoFaEmailDesc')}</div>
                                 </div>
                             </button>
                             <button onClick={() => handleUpdateProfile('two_fa_method', 'fingerprint')} className={`w-full p-4 rounded-xl border transition-colors flex items-center gap-3 ${profileData.two_fa_method === 'fingerprint' ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20' : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800'}`}>
                                 <Fingerprint size={20} className={profileData.two_fa_method === 'fingerprint' ? 'text-purple-500' : 'text-gray-400'} />
                                 <div className="text-right flex-1">
-                                    <div className={`font-semibold ${profileData.two_fa_method === 'fingerprint' ? 'text-purple-600 dark:text-purple-400' : 'text-gray-900 dark:text-white'}`}>Fingerprint / WebAuthn</div>
-                                    <div className="text-xs text-gray-500">{isRTL ? 'אימות ביומטרי' : 'Biometric authentication'}</div>
+                                    <div className={`font-semibold ${profileData.two_fa_method === 'fingerprint' ? 'text-purple-600 dark:text-purple-400' : 'text-gray-900 dark:text-white'}`}>{t('twoFaFingerprint')}</div>
+                                    <div className="text-xs text-gray-500">{t('twoFaFingerprintDesc')}</div>
                                 </div>
                             </button>
                         </div>
@@ -815,14 +798,15 @@ const LEGAL_TEXTS = {
     </div>
 </div>
 <script>
-    window.openTutorialVideo = function(isRTL) {
+    window.openTutorialVideo = function() {
         var ov = document.getElementById('tutorial-video-overlay');
         var v = document.getElementById('tutorial-video');
         var fb = document.getElementById('tutorial-video-fallback');
         var soon = document.getElementById('tutorial-video-soon');
         var title = document.getElementById('tutorial-video-title');
-        if (title) title.textContent = '🎓 ' + (isRTL === false ? 'User Guide' : 'מדריך שימוש');
-        if (soon) soon.textContent = (isRTL === false ? 'Video coming soon' : 'הסרטון יתווסף בקרוב');
+        var tt = window.MasterSplitterI18n ? window.MasterSplitterI18n.getTranslation : function(k) { return k; };
+        if (title) title.textContent = '🎓 ' + tt('profileGuide');
+        if (soon) soon.textContent = tt('videoComingSoon');
         if (fb) fb.style.display = 'none';
         if (v) { v.style.display = 'block'; v.src = '/static/videos/tutorial.mp4'; v.load(); v.play().catch(function(){}); }
         if (ov) ov.style.display = 'flex';

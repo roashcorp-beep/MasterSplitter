@@ -147,7 +147,7 @@ async function submitAuth() {
         const data = await res.json();
         if (res.ok && data.success) {
             if (authMode === 'signup') {
-                alert(data.message || 'Registration successful! Please check your email to verify.');
+                alert(data.message || i18n('registration_success'));
                 authMode = 'login';
                 toggleAuthMode();
             } else {
@@ -235,7 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Check for verification success
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('verified') === 'true') {
-        setTimeout(() => showToast('החשבון אומת בהצלחה! התחבר כדי להמשיך.', 'success'), 500);
+        setTimeout(() => showToast(i18n('account_verified'), 'success'), 500);
         window.history.replaceState({}, document.title, "/");
     }
 
@@ -322,16 +322,16 @@ async function initApp() {
                     localStorage.removeItem('pending_join_group_id');
                     window.location.hash = '';
                     if (window.showToast) {
-                        window.showToast(typeof i18n === 'function' && i18n("toast_group_created") ? 'Joined group successfully!' : 'Joined group successfully!', 'success');
+                        window.showToast(i18n('toast_group_joined'), 'success');
                     } else {
-                        alert('Joined group successfully!');
+                        alert(i18n('toast_group_joined'));
                     }
                     await loadLobby();
                 } else {
                     if (window.showToast) {
-                        window.showToast(joinData.error || 'Failed to join group.', 'error');
+                        window.showToast(joinData.error || i18n('err_join_group_failed'), 'error');
                     } else {
-                        alert(joinData.error || 'Failed to join group.');
+                        alert(joinData.error || i18n('err_join_group_failed'));
                     }
                 }
             } catch (err) {
@@ -370,11 +370,11 @@ async function fetchInvitations() {
         banner.innerHTML = invs.map(inv => `
             <div class="invitation-card" id="invitation-${inv.id}">
                 <div class="invitation-text">
-                    <strong>${escapeHTML(inv.inviter_name)}</strong> הזמין אותך להצטרף לטיול <strong>${escapeHTML(inv.group_name)}</strong>
+                    ${i18n('invite_banner_text').replace('{inviter}', `<strong>${escapeHTML(inv.inviter_name)}</strong>`).replace('{group}', `<strong>${escapeHTML(inv.group_name)}</strong>`)}
                 </div>
                 <div class="invitation-actions">
-                    <button class="btn-accept" onclick="respondInvitation(${inv.id}, 'approve')">אישור</button>
-                    <button class="btn-decline" onclick="respondInvitation(${inv.id}, 'reject')">דחייה</button>
+                    <button class="btn-accept" onclick="respondInvitation(${inv.id}, 'approve')">${i18n('invite_accept_btn')}</button>
+                    <button class="btn-decline" onclick="respondInvitation(${inv.id}, 'reject')">${i18n('invite_decline_btn')}</button>
                 </div>
             </div>
         `).join('');
@@ -390,11 +390,11 @@ async function respondInvitation(id, action) {
         });
         const data = await res.json();
         if (res.ok && data.success) {
-            showToast(action === 'approve' ? 'הצטרפת לטיול בהצלחה!' : 'ההזמנה נדחתה.');
+            showToast(action === 'approve' ? i18n('invite_joined_trip') : i18n('invite_declined'));
             fetchInvitations();
             loadLobby();
         } else {
-            alert(data.error || 'שגיאה בתגובה להזמנה.');
+            alert(data.error || i18n('err_invite_response'));
         }
     } catch (e) {
         console.error('Respond invitation error:', e);
@@ -936,7 +936,7 @@ function createParticipantRowHTML(n, idx, mode) {
             </div>
             <div class="flex items-center gap-3">
                 <span class="px-2.5 py-1 text-xs rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-medium">${statusText}</span>
-                <button type="button" onclick="if(confirm('Remove user?')) { ${removeFn}; }" class="text-red-500 hover:text-red-700 dark:text-red-400 p-1">✕</button>
+                <button type="button" onclick="if(confirm('${i18n('confirm_remove_user').replace(/'/g, "\\'")}')) { ${removeFn}; }" class="text-red-500 hover:text-red-700 dark:text-red-400 p-1">✕</button>
             </div>
         </div>
         ${budgetInputs}
@@ -1016,11 +1016,11 @@ async function createGroup() {
 
             await loadLobby();
         } else {
-            showToast(data.error || 'Network error', 'error');
+            showToast(data.error || i18n('network_error'), 'error');
         }
     } catch (e) {
         console.error('Create group error:', e);
-        showToast('Network error', 'error');
+        showToast(i18n('network_error'), 'error');
     }
 }
 
@@ -1250,11 +1250,11 @@ async function saveEditGroup() {
             showToast(typeof i18n === 'function' ? i18n('toast_group_updated') : 'Group updated', 'success');
             await loadLobby();
         } else {
-            alert(data.error || 'Network error');
+            alert(data.error || i18n('network_error'));
         }
     } catch (e) {
         console.error('Save edit group error:', e);
-        alert('Network error');
+        alert(i18n('network_error'));
     }
 }
 
@@ -1424,7 +1424,7 @@ async function sendEmailInviteFromTab(mode) {
             if (data.success) {
                 showToast(i18n('invite_email_sent'), 'success');
             } else {
-                showToast(data.error || 'Failed to send email', 'error');
+                showToast(data.error || i18n('err_send_email_failed'), 'error');
             }
         } catch(e) {
             console.error('Email invite error', e);
@@ -2532,10 +2532,10 @@ async function saveEditExpense() {
             fetchExpenses();
             fetchBalances();
         } else {
-            alert(data.error || 'שגיאה בעדכון ההוצאה.');
+            alert(data.error || i18n('err_update_expense'));
         }
     } catch (e) {
-        alert('שגיאת רשת.');
+        alert(i18n('network_error'));
     }
 }
 
@@ -2551,11 +2551,11 @@ async function deleteExpense(expenseId) {
             fetchExpenses();
             fetchBalances();
         } else {
-            alert(data.error || 'שגיאה במחיקת הוצאה.');
+            alert(data.error || i18n('err_delete_expense'));
         }
     } catch (e) {
         console.error('Delete expense error:', e);
-        alert('שגיאת רשת.');
+        alert(i18n('network_error'));
     }
 }
 
@@ -2576,7 +2576,7 @@ async function addExpense() {
     if (!amountVal || parseFloat(amountVal) <= 0) { alert(errAmount); return; }
     if (!desc) { alert(errDesc); return; }
     if (!parts.length) { alert(errParts); return; }
-    if (!currentGroupId) { alert('לא נבחר טיול.'); return; }
+    if (!currentGroupId) { alert(i18n('err_no_active_trip')); return; }
 
     const amount = parseFloat(amountVal);
     let splits = [];
@@ -2605,7 +2605,7 @@ async function addExpense() {
                 totalItems += count;
             }
             if (totalItems <= 0) {
-                alert("סך הפריטים/היחס חייב להיות גדול מ-0");
+                alert(i18n('err_items_ratio_positive'));
                 return;
             }
             for (const pid of validParts) {
@@ -2689,11 +2689,11 @@ async function addExpense() {
             currentPayerId = null;
             switchTab('expenses');
         } else {
-            alert(data.error || 'שגיאה בהוספת ההוצאה.');
+            alert(data.error || i18n('err_add_expense'));
         }
     } catch (e) {
         console.error('Add expense error:', e);
-        alert('שגיאת רשת.');
+        alert(i18n('network_error'));
     }
 }
 
@@ -2983,7 +2983,7 @@ function suggestLimboOffset() {
     }
     
     if (allDebts.length === 0) {
-        showToast('אין חובות לקיזוז! 🎉', 'success');
+        showToast(i18n('no_debts_to_settle'), 'success');
         return;
     }
     
@@ -3005,7 +3005,7 @@ async function executeLimboOffset() {
     if (!window.currentLimboDebts || window.currentLimboDebts.length === 0) return;
     
     const btn = document.querySelector('#limbo-modal .primary-btn');
-    if (btn) btn.innerHTML = 'מבצע...';
+    if (btn) btn.innerHTML = typeof i18n === 'function' ? i18n('processing_btn') : 'מבצע...';
     
     try {
         await Promise.all(window.currentLimboDebts.map(s => {
@@ -3023,11 +3023,11 @@ async function executeLimboOffset() {
         }));
         
         closeModal('limbo-modal');
-        showToast('כל החובות קוזזו בהצלחה! 🎉', 'success');
+        showToast(i18n('all_debts_settled'), 'success');
         fetchBalances();
     } catch (e) {
         console.error(e);
-        showToast('שגיאה בקיזוז החובות', 'error');
+        showToast(i18n('err_settle_debts'), 'error');
     } finally {
         if (btn) btn.innerHTML = typeof i18n === 'function' ? i18n('execute_limbo') : 'בצע קיזוז';
     }
@@ -3177,11 +3177,11 @@ async function confirmSettleUp() {
             fetchBalances();
             fetchExpenses();
         } else {
-            alert(data.error || 'Failed to settle debt.');
+            alert(data.error || i18n('err_settle_debt_failed'));
         }
     } catch (e) {
         console.error('Settle up error:', e);
-        alert('Network error.');
+        alert(i18n('network_error'));
     }
 }
 
@@ -3198,15 +3198,15 @@ async function resetGroupSettlements() {
         const res = await fetch(`/api/groups/${currentGroupId}/settlements/reset`, { method: 'POST' });
         const data = await res.json();
         if (res.ok && data.success) {
-            showToast(`נמחקו ${data.deleted} קיזוזים. המאזן חושב מחדש.`, 'success');
+            showToast(i18n('settlements_reset_success').replace('{count}', data.deleted), 'success');
             fetchBalances();
             if (typeof fetchExpenses === 'function') fetchExpenses();
         } else {
-            alert(data.error || 'Failed to reset settlements.');
+            alert(data.error || i18n('err_reset_settlements'));
         }
     } catch (e) {
         console.error('Reset settlements error:', e);
-        alert('Network error.');
+        alert(i18n('network_error'));
     }
 }
 
@@ -3696,11 +3696,11 @@ async function uploadReceipt(file) {
         if (data && data.success) {
             renderScannedItems(data.items);
         } else {
-            alert((data && data.error) || 'Failed to scan receipt.');
+            alert((data && data.error) || i18n('err_scan_receipt'));
         }
     } catch (e) {
         console.error(e);
-        alert('Network error while scanning.');
+        alert(i18n('err_scan_network'));
     } finally {
         document.getElementById('scan-overlay').style.display = 'none';
     }
@@ -4456,13 +4456,13 @@ function urlBase64ToUint8Array(base64String) {
 async function subscribeToPush(interactive = false) {
     try {
         if (!('serviceWorker' in navigator) || !('PushManager' in window) || typeof Notification === 'undefined') {
-            if (interactive) alert('הדפדפן הזה לא תומך בהתראות פוש. נסה/י דרך האפליקציה המותקנת (PWA).');
+            if (interactive) alert(i18n('pushNotSupported'));
             return false;
         }
         const cfgRes = await fetch('/api/push/vapid-public-key');
         const cfg = await cfgRes.json();
         if (!cfg.enabled || !cfg.key) {
-            if (interactive) alert('התראות אינן מוגדרות בשרת כרגע.');
+            if (interactive) alert(i18n('pushNotConfigured'));
             return false;
         }
         let perm = Notification.permission;
@@ -4470,7 +4470,7 @@ async function subscribeToPush(interactive = false) {
             perm = await Notification.requestPermission();
         }
         if (perm !== 'granted') {
-            if (interactive) alert('כדי לקבל התראות יש לאשר את הרשאת ההתראות בדפדפן.');
+            if (interactive) alert(i18n('pushPermissionDenied'));
             return false;
         }
         const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' });
@@ -4488,12 +4488,12 @@ async function subscribeToPush(interactive = false) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ subscription: sub }),
         });
-        if (!res.ok) { if (interactive) alert('שמירת ההתראות בשרת נכשלה.'); return false; }
-        if (interactive && typeof showToast === 'function') showToast('התראות הופעלו במכשיר זה ✅');
+        if (!res.ok) { if (interactive) alert(i18n('pushSaveFailed')); return false; }
+        if (interactive && typeof showToast === 'function') showToast(i18n('pushEnabled'));
         return true;
     } catch (e) {
         console.error('subscribeToPush error:', e);
-        if (interactive) alert('שגיאה בהפעלת התראות: ' + (e && e.message ? e.message : e));
+        if (interactive) alert(i18n('pushEnableErrorPrefix') + (e && e.message ? e.message : e));
         return false;
     }
 }
@@ -4547,10 +4547,10 @@ async function copyInviteLink(groupId) {
                 await navigator.clipboard.writeText(link);
                 showToast(typeof i18n === 'function' ? i18n('invite_link_copied') : 'Invite link copied!', 'success');
             } else {
-                prompt('Copy this link:', link);
+                prompt(i18n('copy_link_prompt'), link);
             }
         } else {
-            showToast(data.error || 'Error', 'error');
+            showToast(data.error || i18n('generic_error'), 'error');
         }
     } catch (e) {
         console.error('Invite link error:', e);
@@ -4567,11 +4567,11 @@ async function generateInviteAndShareWA() {
         const data = await res.json();
         if (data.success && data.invite_token) {
             const link = `${window.location.origin}/join/${data.invite_token}`;
-            const msg = encodeURIComponent(`Join my group on MasterSplitter! ${link}`);
+            const msg = encodeURIComponent(`${i18n('wa_invite_msg')} ${link}`);
             const waUrl = `https://wa.me/?text=${msg}`;
             window.open(waUrl, '_blank');
         } else {
-            showToast(data.error || 'Error', 'error');
+            showToast(data.error || i18n('generic_error'), 'error');
         }
     } catch (e) { console.error('WA invite error:', e); }
 }
@@ -4715,7 +4715,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             loadLobby();
                         }
                     } else {
-                        showToast(data.error || 'Invalid invite link', 'error');
+                        showToast(data.error || i18n('err_invalid_invite_link'), 'error');
                     }
                 })
                 .catch(e => console.error('Auto-join error:', e))
@@ -4799,23 +4799,23 @@ window.makeMemberAdmin = async function(group, contact) {
     const groupId = group.id;
     const member = group.participants.find(p => p.contact === contact || p.email === contact || p.phone === contact);
     if (!member || member.type === 'guest') {
-        showToast("Guests cannot be admins.", "error");
+        showToast(i18n('err_guests_not_admin'), "error");
         return;
     }
-    
+
     try {
         const res = await fetch(`/api/groups/${groupId}/members/${member.id}/promote`, { method: 'PUT' });
         const data = await res.json();
         if (res.ok && data.success) {
-            showToast("Member promoted to admin", "success");
+            showToast(i18n('member_promoted'), "success");
             await loadLobby(); // reload groups to update state
             // If the modal is open, we should also update its state by re-triggering openEditGroupModal or it will auto-update if we re-fetch.
             openEditGroupModalAsync(groupId);
         } else {
-            showToast(data.error || "Error", "error");
+            showToast(data.error || i18n('generic_error'), "error");
         }
     } catch(e) {
-        showToast("Network error", "error");
+        showToast(i18n('network_error'), "error");
     }
 };
 
@@ -4827,21 +4827,21 @@ window.removeMemberAdmin = async function(group, contact) {
         return;
     }
     
-    if (!window.confirm("האם אתה בטוח שברצונך להסיר הרשאת ניהול ממשתמש זה?")) return;
-    
+    if (!window.confirm(i18n('confirm_demote_admin'))) return;
+
     try {
         // Demote endpoint uses POST according to Server.py line 2048
         const res = await fetch(`/api/groups/${groupId}/demote/${member.id}`, { method: 'POST' });
         const data = await res.json();
         if (res.ok && data.success) {
-            showToast("הרשאת הניהול הוסרה בהצלחה", "success");
+            showToast(i18n('admin_removed'), "success");
             await loadLobby(); // reload groups to update state
             openEditGroupModalAsync(groupId);
         } else {
-            showToast(data.error || "Error", "error");
+            showToast(data.error || i18n('generic_error'), "error");
         }
     } catch(e) {
-        showToast("Network error", "error");
+        showToast(i18n('network_error'), "error");
     }
 };
 
@@ -4850,14 +4850,14 @@ window.removeGroupMember = async function(groupId, contact) {
         const res = await fetch(`/api/groups/${groupId}/members/${encodeURIComponent(contact)}`, { method: 'DELETE' });
         const data = await res.json();
         if (res.ok && data.success) {
-            showToast("Member removed", "success");
+            showToast(i18n('member_removed'), "success");
             await loadLobby();
             openEditGroupModalAsync(groupId);
         } else {
-            showToast(data.error || "Error", "error");
+            showToast(data.error || i18n('generic_error'), "error");
         }
     } catch(e) {
-        showToast("Network error", "error");
+        showToast(i18n('network_error'), "error");
     }
 };
 
@@ -4908,11 +4908,11 @@ window.saveEditGroupFromReact = async function(group) {
             showToast(typeof i18n === 'function' ? i18n('toast_group_updated') : 'Group updated', 'success');
             await loadLobby();
         } else {
-            alert(data.error || 'Network error');
+            alert(data.error || i18n('network_error'));
         }
     } catch (e) {
         console.error('Save edit group error:', e);
-        alert('Network error');
+        alert(i18n('network_error'));
     }
 };
 

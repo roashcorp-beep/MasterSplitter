@@ -7,6 +7,7 @@
     
     <!-- Step 1 Isolated i18n Engine -->
     <script src="{{ url_for('static', filename='js/i18n.js') }}?v=1.1"></script>
+    <script src="{{ url_for('static', filename='js/legal-texts.js') }}?v=1.0"></script>
 
     <!-- OS Default Theme Script -->
     <script>
@@ -296,49 +297,29 @@ const X = ({size=18, className=""}) => <svg width={size} height={size} className
             );
         };
 
-        const LEGAL_TEXTS = {
-            terms: {
-                title: 'תנאי שימוש - MasterSplitter',
-                content: `ברוכים הבאים לאפליקציית MasterSplitter. השימוש באפליקציה כפוף לתנאים המפורטים להלן. בעצם התחברותך ושימושך במערכת, הנך מסכים לתנאים אלו במלואם.<br/><br/>
-  <strong>1. מטרת השירות:</strong> האפליקציה נועדה לסייע בניהול, מעקב וחלוקת הוצאות כספיות בין משתמשים, חברים או שותפים לדירה. השירות מסופק "כמות שהוא" (As-Is).<br/>
-  <strong>2. אחריות המשתמש:</strong> המשתמש אחראי לדיוק הנתונים המוזנים. הנהלת האפליקציה אינה נושאת באחריות לטעויות בחישובים, סכסוכים כספיים בין משתמשים, או אובדן מידע.<br/>
-  <strong>3. חשבון ואבטחה:</strong> הנך אחראי לשמירת סודיות פרטי ההתחברות שלך. כל פעולה שתבוצע תחת חשבונך היא באחריותך הבלעדית.<br/>
-  <strong>4. שינויים בשירות:</strong> הנהלת האפליקציה רשאית לעדכן, לשנות או להפסיק את השירות בכל עת וללא הודעה מוקדמת.<br/>
-  <strong>5. קניין רוחני:</strong> כל זכויות היוצרים והקניין הרוחני באפליקציה (כולל עיצוב, קוד, ולוגו) שייכים ל-MasterSplitter.`
-            },
-            privacy: {
-                title: 'מדיניות פרטיות - MasterSplitter',
-                content: `פרטיותך חשובה לנו. מדיניות זו מפרטת כיצד אנו אוספים, שומרים ומשתמשים במידע שלך.<br/><br/>
-  <strong>1. איסוף מידע:</strong> אנו אוספים מידע הנמסר על ידך בעת ההרשמה והשימוש (כגון כתובת אימייל, שמות, וסכומי הוצאות). כמו כן, אנו שומרים את העדפות השפה והעיצוב (Dark Mode) במכשירך באמצעות Local Storage.<br/>
-  <strong>2. שימוש במידע:</strong> המידע משמש אך ורק לצורך תפעול האפליקציה, חלוקת ההוצאות ושירותי העזר החכם (AI). אנו לא מוכרים את המידע שלך לצדדים שלישיים.<br/>
-  <strong>3. אבטחת מידע:</strong> אנו נוקטים באמצעי אבטחה מחמירים (כולל הצפנת תקשורת) כדי להגן על המידע שלך, בהתאם לחוק הגנת הפרטיות הישראלי ותקנות ה-GDPR.<br/>
-  <strong>4. שימוש בבינה מלאכותית (AI):</strong> חלק מהפיצ'רים נעזרים במודלי AI צד-שלישי לצורך ניתוח (למשל סריקת קבלות או מתן טיפים). נתונים אלו מועברים בצורה מאובטחת וללא זיהוי אישי ככל הניתן.<br/>
-  <strong>5. זכויותיך:</strong> זכותך לעיין במידע שנשמר אודותיך, לבקש את תיקונו או את מחיקתו המוחלטת ממערכותינו בכל עת.`
-            }
-        };
-
         const LegalModal = ({ data, onClose }) => {
             if (!data) return null;
+            const dir = data.dir || 'rtl';
             return (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="modal-title">
                     <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-lg w-full max-h-[85vh] overflow-hidden shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-                            <h3 id="modal-title" className="font-bold text-lg text-gray-900 dark:text-white" dir="rtl">{data.title}</h3>
+                            <h3 id="modal-title" className="font-bold text-lg text-gray-900 dark:text-white" dir={dir}>{data.title}</h3>
                             <button onClick={onClose} aria-label="Close modal" className="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white focus:outline-none p-1 rounded-md hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
                                 <X size={20} />
                             </button>
                         </div>
-                        <div className="p-6 overflow-y-auto text-sm text-gray-600 dark:text-gray-300 space-y-2 leading-relaxed" dir="rtl" dangerouslySetInnerHTML={{ __html: data.content }}></div>
+                        <div className="p-6 overflow-y-auto text-sm text-gray-600 dark:text-gray-300 space-y-2 leading-relaxed" dir={dir} dangerouslySetInnerHTML={{ __html: data.content }}></div>
                     </div>
                 </div>
             );
         };
 
-        const LegalFooter = ({ t, openModal }) => (
+        const LegalFooter = ({ t, legalTexts, openModal }) => (
             <div className="mt-8 text-center text-sm font-medium text-gray-500 dark:text-gray-400 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 relative z-10 w-full pb-8 pt-4">
-                <button onClick={(e) => { e.preventDefault(); openModal(LEGAL_TEXTS.privacy); }} aria-label={t('privacyPolicy')} className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus:outline-none focus:underline">{t('privacyPolicy')}</button>
+                <button onClick={(e) => { e.preventDefault(); openModal({ ...legalTexts.privacy, dir: legalTexts.dir }); }} aria-label={t('privacyPolicy')} className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus:outline-none focus:underline">{t('privacyPolicy')}</button>
                 <span className="hidden sm:inline opacity-50">•</span>
-                <button onClick={(e) => { e.preventDefault(); openModal(LEGAL_TEXTS.terms); }} aria-label={t('termsOfUse')} className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus:outline-none focus:underline">{t('termsOfUse')}</button>
+                <button onClick={(e) => { e.preventDefault(); openModal({ ...legalTexts.terms, dir: legalTexts.dir }); }} aria-label={t('termsOfUse')} className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus:outline-none focus:underline">{t('termsOfUse')}</button>
                 <span className="hidden sm:inline opacity-50">•</span>
                 <span aria-label={t('version')}>{t('version')}</span>
                 <span className="hidden sm:inline opacity-50">•</span>
@@ -368,6 +349,7 @@ const X = ({size=18, className=""}) => <svg width={size} height={size} className
             const [fieldErrors, setFieldErrors] = useState({});
             
             const [modalContent, setModalContent] = useState(null);
+            const legalTexts = (window.MasterSplitterLegalTexts && window.MasterSplitterLegalTexts[lang]) || window.MasterSplitterLegalTexts.he;
 
             const setLang = (code) => {
                 if (i18n) {
@@ -443,10 +425,10 @@ const X = ({size=18, className=""}) => <svg width={size} height={size} className
                     if (res.ok && data.success) {
                         window.location.href = '/app';
                     } else {
-                        setErrorMsg(data.error || 'Network error');
+                        setErrorMsg(data.error || t('networkError'));
                     }
                 } catch (err) {
-                    setErrorMsg('Network error');
+                    setErrorMsg(t('networkError'));
                 }
             };
 
@@ -469,10 +451,10 @@ const X = ({size=18, className=""}) => <svg width={size} height={size} className
                     if (res.ok && data.success) {
                         setSuccessMsg(t(data.message));
                     } else {
-                        setErrorMsg(t(data.error) || 'Network error');
+                        setErrorMsg(t(data.error) || t('networkError'));
                     }
                 } catch (err) {
-                    setErrorMsg('Network error');
+                    setErrorMsg(t('networkError'));
                 }
             };
 
@@ -543,23 +525,10 @@ const X = ({size=18, className=""}) => <svg width={size} height={size} className
                                         <div className="flex items-center gap-2">
                                             <input type="checkbox" id="terms-agree" checked={termsAgreed} onChange={(e) => {setTermsAgreed(e.target.checked); setFieldErrors({...fieldErrors, terms: null})}} className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600 cursor-pointer mt-0.5" />
                                             <label htmlFor="terms-agree" className="text-sm text-gray-600 dark:text-gray-300 cursor-pointer select-none leading-tight flex flex-wrap gap-x-1 items-center">
-                                                {lang === 'he' ? (
-                                                    <>
-                                                        <span>אני מסכים/ה ל</span>
-                                                        <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setModalContent(LEGAL_TEXTS.terms); }} className="hover:text-blue-600 dark:hover:text-blue-400 underline transition-colors focus:outline-none">תנאי השימוש</button>
-                                                        <span>ול</span>
-                                                        <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setModalContent(LEGAL_TEXTS.privacy); }} className="hover:text-blue-600 dark:hover:text-blue-400 underline transition-colors focus:outline-none">מדיניות הפרטיות</button>
-                                                    </>
-                                                ) : lang === 'en' ? (
-                                                    <>
-                                                        <span>I agree to the</span>
-                                                        <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setModalContent(LEGAL_TEXTS.terms); }} className="hover:text-blue-600 dark:hover:text-blue-400 underline transition-colors focus:outline-none">Terms</button>
-                                                        <span>&</span>
-                                                        <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setModalContent(LEGAL_TEXTS.privacy); }} className="hover:text-blue-600 dark:hover:text-blue-400 underline transition-colors focus:outline-none">Privacy Policy</button>
-                                                    </>
-                                                ) : (
-                                                    <span>{t('termsAgree')}</span>
-                                                )}
+                                                <span>{t('agreePrefix')}</span>
+                                                <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setModalContent({ ...legalTexts.terms, dir: legalTexts.dir }); }} className="hover:text-blue-600 dark:hover:text-blue-400 underline transition-colors focus:outline-none">{t('termsOfUse')}</button>
+                                                <span>{t('agreeAnd')}</span>
+                                                <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setModalContent({ ...legalTexts.privacy, dir: legalTexts.dir }); }} className="hover:text-blue-600 dark:hover:text-blue-400 underline transition-colors focus:outline-none">{t('privacyPolicy')}</button>
                                             </label>
                                         </div>
                                         {fieldErrors.terms && <p className="text-red-500 text-xs font-medium px-1 flex items-center gap-1"><AlertCircle size={12}/> {fieldErrors.terms}</p>}
@@ -598,7 +567,7 @@ const X = ({size=18, className=""}) => <svg width={size} height={size} className
                             
                             <SettingsSelectors currentLang={lang} setLang={setLang} isDark={isDark} toggleTheme={toggleTheme} />
                         </div>
-                        <LegalFooter t={t} openModal={setModalContent} />
+                        <LegalFooter t={t} legalTexts={legalTexts} openModal={setModalContent} />
                     </div>
                     
                     <CookieBanner t={t} />
@@ -621,30 +590,30 @@ const X = ({size=18, className=""}) => <svg width={size} height={size} className
                         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
                     </svg>
                 </div>
-                <h3 class="text-xl font-bold text-center text-gray-900 dark:text-white mb-2" style="font-family: 'Heebo', sans-serif;">ברוך הבא! נשמח לכמה הרשאות:</h3>
-                
+                <h3 id="permissions-title" class="text-xl font-bold text-center text-gray-900 dark:text-white mb-2" style="font-family: 'Heebo', sans-serif;">ברוך הבא! נשמח לכמה הרשאות:</h3>
+
                 <div class="space-y-4 mt-6">
                     <div class="flex items-start gap-4 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-xl">
                         <div class="text-2xl mt-1">📇</div>
                         <div>
-                            <div class="font-bold text-gray-900 dark:text-white">אנשי קשר</div>
-                            <div class="text-sm text-gray-500 dark:text-gray-400 mt-1">להזמנת חברים בקלות.</div>
+                            <div id="permissions-contacts-title" class="font-bold text-gray-900 dark:text-white">אנשי קשר</div>
+                            <div id="permissions-contacts-desc" class="text-sm text-gray-500 dark:text-gray-400 mt-1">להזמנת חברים בקלות.</div>
                         </div>
                     </div>
-                    
+
                     <div class="flex items-start gap-4 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-xl">
                         <div class="text-2xl mt-1">🌗</div>
                         <div>
-                            <div class="font-bold text-gray-900 dark:text-white">תצוגה</div>
-                            <div class="text-sm text-gray-500 dark:text-gray-400 mt-1">להתאמת מצב כהה/בהיר.</div>
+                            <div id="permissions-display-title" class="font-bold text-gray-900 dark:text-white">תצוגה</div>
+                            <div id="permissions-display-desc" class="text-sm text-gray-500 dark:text-gray-400 mt-1">להתאמת מצב כהה/בהיר.</div>
                         </div>
                     </div>
                 </div>
             </div>
-            
+
             <div class="p-4 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
                 <button onclick="grantAppPermissions()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-colors shadow-lg shadow-indigo-600/20">
-                    אשר והמשך
+                    <span id="permissions-confirm-btn">אשר והמשך</span>
                 </button>
             </div>
         </div>
@@ -652,6 +621,15 @@ const X = ({size=18, className=""}) => <svg width={size} height={size} className
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            if (window.MasterSplitterI18n) {
+                const tt = window.MasterSplitterI18n.getTranslation;
+                document.getElementById('permissions-title').textContent = tt('permissionsTitle');
+                document.getElementById('permissions-contacts-title').textContent = tt('permissionsContactsTitle');
+                document.getElementById('permissions-contacts-desc').textContent = tt('permissionsContactsDesc');
+                document.getElementById('permissions-display-title').textContent = tt('permissionsDisplayTitle');
+                document.getElementById('permissions-display-desc').textContent = tt('permissionsDisplayDesc');
+                document.getElementById('permissions-confirm-btn').textContent = tt('permissionsConfirmBtn');
+            }
             if (localStorage.getItem('app_permissions_granted') !== 'true') {
                 const modal = document.getElementById('permissions-modal');
                 const content = document.getElementById('permissions-modal-content');
@@ -711,7 +689,15 @@ const X = ({size=18, className=""}) => <svg width={size} height={size} className
         (function () {
             // Localize the button label to match the chosen login-screen language.
             var lang = localStorage.getItem('lang') || 'he';
-            var labels = { he: 'צפו איך זה עובד', en: 'Watch how it works' };
+            var labels = {
+                he: 'צפו איך זה עובד',
+                en: 'Watch how it works',
+                es: 'Mira cómo funciona',
+                ru: 'Посмотрите, как это работает',
+                ar: 'شاهد كيف يعمل',
+                fr: 'Regardez comment ça marche',
+                zh: '观看使用演示'
+            };
             var el = document.getElementById('promo-btn-label');
             if (el) el.textContent = labels[lang] || labels.en;
         })();

@@ -3214,13 +3214,23 @@ def edit_expense(expense_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        # Verify ownership
-        cursor.execute("SELECT user_id FROM Expenses WHERE id = ?", (expense_id,))
+        # Verify permission: the payer, the group owner, or a group admin may edit
+        # (mirrors delete_expense so admins can manage any expense in their group).
+        cursor.execute("""
+            SELECT e.user_id, e.group_id, t.owner_id
+            FROM Expenses e JOIN Groups t ON e.group_id = t.id
+            WHERE e.id = ?
+        """, (expense_id,))
         expense = cursor.fetchone()
         if not expense:
             return jsonify({"error": "Expense not found"}), 404
-        if expense['user_id'] != session['user_id']:
-            return jsonify({"error": "Only the creator of the expense can edit it."}), 403
+        uid = session['user_id']
+        cursor.execute("SELECT COALESCE(is_admin, 0) AS is_admin FROM GroupMembers WHERE group_id = ? AND user_id = ?",
+                       (expense['group_id'], uid))
+        _mr = cursor.fetchone()
+        is_admin = bool(_mr['is_admin']) if _mr else False
+        if expense['user_id'] != uid and expense['owner_id'] != uid and not is_admin:
+            return jsonify({"error": "Only the creator or a group admin can edit it."}), 403
 
         updates = []
         params = []

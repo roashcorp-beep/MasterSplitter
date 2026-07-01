@@ -3859,7 +3859,13 @@ def ai_parse_expense():
         ],
         "generationConfig": {
             "temperature": 0.1,
-            "maxOutputTokens": 512
+            "maxOutputTokens": 800,
+            # gemini-2.5-flash is a reasoning model: with thinking enabled it spends the
+            # whole output budget on hidden "thinking" tokens and returns truncated JSON
+            # (finishReason=MAX_TOKENS), which is what caused "unparseable response".
+            "thinkingConfig": {"thinkingBudget": 0},
+            # Force a clean JSON object (no ```json fences / prose) so json.loads succeeds.
+            "responseMimeType": "application/json"
         }
     }
 
@@ -3879,7 +3885,9 @@ def ai_parse_expense():
 
         if resp.status_code != 200:
             logger.error(f"Gemini API error {resp.status_code}: {resp.text[:300]}")
-            return jsonify({"success": False, "error": f"שגיאה משרתי Google: {resp.status_code}. ייתכן שמפתח ה-API שגוי."}), 502
+            if resp.status_code == 429:
+                return jsonify({"success": False, "error": "שירות ה-AI עמוס כרגע (חריגה ממכסת השימוש היומית). נסה/י שוב מאוחר יותר."}), 429
+            return jsonify({"success": False, "error": f"שגיאה משרתי Google: {resp.status_code}."}), 502
 
         result = resp.json()
         # Extract text from Gemini response
@@ -3897,8 +3905,16 @@ def ai_parse_expense():
             ai_text = ai_text[:-3]
         ai_text = ai_text.strip()
 
-        # Parse the JSON
-        parsed = json.loads(ai_text)
+        # Parse the JSON. responseMimeType=application/json should give clean JSON, but
+        # fall back to the first {...} block in case any stray text slips through.
+        try:
+            parsed = json.loads(ai_text)
+        except json.JSONDecodeError:
+            import re as _re
+            m = _re.search(r'\{.*\}', ai_text, _re.DOTALL)
+            if not m:
+                raise
+            parsed = json.loads(m.group())
         logger.info(f"AI parsed expense: {parsed.get('description')} — {parsed.get('amount')}")
         return jsonify({"success": True, "parsed": parsed})
 
@@ -3934,7 +3950,9 @@ def ai_greeting():
     payload = {
         "system_instruction": {"parts": [{"text": system_instruction}]},
         "contents": [{"role": "user", "parts": [{"text": "Hello"}]}],
-        "generationConfig": {"temperature": 0.7, "maxOutputTokens": 60}
+        # thinkingBudget=0: without it gemini-2.5-flash burns the whole budget on hidden
+        # thinking and returns empty text, so this endpoint always fell back to the canned string.
+        "generationConfig": {"temperature": 0.7, "maxOutputTokens": 120, "thinkingConfig": {"thinkingBudget": 0}}
     }
     
     try:
@@ -3990,7 +4008,8 @@ def ai_tip():
     payload = {
         "system_instruction": {"parts": [{"text": system_instruction}]},
         "contents": [{"role": "user", "parts": [{"text": "Give me a financial tip."}]}],
-        "generationConfig": {"temperature": 0.8, "maxOutputTokens": 100}
+        # thinkingBudget=0 so gemini-2.5-flash spends the budget on the answer, not hidden thinking.
+        "generationConfig": {"temperature": 0.8, "maxOutputTokens": 200, "thinkingConfig": {"thinkingBudget": 0}}
     }
     
     try:

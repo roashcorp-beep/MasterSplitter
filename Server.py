@@ -3190,8 +3190,12 @@ def add_expense():
                     )
 
         conn.commit()
-        logger.info(f"Expense added: {currency} {amount} for group {group_id} by user {session['user_id']}")
-        log_activity(group_id, session['user_id'], 'expense_added', f"{description} — {currency} {amount}")
+        # Log the amount the user actually entered in its original currency, NOT the value
+        # converted into the group's base currency — otherwise the activity feed shows a
+        # mismatch like "EUR 2826" (30 EUR shown with the converted ALL amount).
+        logged_amount = original_amount if original_amount is not None else amount
+        logger.info(f"Expense added: {currency} {logged_amount} for group {group_id} by user {session['user_id']}")
+        log_activity(group_id, session['user_id'], 'expense_added', f"{description} — {currency} {logged_amount:g}")
         # Members personally charged in this expense (split participants) — their push
         # respects notify_expense_added; everyone else's respects notify_group_expense.
         charged = [r['user_id'] for r in cursor.execute(

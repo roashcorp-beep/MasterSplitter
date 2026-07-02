@@ -3254,15 +3254,19 @@ def edit_expense(expense_id):
             if new_currency not in ALLOWED_CURRENCIES:
                 new_currency = old_exp['currency']
 
-            # Get Group's base currency
-            cursor.execute("SELECT budget_type FROM Groups WHERE id = ?", (old_exp['group_id'],))
+            # Get the group's base currency from budgets_json — NOT budget_type. budget_type is
+            # just 'none'/'fixed', so json.loads(budget_type) always failed and silently
+            # defaulted every edit to ILS, re-converting (and corrupting) the stored amount on
+            # non-ILS groups. This mirrors add_expense.
+            cursor.execute("SELECT budgets_json FROM Groups WHERE id = ?", (old_exp['group_id'],))
             group_row = cursor.fetchone()
             group_base_currency = 'ILS'
-            if group_row and group_row['budget_type'] and group_row['budget_type'] != 'none':
+            if group_row and group_row['budgets_json']:
                 try:
-                    import json
-                    group_base_currency = json.loads(group_row['budget_type']).get('currency', 'ILS')
-                except:
+                    budgets = json.loads(group_row['budgets_json'])
+                    if isinstance(budgets, dict) and budgets.get('currency'):
+                        group_base_currency = budgets.get('currency')
+                except (ValueError, TypeError):
                     pass
             
             original_amount = None

@@ -2362,8 +2362,30 @@ function openEditExpenseModal(id, amount, desc, category, currency) {
             renderEditCustomSplits([]);
         }
         toggleEditSplitMode();
+
+        // Multi-payer contributions: prefill from the expense's existing contributions
+        // (contribution_orig is in the entry currency, matching the amount field).
+        const editContribToggle = document.getElementById('edit-contribs-mode-toggle');
+        if (editContribToggle) {
+            const hasContribs = expense && expense.has_contributions && Array.isArray(expense.splits)
+                && expense.splits.some(s => Number(s.contribution_orig) > 0);
+            if (hasContribs) {
+                const prefill = {};
+                expense.splits.forEach(s => {
+                    if (s.contribution_orig != null) prefill[String(s.user_id)] = Number(s.contribution_orig);
+                });
+                editContribToggle.checked = true;
+                document.getElementById('edit-contribs-container').style.display = 'flex';
+                renderEditContribInputs(prefill);
+            } else {
+                editContribToggle.checked = false;
+                document.getElementById('edit-contribs-container').style.display = 'none';
+                const cmsg = document.getElementById('edit-contribs-validation-msg');
+                if (cmsg) cmsg.style.display = 'none';
+            }
+        }
     }
-    
+
     document.getElementById('edit-expense-modal').classList.add('open');
 }
 
@@ -2371,6 +2393,9 @@ function toggleEditPill(el) {
     el.classList.toggle('selected');
     if (document.getElementById('edit-split-mode-toggle')?.checked) {
         renderEditCustomSplits();
+    }
+    if (document.getElementById('edit-contribs-mode-toggle')?.checked) {
+        renderEditContribInputs();
     }
 }
 
@@ -2513,17 +2538,34 @@ async function saveEditExpense() {
         }
     }
 
+    // Multi-payer contributions (who actually paid). Sent for non-personal expenses:
+    // a list when the toggle is on, or [] to clear any previously-set contributions.
+    let contributions = null;
+    if (!isPersonal) {
+        if (document.getElementById('edit-contribs-mode-toggle')?.checked) {
+            const cinputs = document.querySelectorAll('#edit-contribs-container input[data-contrib-uid]');
+            contributions = Array.from(cinputs).map(inp => ({
+                user_id: parseInt(inp.dataset.contribUid, 10),
+                amount: parseFloat(inp.value) || 0
+            })).filter(c => c.amount > 0);
+            const csum = contributions.reduce((a, c) => a + c.amount, 0);
+            if (contributions.length && Math.abs(csum - parseFloat(amount)) > 0.01) {
+                alert(typeof i18n === 'function' ? i18n('contribs_sum_error') : 'סכומי התשלום חייבים להסתכם לסכום הכולל');
+                return;
+            }
+        } else {
+            contributions = [];
+        }
+    }
+
+    const putBody = { amount: parseFloat(amount), description: desc, category, currency, splits: splits };
+    if (!isPersonal) putBody.contributions = contributions;
+
     try {
         const res = await fetch(`/api/expenses/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                amount: parseFloat(amount), 
-                description: desc, 
-                category, 
-                currency,
-                splits: splits 
-            })
+            body: JSON.stringify(putBody)
         });
         const data = await res.json();
         if (res.ok && data.success) {
@@ -3939,6 +3981,74 @@ function updateContribSum() {
     }
 }
 
+// ---- Multi-payer contributions in the EDIT modal (mirrors the add-form functions) ----
+function editSelectedParticipantIds() {
+    return Array.from(document.querySelectorAll('#edit-participants-container .participant-pill.selected')).map(p => p.dataset.id);
+}
+
+function toggleEditContribMode() {
+    const isOn = document.getElementById('edit-contribs-mode-toggle')?.checked;
+    const container = document.getElementById('edit-contribs-container');
+    const msg = document.getElementById('edit-contribs-validation-msg');
+    if (!container) return;
+    if (isOn) {
+        container.style.display = 'flex';
+        renderEditContribInputs();
+    } else {
+        container.style.display = 'none';
+        if (msg) msg.style.display = 'none';
+    }
+}
+
+function renderEditContribInputs(prefill) {
+    const container = document.getElementById('edit-contribs-container');
+    if (!container) return;
+    const parts = editSelectedParticipantIds();
+    if (!parts.length) {
+        container.innerHTML = `<div style="color:var(--text-muted);text-align:center;padding:8px;">${typeof i18n === 'function' ? (i18n('select_participants_first') || 'בחר משתתפים קודם') : 'בחר משתתפים קודם'}</div>`;
+        return;
+    }
+    const totalAmount = parseFloat(document.getElementById('edit-expense-amount')?.value || 0);
+    const equalShare = parts.length > 0 ? (totalAmount / parts.length) : 0;
+    const existing = {};
+    container.querySelectorAll('input[data-contrib-uid]').forEach(inp => { existing[inp.dataset.contribUid] = inp.value; });
+    container.innerHTML = parts.map(pid => {
+        const member = (typeof groupMembers !== 'undefined' ? groupMembers : []).find(m => String(m.id) === String(pid));
+        const name = member ? escapeHTML(member.name) : 'משתתף';
+        let val;
+        if (prefill && prefill[pid] !== undefined) val = prefill[pid];
+        else if (existing[pid] !== undefined) val = existing[pid];
+        else val = equalShare.toFixed(2);
+        return `<div class="split-input-row">
+            <span class="split-input-name">${name}</span>
+            <input type="number" data-contrib-uid="${pid}" class="split-input-field"
+                value="${val}" min="0" step="0.01" oninput="updateEditContribSum()">
+        </div>`;
+    }).join('');
+    updateEditContribSum();
+}
+
+function updateEditContribSum() {
+    const container = document.getElementById('edit-contribs-container');
+    const msg = document.getElementById('edit-contribs-validation-msg');
+    if (!container || !msg) return;
+    const totalAmount = parseFloat(document.getElementById('edit-expense-amount')?.value || 0);
+    const inputs = container.querySelectorAll('input[data-contrib-uid]');
+    const sum = Array.from(inputs).reduce((acc, inp) => acc + (parseFloat(inp.value) || 0), 0);
+    const diff = Math.abs(sum - totalAmount);
+    const currency = document.getElementById('edit-expense-currency')?.value || 'ILS';
+    const sym = getCurrencySymbol(currency);
+    if (diff < 0.01) {
+        msg.className = 'split-validation-msg valid';
+        msg.textContent = 'הסכומים תואמים! ✓';
+        msg.style.display = 'block';
+    } else {
+        msg.className = 'split-validation-msg invalid';
+        msg.textContent = `${sym}${sum.toFixed(2)} / ${sym}${totalAmount.toFixed(2)} — ${sum > totalAmount ? 'עודף' : 'חסר'} ${sym}${Math.abs(diff).toFixed(2)}`;
+        msg.style.display = 'block';
+    }
+}
+
 function toggleSplitMode() {
     const container = document.getElementById('custom-splits-container');
     const msg = document.getElementById('split-validation-msg');
@@ -4183,6 +4293,8 @@ function closeActivityDrawer() {
     document.getElementById('menu-overlay')?.classList.remove('open');
 }
 
+let _activityData = [];
+
 async function fetchActivity() {
     if (!currentGroupId) return;
     const container = document.getElementById('activity-list');
@@ -4191,37 +4303,68 @@ async function fetchActivity() {
     try {
         const res = await fetch(`/api/activity/${currentGroupId}`);
         if (!res.ok) return;
-        const data = await res.json();
-
-        if (!data || data.length === 0) {
-            const noAct = typeof i18n === 'function' ? i18n('activity_no_data') : 'אין פעילות עדיין';
-            container.innerHTML = `<div class="loading-state">${noAct}</div>`;
-            return;
-        }
-
-        container.innerHTML = data.map(item => {
-            const dateStr = new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const actionText = typeof i18n === 'function' ? (i18n(`activity_${item.action}`) || item.action) : item.action;
-            let detailText = item.detail ? escapeHTML(item.detail) : '';
-            if (detailText) {
-                const sym = getGroupCurrencySymbol();
-                detailText = detailText.replace(/₪|\$/g, sym);
-                detailText = ` (${detailText})`;
-            }
-            return `
-                <div class="activity-item">
-                    <div class="activity-icon-dot"></div>
-                    <div class="activity-content">
-                        <strong>${escapeHTML(item.user_name)}</strong> ${actionText}${detailText}
-                        <span class="activity-time">${dateStr}</span>
-                    </div>
-                </div>
-            `;
-        }).join('');
+        _activityData = (await res.json()) || [];
+        populateActivityUserFilter();
+        renderActivity();
     } catch (e) {
         console.error('Fetch activity error:', e);
         container.innerHTML = '<div class="loading-state">Error loading activity.</div>';
     }
+}
+
+// Fill the "filter by user" dropdown with the distinct users present in the feed.
+function populateActivityUserFilter() {
+    const sel = document.getElementById('activity-user-filter');
+    if (!sel) return;
+    const prev = sel.value;
+    const names = [...new Set(_activityData.map(i => i.user_name).filter(Boolean))].sort();
+    const allLabel = typeof i18n === 'function' ? (i18n('activity_all_users') || 'All users') : 'All users';
+    sel.innerHTML = `<option value="">${escapeHTML(allLabel)}</option>` +
+        names.map(n => `<option value="${escapeHTML(n)}">${escapeHTML(n)}</option>`).join('');
+    if (prev && names.includes(prev)) sel.value = prev;
+}
+
+// Render the (optionally filtered) activity feed. Search matches user, action and detail.
+function renderActivity() {
+    const container = document.getElementById('activity-list');
+    if (!container) return;
+    const q = (document.getElementById('activity-search')?.value || '').trim().toLowerCase();
+    const userFilter = document.getElementById('activity-user-filter')?.value || '';
+
+    let items = _activityData;
+    if (userFilter) items = items.filter(i => i.user_name === userFilter);
+    if (q) {
+        items = items.filter(i => {
+            const actionText = typeof i18n === 'function' ? (i18n(`activity_${i.action}`) || i.action) : i.action;
+            return (`${i.user_name || ''} ${actionText} ${i.detail || ''}`).toLowerCase().includes(q);
+        });
+    }
+
+    if (!items.length) {
+        const noAct = typeof i18n === 'function' ? i18n('activity_no_data') : 'אין פעילות עדיין';
+        container.innerHTML = `<div class="loading-state">${noAct}</div>`;
+        return;
+    }
+
+    container.innerHTML = items.map(item => {
+        const dateStr = new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const actionText = typeof i18n === 'function' ? (i18n(`activity_${item.action}`) || item.action) : item.action;
+        let detailText = item.detail ? escapeHTML(item.detail) : '';
+        if (detailText) {
+            const sym = getGroupCurrencySymbol();
+            detailText = detailText.replace(/₪|\$/g, sym);
+            detailText = ` (${detailText})`;
+        }
+        return `
+            <div class="activity-item">
+                <div class="activity-icon-dot"></div>
+                <div class="activity-content">
+                    <strong>${escapeHTML(item.user_name)}</strong> ${actionText}${detailText}
+                    <span class="activity-time">${dateStr}</span>
+                </div>
+            </div>
+        `;
+    }).join('');
 }
 
 // Call initTheme on load

@@ -3347,8 +3347,36 @@ def edit_expense(expense_id):
                             "INSERT INTO ExpenseSplits (expense_id, user_id, amount) VALUES (?, ?, ?)",
                             (expense_id, s_uid, s_amt)
                         )
-                        
-        if updates or 'splits' in data:
+
+        # Multi-payer contributions (how much each person actually paid). When the key is
+        # present we replace them; an empty list clears them. Amounts arrive in the entry
+        # currency and are converted to the group's base like add_expense.
+        if 'contributions' in data:
+            cursor.execute("DELETE FROM ExpenseContributions WHERE expense_id = ?", (expense_id,))
+            contributions = data['contributions']
+            if isinstance(contributions, list) and len(contributions) > 0:
+                valid_contribs = [c for c in contributions if float(c.get('amount', 0)) > 0]
+                raw_amount = float(data.get('amount')) if 'amount' in data else (old_exp['original_amount'] if old_exp['original_amount'] else old_exp['amount'])
+                contrib_total = sum(float(c.get('amount', 0)) for c in valid_contribs)
+                if valid_contribs and abs(contrib_total - raw_amount) > 0.02:
+                    conn.rollback()
+                    conn.close()
+                    return jsonify({"error": "סכומי התשלום חייבים להסתכם לסכום הכולל."}), 400
+                c_final = final_amount if ('amount' in data or 'currency' in data) else old_exp['amount']
+                c_orig = original_amount if ('amount' in data or 'currency' in data) else old_exp['original_amount']
+                for c in valid_contribs:
+                    cu = int(c['user_id'])
+                    camt = float(c['amount'])
+                    if c_orig is not None and c_final and c_orig:
+                        c_base = round(camt * (c_final / c_orig), 4)
+                    else:
+                        c_base = camt
+                    cursor.execute(
+                        "INSERT INTO ExpenseContributions (expense_id, user_id, amount) VALUES (?, ?, ?)",
+                        (expense_id, cu, c_base)
+                    )
+
+        if updates or 'splits' in data or 'contributions' in data:
             conn.commit()
             logger.info(f"Expense {expense_id} updated by user {session['user_id']}")
             # Log activity

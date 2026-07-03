@@ -448,6 +448,17 @@
                 <label style="margin-top:16px;" data-i18n="expense_payer">מי שילם את ההוצאה?</label>
                 <div class="participants-pills" id="edit-payer-container"></div>
 
+                <!-- Contributions Mode Toggle (multi-payer): how much each person actually paid -->
+                <div style="margin-top:16px;">
+                    <label class="split-toggle-label" style="width:100%; display:flex; align-items:center; justify-content:space-between;">
+                        <input type="checkbox" id="edit-contribs-mode-toggle" onchange="toggleEditContribMode()">
+                        <span class="split-toggle-slider"></span>
+                        <span class="split-toggle-text" data-i18n="contribs_mode">תשלום משותף 💰</span>
+                    </label>
+                </div>
+                <div id="edit-contribs-container" class="custom-splits-container" style="display:none;"></div>
+                <div id="edit-contribs-validation-msg" class="split-validation-msg" style="display:none;"></div>
+
                 <label style="margin-top:16px;" data-i18n="expense_for_who">על מי מתחלקת ההוצאה? (מי נהנה)</label>
                 <div class="participants-pills" id="edit-participants-container"></div>
 
@@ -490,8 +501,8 @@
         </button>
     </div>
 
-    <script src="{{ url_for('static', filename='js/translations.js') }}?v=4.11"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=4.36"></script>
+    <script src="{{ url_for('static', filename='js/translations.js') }}?v=4.12"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=4.38"></script>
     <script>
         function checkCookieConsent() {
             if (!localStorage.getItem('cookieConsent')) {
@@ -568,6 +579,14 @@
         <div class="menu-header">
             <h3 data-i18n="activity_title">פעילות</h3>
             <button class="modal-close-x" onclick="closeActivityDrawer()" style="background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.25);color:#fff;"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+        <div class="activity-controls" style="padding: 14px 20px 0; display:flex; gap:8px; flex-direction:column;">
+            <input type="text" id="activity-search" data-i18n="activity_search_ph" placeholder="חיפוש..." oninput="renderActivity()"
+                   style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--border); background:var(--surface-card); color:var(--text-main); font-size:14px; box-sizing:border-box;" />
+            <select id="activity-user-filter" onchange="renderActivity()"
+                    style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--border); background:var(--surface-card); color:var(--text-main); font-size:14px; box-sizing:border-box;">
+                <option value="" data-i18n="activity_all_users">כל המשתמשים</option>
+            </select>
         </div>
         <div id="activity-list" class="activity-timeline" style="padding: 20px;">
             <div class="loading-state" data-i18n="loading">טוען...</div>

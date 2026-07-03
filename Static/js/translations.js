@@ -195,6 +195,8 @@ const translations = {
         "currency_label": "מטבע",
         "expense_category": "קטגוריה",
         "expense_for_who": "עבור מי?",
+        "select_all": "סמן את כולם",
+        "deselect_all": "הסר את כולם",
         "expense_btn_save": "שמור הוצאה",
         "expense_split_detail": "פירוט חלוקה",
         
@@ -639,6 +641,8 @@ const translations = {
         "currency_label": "Currency",
         "expense_category": "Category",
         "expense_for_who": "For whom?",
+        "select_all": "Select all",
+        "deselect_all": "Remove all",
         "expense_btn_save": "Save Expense",
         "expense_split_detail": "Split Details",
         
@@ -1016,6 +1020,8 @@ const translations = {
         "currency_label": "Moneda",
         "expense_category": "Categoría",
         "expense_for_who": "¿Para quién?",
+        "select_all": "Seleccionar todos",
+        "deselect_all": "Quitar todos",
         "expense_btn_save": "Guardar gasto",
         "expense_split_detail": "Detalle de división",
 
@@ -1376,6 +1382,8 @@ const translations = {
         "currency_label": "Валюта",
         "expense_category": "Категория",
         "expense_for_who": "Для кого?",
+        "select_all": "Выбрать всех",
+        "deselect_all": "Убрать всех",
         "expense_btn_save": "Сохранить расход",
         "expense_split_detail": "Детали разделения",
 
@@ -1736,6 +1744,8 @@ const translations = {
         "currency_label": "العملة",
         "expense_category": "الفئة",
         "expense_for_who": "لمن؟",
+        "select_all": "تحديد الكل",
+        "deselect_all": "إلغاء تحديد الكل",
         "expense_btn_save": "حفظ المصروف",
         "expense_split_detail": "تفاصيل التقسيم",
 
@@ -2096,6 +2106,8 @@ const translations = {
         "currency_label": "Devise",
         "expense_category": "Catégorie",
         "expense_for_who": "Pour qui ?",
+        "select_all": "Tout sélectionner",
+        "deselect_all": "Tout retirer",
         "expense_btn_save": "Enregistrer la dépense",
         "expense_split_detail": "Détails du partage",
 
@@ -2456,6 +2468,8 @@ const translations = {
         "currency_label": "货币",
         "expense_category": "类别",
         "expense_for_who": "为谁？",
+        "select_all": "全选",
+        "deselect_all": "取消全选",
         "expense_btn_save": "保存支出",
         "expense_split_detail": "分摊详情",
 

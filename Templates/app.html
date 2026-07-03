@@ -316,7 +316,11 @@
                     <div id="contribs-container" class="custom-splits-container" style="display:none;"></div>
                     <div id="contribs-validation-msg" class="split-validation-msg" style="display:none;"></div>
 
-                    <label style="margin-top:16px;" data-i18n="expense_for_who">על מי מתחלקת ההוצאה? (מי נהנה)</label>
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-top:16px;">
+                        <label data-i18n="expense_for_who">על מי מתחלקת ההוצאה? (מי נהנה)</label>
+                        <button type="button" id="select-all-participants-btn" onclick="toggleAllParticipants()"
+                            style="background:none; border:1px solid var(--border); color:var(--text-main); font-size:0.8rem; font-weight:600; cursor:pointer; padding:4px 10px; border-radius:8px; white-space:nowrap;">הסר את כולם</button>
+                    </div>
 
                     <div class="participants-pills" id="participants-container"></div>
 
@@ -501,8 +505,8 @@
         </button>
     </div>
 
-    <script src="{{ url_for('static', filename='js/translations.js') }}?v=4.12"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=4.38"></script>
+    <script src="{{ url_for('static', filename='js/translations.js') }}?v=4.13"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=4.39"></script>
     <script>
         function checkCookieConsent() {
             if (!localStorage.getItem('cookieConsent')) {

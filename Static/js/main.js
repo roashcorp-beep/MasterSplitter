@@ -1588,8 +1588,9 @@ function renderParticipants() {
             <span class="pill-check">✓</span>
         </div>`;
     }).join('');
-    
+
     setupLongPress(container);
+    updateSelectAllBtn();
 }
 
 function setPayer(el, event) {
@@ -1630,6 +1631,7 @@ function setupLongPress(container) {
 
 function togglePill(el) {
     el.classList.toggle('selected');
+    updateSelectAllBtn();
     if (document.getElementById('split-mode-toggle')?.checked) {
         renderCustomSplits();
     }
@@ -1641,6 +1643,28 @@ function togglePill(el) {
 function getSelectedParticipants() {
     return Array.from(document.querySelectorAll('#participants-container .participant-pill.selected'))
         .map(pill => pill.dataset.id);
+}
+
+// "Select all / Remove all" toggle for the add-expense participants ("for who") section.
+function toggleAllParticipants() {
+    const pills = document.querySelectorAll('#participants-container .participant-pill');
+    if (!pills.length) return;
+    const allSelected = Array.from(pills).every(p => p.classList.contains('selected'));
+    pills.forEach(p => p.classList.toggle('selected', !allSelected));
+    updateSelectAllBtn();
+    // Keep dependent UIs in sync, like togglePill does.
+    if (document.getElementById('split-mode-toggle')?.checked) renderCustomSplits();
+    if (document.getElementById('contribs-mode-toggle')?.checked) renderContribInputs();
+}
+
+function updateSelectAllBtn() {
+    const btn = document.getElementById('select-all-participants-btn');
+    if (!btn) return;
+    const pills = document.querySelectorAll('#participants-container .participant-pill');
+    const allSelected = pills.length > 0 && Array.from(pills).every(p => p.classList.contains('selected'));
+    btn.textContent = allSelected
+        ? (typeof i18n === 'function' ? (i18n('deselect_all') || 'הסר את כולם') : 'הסר את כולם')
+        : (typeof i18n === 'function' ? (i18n('select_all') || 'סמן את כולם') : 'סמן את כולם');
 }
 
 // =====================
@@ -2300,9 +2324,9 @@ function openEditExpenseModal(id, amount, desc, category, currency) {
         
         const editPayerContainer = document.getElementById('edit-payer-container');
         if (editPayerContainer && typeof groupMembers !== 'undefined') {
-            if (typeof window.currentEditPayerId === 'undefined') {
-                window.currentEditPayerId = expense ? String(expense.user_id) : (window.currentUser ? String(window.currentUser.id) : '');
-            }
+            // Always reset to THIS expense's payer, so opening a different expense doesn't
+            // keep a stale payer from a previous edit.
+            window.currentEditPayerId = expense ? String(expense.user_id) : (window.currentUser ? String(window.currentUser.id) : '');
             window.renderEditPayer = function() {
                 editPayerContainer.innerHTML = groupMembers.map(m => {
                     const isSelected = String(m.id) === String(window.currentEditPayerId);
